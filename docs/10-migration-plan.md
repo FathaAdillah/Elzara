@@ -215,7 +215,7 @@ Dua kelompok yang tidak boleh dicampur, karena dipakai di tempat berbeda:
 
 | Kelompok | Folder | Isi | Dijalankan di |
 |---|---|---|---|
-| **Reference** (wajib produksi) | `database/seeders/Reference/` | data yang membuat aplikasi bisa hidup | `--seed` saat deploy pertama, idempoten |
+| **Reference** (wajib produksi) | `database/seeders/Reference/` | data yang membuat aplikasi bisa hidup | `db:seed --class=ReferenceSeeder` saat deploy pertama, idempoten |
 | **Demo** (dev/staging saja) | `database/seeders/Demo/` | katalog fiktif, order contoh | dev & staging; **tidak pernah** prod |
 
 Isi Reference (semuanya berasal dari Doc 09 + Doc 02, bukan salinan siapa pun):
@@ -233,7 +233,7 @@ Seeder Reference harus **idempoten** (`upsert` pada kunci alamiah, bukan `insert
 
 Seeder Demo (Doc 03 task 0.8): 10 produk fiktif **buatan sendiri** dengan nama karakter/IP tak terdaftar, 2 batch (satu buka, satu tutup), 1 kuotasi, voucher, drop, ulasan termoderasi, dan satu customer + satu staff demo. Semua gambar dari `assets/demo/*.svg` orisinal berlisensi bebas. Tidak ada foto, nama merek, atau teks dari situs mana pun.
 
-Perintah yang tersedia (Makefile Sprint 0): `make db fresh` = `migrate:fresh --seed=ReferenceSeeder`; `make db demo` = fresh + Reference + Demo. CI hanya memakai yang pertama, kecuali test yang memang butuh data demo.
+Perintah resmi (Plan Sprint 0 D-S0-5: composer scripts, Makefile hanya pembungkus): `composer db:fresh` = `migrate:fresh` + `db:seed --class=ReferenceSeeder`; `composer db:demo` = yang pertama lalu `db:seed --class=DemoSeeder`. CI hanya memakai yang pertama, kecuali test yang memang butuh data demo. (`migrate:fresh --seed` menjalankan `DatabaseSeeder`, jadi ia harus tetap benar di kedua kelompok environment — ia satu-satunya bentuk yang dipakai pipeline.)
 
 ---
 
@@ -247,9 +247,9 @@ Perintah yang tersedia (Makefile Sprint 0): `make db fresh` = `migrate:fresh --s
 
 **Rollback ke rilis sebelumnya:** prioritasnya selalu **deploy ulang kode**, bukan `migrate:rollback`. Alasannya: M-4/M-13 dirancang supaya kode lama tetap hidup dengan skema baru. `rollback` hanya untuk migrasi yang jelas belum dipakai kode apa pun.
 
-**Kalau sudah telanjur perlu `--rollback`:** `php artisan migrate:rollback --step-to=<nomor>` memakai `NNNN` kita, misalnya `--step-to=844`. Itu satu-satunya bentuk perintah rollback yang boleh dipakai di bersama; `--step=N` berdasarkan jumlah batch dilarang, karena batch tidak sejalan dengan nomor (lihat catatan §4).
+**Kalau benar-benar harus mundur skema:** Laravel tidak punya `--step-to` (tidak ada perintah yang mengembalikan sampai nomor tertentu). Urutan yang sah: `php artisan migrate:status` untuk melihat migrasi yang sudah jalan dan menghitung berapa yang harus dibatalkan, lalu `migrate:rollback --step=N` dengan N hasil hitung itu — dan hanya selama N migrasi paling belakang belum dipakai kode mana pun. Kalau datanya sudah bersentuhan, jangan mundur: restore dump pra-rilis (§9 langkah 1). Kolom `batch` tidak bisa dipakai sebagai penanda karena urutan kita adalah `NNNN`, bukan batch (§4).
 
-**Recovery灾难:** restore `pg_dump` → `migrate --force` (tidak ada yang jalan, karena `migrations` ikut ter-restore) → verifikasi C6 (§10). Latihan restore wajib dilakukan satu kali di Sprint 0 dan satu kali sebelum launch (Doc 03 §8) dan hasilnya didokumentasikan sebagai bukti, bukan niat.
+**Pemulihan bencana:** restore `pg_dump` → `migrate --force` (tidak ada yang jalan, karena `migrations` ikut ter-restore) → verifikasi C6 (§10). Latihan restore wajib dilakukan satu kali di Sprint 0 dan satu kali sebelum launch (Doc 03 §8) dan hasilnya didokumentasikan sebagai bukti, bukan niat.
 
 ---
 
@@ -265,7 +265,7 @@ Semuanya test nyata (`Tests/Schema`), jadi ia jalan di `make test` lokal maupun 
 | C4 | tidak ada `float`/`double`/`decimal` untuk kolom uang; tidak ada `CREATE TYPE`/`ADD VALUE` | melanggar S-1/S-2 |
 | C5 | untuk setiap file migrasi: `migrate` lalu `rollback --step=1` sukses, kecuali file yang terdaftar di daftar hitam irreversibel (M-6) dengan alasan | `down()` tidak benar |
 | C6 | **drift check**: dump `information_schema` + constraint + index dari DB hasil migrasi dibandingkan dengan berkas referensi `docs/schema.snapshot.sql`. Beda = PR harus menyertai pembaruan Doc 09 **dan** snapshot | kode jalan tapi Doc 09 tidak mencerminkan kenyataan |
-| C7 | `migrate:fresh --seed=ReferenceSeeder` lalu dijalankan dua kali → tidak ada perubahan baris (idempoten, §8) | seeder akan merusak data admin saat deploy ulang |
+| C7 | `db:seed --class=ReferenceSeeder` dijalankan dua kali berturut-turut → tidak ada perubahan baris (idempoten, §8) | seeder akan merusak data admin saat deploy ulang |
 | C8 | setiap migrasi punya header komentar `Modul/Sprint/Tier/Expand` (§2) | peninjau tidak bisa membuktikan M-9 |
 
 Snapshot di C6 dihasilkan dengan `make db snapshot` dan ikut di-commit; diff-nya muncul di PR sebagai review material, jadi perubahan skema selalu terlihat sebagai perubahan teks, bukan kejadian tak kasat mata.
@@ -283,7 +283,7 @@ Snapshot di C6 dihasilkan dengan `make db snapshot` dan ikut di-commit; diff-nya
 7. Indeks besar memakai `CONCURRENTLY` di file sendiri (M-8).
 8. Doc 09 diperbarui pada tabel yang sama, snapshot C6 di-regenerate, entri changelog dibuat.
 9. Kalau migrasi ini menyentuh invoice/payment: tidak ada jalur kode yang mengubah nominal di luar Command Payments/Billing (B5).
-10. Rollback didokumentasikan dalam satu kalimat di changelog rilis: "aman, tinggal deploy ulang kode" **atau** "perlu `--step-to=NNNN` karena …".
+10. Rollback didokumentasikan dalam satu kalimat di changelog rilis: "aman, tinggal deploy ulang kode" **atau** "perlu `migrate:rollback --step=N` (N dari `migrate:status`) karena …" **atau** "restore `pre-<release>.dump`".
 
 ---
 
