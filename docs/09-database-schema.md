@@ -1819,7 +1819,8 @@ activity_log                              [Audit]         baru (Doc 11 §4.4 F) 
   description text NOT NULL              ringkasan perubahan (created/updated/deleted)
   subject_type varchar(120), subject_id bigint     morph model yang berubah
   causer_type varchar(120), causer_id bigint       morph pelaku (user/admin/sistem)
-  properties jsonb                       atribut perubahan otomatis paket (before/after)
+  properties jsonb                       metadata tambahan aktivitas paket
+  attribute_changes jsonb NULL           perubahan atribut model oleh Activitylog 5.1.5 (0054); baris lama dapat tetap NULL
   event varchar(64)                      created | updated | deleted | ...
   batch_uuid uuid                        pengelompokan satu operasi batch
   --

@@ -179,7 +179,7 @@ Blueprint §17 memberi **Phase**, bukan Sprint; ini jembatan angkanya. Doc 11 §
 
 ### 4.3 Alokasi basename Sprint 0 untuk baseline baru
 
-Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasikan sub-band `0040–0069`, dengan Identity di `0040–0048` dan Audit di `0049–0050`. Sisa sub-band `0051–0069` tetap dicadangkan. Tabel fondasi berikutnya memakai `0070+` supaya FK ke `users` sudah tersedia. Tabel berikut mencatat berkas yang ada di working tree. Eksekusi PostgreSQL baseline baru masih perlu dibuktikan.
+Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasikan sub-band `0040–0069`. Identity memakai `0040–0048` dan memiliki reservasi `0051–0053`. Audit memakai `0049–0050` dan `0054`. Rentang `0055–0069` tetap dicadangkan. Tabel fondasi berikutnya memakai `0070+` supaya FK ke `users` sudah tersedia. Tabel berikut mencatat berkas yang ada di working tree.
 
 | Nomor | Basename | Isi | Level |
 |---|---|---|---|
@@ -197,6 +197,7 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 | 0048 | `0048_Identity_create_staff_2fa_secrets_table.php` | staff_2fa_secrets; rahasia dan recovery 2FA | L2 |
 | 0049 | `0049_Audit_create_audit_logs_table.php` | audit_logs append-only dengan reason dan request_id | L2 |
 | 0050 | `0050_Audit_create_activity_log_table.php` | activity_log dengan morph paket; tanpa FK | L0 |
+| 0054 | `0054_Audit_add_attribute_changes_to_activity_log.php` | tambah `attribute_changes jsonb NULL` untuk Activitylog 5.1.5 | L0 |
 | 0070 | `0070_Identity_create_addresses_table.php` | addresses | L2 |
 | 0071 | `0071_Identity_create_customer_profiles_table.php` | customer_profiles | L2 |
 | 0072 | `0072_Identity_create_user_consents_table.php` | user_consents | L2 |
@@ -209,6 +210,7 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 
 - `0010` mendahului `0042` untuk FK media. `0040/0041` mendahului pivot `0043–0045`. `0042` mendahului FK Identity, Audit, Content, Settings, dan FK reliability `0079`. Tes C3 di bagian 10 memverifikasi urutan berdasarkan FK.
 - Bentuk tabel paket mengikuti keputusan proyek dan ditulis di bawah modul yang memiliki tabel (bagian 5.7). Kolom morph tetap memakai `model_type` dan `model_id` sesuai Doc 11 bagian 4.4 B.
+- Migrasi maju `0054` menambah kolom nullable tanpa backfill atau penulisan ulang data lama. `0050` tetap beku. Perubahan ini hanya berlaku pada `activity_log`; jejak aksi sensitif tetap berada di `audit_logs`.
 - `0077` disediakan untuk `settings`. Pembuatan berkas tertunda sampai pemilik memutuskan konflik `settings.updated_by`. Doc 09 bagian 15 menetapkan FK ke `users(id)` dengan `NOT NULL`, sedangkan plan Sprint 0 Task 11 dan seeder Task 15 mengasumsikan nilai `NULL` saat bootstrap. Selaraskan keputusan skema dan cara seeding sebelum menambah migrasi.
 - Untuk basis data yang sudah berisi data, gunakan urutan expand, backfill, validasi, dan contract di bagian 6.2. Alokasi dan berkas di atas adalah baseline baru. Rollout atas basis data lama belum diverifikasi.
 
