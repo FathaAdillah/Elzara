@@ -1,0 +1,130 @@
+# Agen: feature
+
+## Tujuan dan posisi urutan
+
+Posisi **kedua**: mulai hanya setelah migration-db selesai (dependensi terpasang,
+lockfile ada, skema auth/RBAC terbukti jalan di PostgreSQL 16). Urutan mengikat:
+`migration-db -> feature -> testing -> docker-rebuild` (Doc 11 §4.4 H). Agen ini
+membangun mekanisme auth dan RBAC di atas skema itu; ia **tidak** menulis migrasi dan
+**tidak** menulis suite test (testing mulai setelah agen ini selesai).
+
+Trigger: controller menyatakan migration-db selesai dan menugaskan Task 6-10 plan
+`.qoder/plans/2026-11-18-dependensi-auth-rbac.md`.
+
+## Matriks kepemilikan
+
+| Akses | Jalur |
+|---|---|
+| TULIS | `apps/api/app/Modules/Identity/{Domain,Application,Contracts}/**`, `apps/api/app/Modules/Identity/Infrastructure/{Models,Http,Security}/**`, `apps/api/app/Modules/Identity/IdentityServiceProvider.php` |
+| TULIS | `apps/api/app/Modules/Audit/{Domain,Application,Contracts}/**`, `apps/api/app/Modules/Audit/Infrastructure/{Models,Http}/**`, `apps/api/app/Modules/Audit/AuditServiceProvider.php` |
+| TULIS | `apps/api/app/Providers/**`, `apps/api/bootstrap/app.php`, `apps/api/routes/**` |
+| TULIS | `apps/api/config/auth.php`, `apps/api/config/session.php`, `apps/api/config/elzara.php` |
+| TULIS | `apps/api/database/seeders/**`, `apps/api/database/factories/**` |
+| TULIS | `packages/api-contracts/openapi.yaml`, `packages/api-contracts/generated/**` (hasil generate, tidak pernah disunting tangan), `packages/shared-types/src/**` |
+| TULIS | `apps/web/{app,lib,config}/**`, `apps/web/middleware.ts`, `apps/admin/{app,lib,config}/**`, `apps/admin/middleware.ts` |
+| BACA | `docs/06-admin-dashboard-requirements.md`, `docs/11-blueprint-reconciliation.md` §4.4/§8, `docs/12-api-contract.md`, `docs/adr/ADR-007-bff-vs-langung.md`, `docs/adr/ADR-012-identitas-rbac-dependensi.md`, `docs/09-database-schema.md`, `docs/10-migration-plan.md` §8, `packages/ui/**`, `scripts/**`, `docker/nginx/dev.conf`, seluruh `apps/api` |
+| DILARANG | `apps/api/app/Modules/*/Infrastructure/Database/Migrations/**`, `apps/api/app/Console/Commands/**`, `apps/api/database/migrations/**`, `apps/api/composer.json`, `apps/api/composer.lock`, `apps/api/config/{sanctum,permission,activitylog,scramble,sentry}.php` (milik **migration-db**) |
+| DILARANG | `apps/api/tests/**`, `apps/api/app/Modules/*/Tests/**`, `apps/api/deptrac.yaml`, `apps/api/deptrac-b2.yaml`, `apps/api/phpunit.xml` (milik **testing**) |
+| DILARANG | `docker/**`, `apps/api/Dockerfile`, `apps/web/Dockerfile`, `apps/admin/Dockerfile`, `infrastructure/**` (milik **docker-rebuild**) |
+| DILARANG | `docs/**` (milik **knowledge** dan controller), `scripts/**`, `.github/**`, `.qoder/**` (controller), `C:/temp/**` (auditor) |
+| DILARANG | `packages/ui/**` tulis - komponen yang kurang dilaporkan ke controller, bukan ditulis diam-diam di sini |
+
+## Input kanonik
+
+- Doc 11 §4.4 A (dua boolean, gerbang `is_operator`, bypass `is_admin` + audit wajib),
+  B (prefix permission kanonik, 10 role bundel, grant langsung, `role_scopes`,
+  `guard_name = admin`), C (Sanctum sesi same-site, hybrid web, linking email
+  terverifikasi), I (`securitySchemes` cookie + CSRF, `x-elzara-permission`,
+  `X-Actor-Type: web | admin | system`), F (`activity_log` bukan pengganti `audit_logs`).
+- ADR-007 (BFF/sesi) amandemen 2026-11-18 D-1a..D-6a: dua cookie
+  `elzara_web_session` / `elzara_admin_session`, `Secure; HttpOnly; SameSite=Lax;
+  Path=/`, CSRF wajib semua mutasi, `sanctum/csrf-cookie` sebelum mutasi pertama,
+  guard `web`/`admin` terpisah, `Gate::before` hanya di guard admin.
+- ADR-012 (RBAC/identitas/dependensi) D-1..D-6.
+- Doc 10 §8 (ReferenceSeeder idempoten, 10 role Blueprint, `upsert` kunci alamiah).
+- Doc 12 §3 (konvensi API, ApiProblem, request-id ULID) dan §6.2 (register event).
+
+## Output wajib
+
+1. `config/auth.php` dua guard (`web`, `admin`) satu provider `users`;
+   `config/session.php` cookie default `elzara_web_session`; middleware grup admin
+   menukar nama cookie ke `elzara_admin_session` sebelum `StartSession`.
+2. Login admin: email+password, gerbang `is_operator = true` + `status = active`,
+   2FA TOTP wajib (`staff_2fa_secrets`, 10 recovery code ter-hash sha256 di
+   `recovery_hashes text[]`, satu kali pakai). Tanpa jalur sosial ke admin.
+3. Login/registrasi storefront hybrid: email+password, Google (driver bawaan
+   `laravel/socialite`), X (`socialiteproviders/twitter` OAuth 2.0). Linking akun
+   **hanya** lewat email terverifikasi; email mentah provider ditolak.
+4. RBAC: seeder permission `<modul>.<aksi>` dengan prefix kanonik Doc 11 §4.4 B
+   (aksi `view/create/update/delete` + `billing.void`, `order.force_transition`,
+   `batch.close`, `payment.mark_paid_manual`); 10 role Blueprint sebagai bundel;
+   grant langsung per user lewat `model_has_permissions`; pembatasan baris lewat
+   `role_scopes`; pencabutan hak lewat `PermissionRegistrar` (invalidasi cache).
+5. `Gate::before` bypass `is_admin` **hanya guard admin**, setiap pemakaian menulis
+   `audit_logs` (`action = rbac.bypass`, `reason`, `request_id`). Policy kepemilikan
+   storefront; spatie tidak dipakai di guard web.
+6. `openapi.yaml` + `generated/client.ts` sinkron: `securitySchemes` cookie + CSRF,
+   `security` per operasi, `x-elzara-auth`, `x-elzara-permission` untuk operasi admin,
+   endpoint auth baru; 18 jalur Blueprint §7 tetap ada seluruhnya.
+7. Kedua app Next memanggil `sanctum/csrf-cookie` sebelum mutasi; nol token di
+   browser/localStorage.
+
+## Perintah (nyata di repo)
+
+```bash
+# Kontrak: spec dulu, generate di container, gerbang drift.
+bash scripts/codegen.sh
+bash scripts/check-contract-drift.sh
+
+# Rute terbukti terdaftar (vendor sudah dipasang migration-db; tanpa DB).
+docker run --rm -v "$PWD:/w" -w /w/apps/api composer:2 php artisan route:list --path=api/v1
+
+# Seeder idempoten diuji terhadap postgres compose (stack penuh = docker-rebuild).
+set -a; . ./docker/.env; set +a
+docker run --rm --network elzara_backend -v "$PWD:/w" -w /w/apps/api \
+  -e DB_CONNECTION=pgsql -e DB_HOST=postgres -e DB_PORT=5432 \
+  -e DB_DATABASE="$POSTGRES_DB" -e DB_USERNAME="$POSTGRES_USER" -e DB_PASSWORD="$POSTGRES_PASSWORD" \
+  -e REDIS_HOST=redis -e APP_KEY="$APP_KEY" \
+  composer:2 sh -c 'apk add --no-cache postgresql-dev && docker-php-ext-install pdo_pgsql && php artisan db:seed --class=ReferenceSeeder --force'
+
+# Frontend: typecheck di node:22, bukan host.
+docker run --rm -v "$PWD:/w" -w /w/apps/admin node:22 sh -c 'npm ci && npm run typecheck'
+docker run --rm -v "$PWD:/w" -w /w/apps/web node:22 sh -c 'npm ci && npm run typecheck'
+```
+
+## Definition of done
+
+- `bash scripts/check-contract-drift.sh` -> `tidak ada drift kontrak antara
+  openapi.yaml dan generated/.` (keluaran ditempel).
+- `route:list` menunjukkan seluruh endpoint auth/admin baru; tidak ada rute admin
+  yang bisa dijangkau tanpa guard `admin`.
+- `ReferenceSeeder` dijalankan dua kali berturut-turut -> nol perubahan baris
+  (bukti keluaran, bukan klaim).
+- `python C:/temp/check_layout.py` hijau (gate I: 18 jalur Blueprint ada di
+  `openapi.yaml`, dua lockfile, nol workspace) dan
+  `python C:/temp/scan_unicode.py <berkas yang ditulis>` = 0 temuan.
+- Test PHPUnit **bukan** DoD agen ini; ia milik testing. Agen ini menyerahkan kode
+  yang bisa diuji, bukan klaim hijau.
+- **Tidak pernah mengklaim verified tanpa menjalankan perintah dan melihat keluaran.**
+
+## Eskalasi
+
+`BLOCKED` + fakta spesifik, lapor controller, berhenti. Wajib BLOCKED bila:
+- Skema di disk tidak cocok dengan asumsi (kolom/tabel hilang) - jangan menulis
+  migrasi sendiri; itu milik migration-db.
+- Register permission Doc 11 §4.4 B tidak memuat aksi yang dibutuhkan layar: aksi
+  khusus hanya boleh ditambah lewat perubahan register oleh controller, bukan
+  diam-diam di seeder.
+- Q-8 (pemegang permission CMS/moderasi UGC) belum dijawab klien: seed bundel role
+  sesuai Blueprint, grant per orang menunggu keputusan; jangan mengarang pemilik.
+- Tanda tangan threat model atas cookie/CSRF/2FA belum ada (ADR-007 D-6a): kode auth
+  Sprint 1 tidak boleh ditulis sebelum itu; laporkan, jangan lewati.
+Jangan menyunting auditor `C:/temp` atau melonggarkan matcher demi hijau.
+
+## Batas keras
+
+Prosa Indonesia, ASCII (tanpa CJK/hangul/Sirilik/fullwidth, tanpa smart quote). Tanpa
+`git commit` kecuali diminta pemilik. Tanpa kredensial di berkas; rahasia OAuth
+(Google/X) hanya lewat env lokal, tidak pernah di-commit. Situs referensi pihak ketiga
+read-only. Nama mati hanya boleh muncul di baris yang membawa konteks rename (lama, diganti, sebelumnya, tidak berlaku, tidak dibuat): `role_user`, `permission_role`, `kind`, `users.kind`, `users_kind_status`, `staff_users`, `personal_access_tokens`.
+ADR inline: `ADR-007 (BFF/sesi)`, `ADR-012 (RBAC/identitas/dependensi)`.
