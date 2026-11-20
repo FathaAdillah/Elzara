@@ -1,0 +1,44 @@
+# Aturan kustom G2 (Doc 12 §1.2). extends spectral:oas memberi pemeriksaan dasar OpenAPI 3.1.
+extends: ["spectral:oas"]
+rules:
+  elzara-operation-id:
+    severity: error
+    given: "$.paths[*][get,post,patch,delete]"
+    then: { field: operationId, function: truthy }
+  elzara-tags:
+    severity: error
+    given: "$.paths[*][get,post,patch,delete]"
+    then: { field: tags, function: schema, functionOptions: { schema: { type: array, minItems: 1 } } }
+  # Amandemen pemilik 2026-11-18 (Doc 11 §4.4 I, ADR-007 (BFF/sesi) D-5a): pengecualian lama
+  # "security ATAU x-elzara-auth selama ADR-007 terbuka" DICABUT, bukan dilonggarkan diam-diam.
+  # security kini wajib per operasi; public = [] eksplisit. x-elzara-auth tetap penanda kategori.
+  elzara-security:
+    severity: error
+    given: "$.paths[*][get,post,patch,delete]"
+    then: { field: security, function: schema, functionOptions: { schema: { type: array } } }
+  elzara-auth-side:
+    severity: error
+    given: "$.paths[*][get,post,patch,delete]"
+    then: { field: x-elzara-auth, function: schema, functionOptions: { schema: { enum: [public, customer, admin, s2s] } } }
+  # Aksi modul admin wajib menyatakan permission granular. Pembacaan dan logout sesi sendiri memakai guard admin.
+  elzara-admin-permission:
+    severity: error
+    given: "$.paths[*][get,post,patch,delete][?(@['x-elzara-auth'] == 'admin' && @.operationId != 'getAdminSession' && @.operationId != 'logoutAdmin')]"
+    then: { field: x-elzara-permission, function: pattern, functionOptions: { match: "^[a-z]+\\.(view|create|update|delete|void|close|force_transition|mark_paid_manual)$" } }
+  elzara-error-response:
+    severity: error
+    given: "$.paths[*][get,post,patch,delete].responses"
+    then: { field: "422", function: truthy }
+  elzara-request-id-header:
+    severity: error
+    given: "$.paths[*][get,post,patch,delete].responses.2*"
+    then: { field: headers.X-Request-Id, function: truthy }
+  # Offset dilarang di mana pun (Doc 12 §3.3): parameter pagination hanya limit/cursor.
+  elzara-no-offset-pagination:
+    severity: error
+    given: "$..parameters[*].name"
+    then: { field: "@this", function: pattern, functionOptions: { notMatch: "^(page|offset|per_page)$" } }
+  elzara-money-integer:
+    severity: error
+    given: "$.components.schemas.Money.properties.amount_minor"
+    then: { field: type, function: schema, functionOptions: { schema: { const: integer } } }

@@ -1,0 +1,19 @@
+{
+    "name": "@elzara/api-client",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "main": "./generated/client.ts",
+    "types": "./generated/client.ts",
+    "exports": {
+        ".": "./generated/client.ts"
+    },
+    "scripts": {
+        "codegen": "openapi-typescript openapi.yaml -o generated/client.ts",
+        "lint": "spectral lint -r .spectral.yaml openapi.yaml"
+    },
+    "devDependencies": {
+        "openapi-typescript": "7.13.0",
+        "@stoplight/spectral-cli": "6.17.1"
+    }
+}

@@ -1,0 +1,1246 @@
+# Satu-satunya sumber kebenaran kontrak /api/v1 (Doc 01 §4 butir 1, Doc 12 §1.1, D-S0-5).
+# Bentuk payload yang tidak ada di berkas ini tidak boleh dipakai frontend maupun dipancarkan controller.
+# Client TypeScript hasil generate ada di generated/ dan tidak pernah diedit tangan (Doc 12 §1.3).
+# securitySchemes WAJIB sejak amandemen pemilik 2026-11-18: larangan lama "belum boleh ada securitySchemes
+# sebelum ADR-007 tertutup" dicabut (Doc 11 §4.4 I, ADR-007 (BFF/sesi) amandemen D-5a). Mekanisme: Sanctum
+# statefulApi, dua cookie sesi same-site (guard web + guard admin), CSRF wajib pada setiap mutasi.
+# x-elzara-auth tetap penanda kategori (public | customer | admin | s2s); security per operasi wajib;
+# operasi admin menambah x-elzara-permission <modul>.<aksi> (prefix kanonik: Doc 11 §4.4 B).
+# personal_access_tokens tidak dibuat: tidak ada token jangka panjang di browser (ADR-007 D-3a).
+# dedoc/scramble hanya alat bantu DRAF yang direview manusia; berkas ini tetap satu-satunya sumber
+# kebenaran dan tidak pernah di-generate ulang otomatis di CI (Doc 11 §4.4 E, ADR-010 K-3).
+openapi: 3.1.0
+info:
+  title: Elzara /api/v1
+  version: 0.1.0
+  description: "Sumber kebenaran kontrak: bentuk request/response yang tidak ada di berkas ini tidak boleh dipakai frontend maupun dipancarkan controller (Doc 12 §1.1). Wujud manusia dari kontrak ini adalah docs/12-api-contract.md; bila keduanya bertentangan, yang benar adalah berkas ini. Auth diputuskan 2026-11-18: cookie sesi Sanctum same-site, dua guard (web/admin), CSRF wajib pada mutasi, tanpa bearer token di browser (Doc 11 §4.4 C/I)."
+servers:
+  - url: https://localhost/api/v1
+    description: Edge dev (docker/nginx/dev.conf)
+tags:
+  - { name: Platform }
+  - { name: Identity }
+  - { name: Catalog }
+  - { name: PreOrder }
+  - { name: Cart }
+  - { name: Orders }
+  - { name: Payments }
+  - { name: Sourcing }
+  - { name: Procurement }
+  - { name: Fulfillment }
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [Platform]
+      x-elzara-auth: public
+      security: []
+      responses:
+        "200":
+          description: API hidup
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema: { type: object, required: [status], properties: { status: { type: string, const: ok } } }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  # --- Blueprint §7, direproduksi penuh: Doc 12 §2.1 = 17 operasi. Seluruh 18 jalur Blueprint tetap
+  # hadir (gate I-7 memeriksa keberadaan); jalur auth sesi di bawah adalah PENAMBAHAN sejak amandemen
+  # 2026-11-18 (Doc 11 §4.4 I), bukan penggantian satu pun jalur Blueprint.
+  /products:
+    get:
+      operationId: listProducts
+      tags: [Catalog]
+      x-elzara-auth: public
+      security: []
+      parameters: [{ $ref: "#/components/parameters/Limit" }, { $ref: "#/components/parameters/Cursor" }]
+      responses:
+        "200":
+          description: "Halaman katalog publik (cursor, tanpa total - Doc 12 §3.3)"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/ProductSummary" } }
+                  meta: { $ref: "#/components/schemas/CursorMeta" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /products/{slug}:
+    get:
+      operationId: getProduct
+      tags: [Catalog]
+      x-elzara-auth: public
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string, pattern: "^[a-z0-9-]{1,120}$" } }
+      responses:
+        "200":
+          description: Detail produk
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: "#/components/schemas/ProductSummary" }
+                  - type: object
+                    required: [description_html, variants, media]
+                    properties:
+                      description_html: { type: string }
+                      variants: { type: array, items: { $ref: "#/components/schemas/ProductVariant" } }
+                      media: { type: array, items: { $ref: "#/components/schemas/MediaRef" } }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /preorder-batches:
+    get:
+      operationId: listOpenPreorderBatches
+      tags: [PreOrder]
+      x-elzara-auth: public
+      security: []
+      parameters: [{ $ref: "#/components/parameters/Limit" }, { $ref: "#/components/parameters/Cursor" }]
+      responses:
+        "200":
+          description: "Batch pre-order terbuka"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/PreorderBatchSummary" } }
+                  meta: { $ref: "#/components/schemas/CursorMeta" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /preorder-batches/{id}:
+    get:
+      operationId: getPreorderBatch
+      tags: [PreOrder]
+      x-elzara-auth: public
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: "^batch_[0-9A-Za-z]{20,32}$" } }
+      responses:
+        "200":
+          description: "Detail batch + item + kebijakan alokasi"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: "#/components/schemas/PreorderBatchSummary" }
+                  - type: object
+                    required: [items, allocation_policy]
+                    properties:
+                      items: { type: array, items: { $ref: "#/components/schemas/ProductSummary" } }
+                      allocation_policy: { type: string, enum: [fifo, priority, manual] }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /cart/items:
+    post:
+      operationId: addCartItem
+      tags: [Cart]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CartItemWrite" }
+      responses:
+        "201":
+          description: "Cart setelah mutasi"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CartRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /checkout/sessions:
+    post:
+      operationId: createCheckoutSession
+      tags: [Cart]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      description: "Snapshot checkout; Idempotency-Key wajib (Doc 01 §4 butir 3, ADR-004)."
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cart_id]
+              properties:
+                cart_id: { type: string, pattern: "^cart_[0-9A-Za-z]{20,32}$" }
+      responses:
+        "201":
+          description: "Snapshot checkout + masa berlaku"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CheckoutSessionRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [Orders]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      description: "Idempoten penuh: key + payload sama = response identik dengan header Idempotency-Replayed (Doc 12 §3.4)."
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/RequestIdIn" }, { $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [checkout_session_id, shipping_address_id]
+              properties:
+                checkout_session_id: { type: string, pattern: "^cs_[0-9A-Za-z]{20,32}$" }
+                shipping_address_id: { type: string, pattern: "^adr_[0-9A-Za-z]{20,32}$" }
+                note: { type: ["string", "null"], maxLength: 1000 }
+      responses:
+        "201":
+          description: "Order lahir langsung awaiting_payment; draft tidak dipakai (Doc 11 §8.3)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /me/orders/{id}:
+    get:
+      operationId: getMyOrder
+      tags: [Orders]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: "^ord_[0-9A-Za-z]{20,32}$" } }
+      responses:
+        "200":
+          description: "Order milik pengirim saja"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: "#/components/schemas/OrderRead" }
+                  - type: object
+                    required: [items, status_history]
+                    properties:
+                      items: { type: array, items: { $ref: "#/components/schemas/OrderItemRead" } }
+                      status_history: { type: array, items: { $ref: "#/components/schemas/StatusChange" } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /payment-intents:
+    post:
+      operationId: createPaymentIntent
+      tags: [Payments]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_id, channel, kind]
+              properties:
+                order_id: { type: string, pattern: "^ord_[0-9A-Za-z]{20,32}$" }
+                channel: { type: string, enum: [virtual_account, qris, card, ewallet] }
+                kind: { type: string, enum: [deposit, full, balance] }
+      responses:
+        "201":
+          description: "Intent + instruksi bayar gateway; bentuk instruksi divalidasi ulang saat gateway pertama dipilih (Doc 03 0.15)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, order_id, status, amount, instructions]
+                properties:
+                  id: { type: string, pattern: "^pay_[0-9A-Za-z]{20,32}$" }
+                  order_id: { type: string }
+                  status: { type: string, enum: [pending, awaiting_confirmation, paid, failed, expired] }
+                  amount: { $ref: "#/components/schemas/Money" }
+                  instructions: { type: object, additionalProperties: { type: string } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /webhooks/payments/{provider}:
+    post:
+      operationId: ingestPaymentWebhook
+      tags: [Payments]
+      x-elzara-auth: s2s
+      security: [{ s2sSignature: [] }]
+      description: "Callback terverifikasi. Dedup memakai (provider, provider_event_id) lewat inbox_events; webhook_receipts milik modul Payments Sprint 2 (Doc 03 0.7)."
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string, minLength: 2, maxLength: 40 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider_event_id, type]
+              properties:
+                provider_event_id: { type: string, maxLength: 128 }
+                type: { type: string, maxLength: 80 }
+                occurred_at: { type: string, format: date-time }
+                data: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: "Selalu 200 untuk retry provider yang sama supaya gateway berhenti mengirim ulang"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [received, duplicate]
+                properties: { received: { type: boolean }, duplicate: { type: boolean } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /product-requests:
+    post:
+      operationId: createProductRequest
+      tags: [Sourcing]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, quantity]
+              properties:
+                title: { type: string, minLength: 5, maxLength: 200 }
+                quantity: { type: integer, minimum: 1, maximum: 999 }
+                target_price: { $ref: "#/components/schemas/Money" }
+      responses:
+        "201":
+          description: "Permintaan Request Order dibuat"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductRequestRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /product-requests/{id}/attachments/presign:
+    post:
+      operationId: presignProductRequestAttachment
+      tags: [Sourcing]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: "^prq_[0-9A-Za-z]{20,32}$" } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_name, mime_type, size_bytes]
+              properties:
+                file_name: { type: string, maxLength: 240 }
+                mime_type: { type: string, maxLength: 80 }
+                size_bytes: { type: integer, minimum: 1, maximum: 10485760 }
+      responses:
+        "201":
+          description: "Baris media + presigned PUT memakai endpoint yang dijangkau browser (Doc 11 B-9), bukan hostname Docker internal"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [media_id, upload_url, expires_at]
+                properties:
+                  media_id: { type: string, pattern: "^media_[0-9A-Za-z]{20,32}$" }
+                  upload_url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /me/quotations/{id}:
+    get:
+      operationId: getMyQuotation
+      tags: [Sourcing]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: "^quo_[0-9A-Za-z]{20,32}$" } }
+      responses:
+        "200":
+          description: "Kuotasi berversi untuk customer"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuotationRead" }
+        # Kuotasi privat: non-pemilik yang tidak berhak menerima 404, bukan 403 (Doc 12 §4.3).
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /quotations/{id}/accept:
+    post:
+      operationId: acceptQuotation
+      tags: [Sourcing]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: "^quo_[0-9A-Za-z]{20,32}$" } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties: { version: { type: integer, minimum: 1 } }
+      responses:
+        "201":
+          description: "Order lahir dari versi kuotasi yang diterima"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /admin/preorder-batches/{id}/close:
+    post:
+      operationId: closePreorderBatch
+      tags: [PreOrder]
+      x-elzara-auth: admin
+      security: [{ adminSession: [] }]
+      x-elzara-permission: batch.close
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: "^batch_[0-9A-Za-z]{20,32}$" } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "200":
+          description: "Batch ditutup (idempoten, TTL key 30 hari)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreorderBatchSummary" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /admin/purchase-orders:
+    post:
+      operationId: createPurchaseOrder
+      tags: [Procurement]
+      x-elzara-auth: admin
+      security: [{ adminSession: [] }]
+      x-elzara-permission: procurement.create
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [supplier_id, lines]
+              properties:
+                supplier_id: { type: string, pattern: "^sup_[0-9A-Za-z]{20,32}$" }
+                lines:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [variant_id, quantity, unit_cost]
+                    properties:
+                      variant_id: { type: string, pattern: "^var_[0-9A-Za-z]{20,32}$" }
+                      quantity: { type: integer, minimum: 1 }
+                      unit_cost: { $ref: "#/components/schemas/Money" }
+      responses:
+        "201":
+          description: "PO supplier dibuat"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status]
+                properties:
+                  id: { type: string, pattern: "^po_[0-9A-Za-z]{20,32}$" }
+                  status: { type: string }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /admin/shipments:
+    post:
+      operationId: createShipment
+      tags: [Fulfillment]
+      x-elzara-auth: admin
+      security: [{ adminSession: [] }]
+      x-elzara-permission: shipment.create
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_id, courier_service_code, package_ids]
+              properties:
+                order_id: { type: string, pattern: "^ord_[0-9A-Za-z]{20,32}$" }
+                courier_service_code: { type: string, maxLength: 60 }
+                package_ids: { type: array, minItems: 1, items: { type: string, pattern: "^pkg_[0-9A-Za-z]{20,32}$" } }
+      responses:
+        "201":
+          description: "Fulfillment dibuat untuk satu atau lebih paket"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, order_id, status]
+                properties:
+                  id: { type: string, pattern: "^shp_[0-9A-Za-z]{20,32}$" }
+                  order_id: { type: string }
+                  status: { type: string }
+                  tracking_number: { type: ["string", "null"] }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  # --- Auth & sesi: PENAMBAHAN setelah mekanisme diputuskan pemilik 2026-11-18 (Doc 11 §4.4 C/I,
+  # ADR-007 (BFF/sesi) amandemen D-1a..D-6a, ADR-012 (RBAC/identitas/dependensi) D-4).
+  # Storefront hybrid: email+password, Google, X (login DAN registrasi). Admin: email+password saja
+  # + 2FA wajib + is_operator. Semua mutasi sesi menuntut X-XSRF-TOKEN; panggil /sanctum/csrf-cookie
+  # sebelum mutasi pertama. Tidak ada Idempotency-Key di grup ini: pengulangan dijaga unique email,
+  # token sekali-pakai, dan rate limit - bukan replay key (Doc 12 §2.2 kelompok S).
+
+  /auth/register:
+    post:
+      operationId: registerAccount
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Registrasi storefront email+password; jalur sosial lewat /auth/social/{provider}/redirect. Akun sosial hanya digabung ke akun yang ada lewat email TERVERIFIKASI, bukan email mentah provider (Doc 11 §4.4 C). Rate limit wajib di edge dan API."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 8, maxLength: 128 }
+                locale: { type: string, enum: [id, en], default: id }
+      responses:
+        "201":
+          description: "Akun dibuat + sesi web dibuka; email verifikasi dikirim (UserRegistered)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Set-Cookie: { $ref: "#/components/headers/WebSessionCookie" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: "#/components/schemas/AuthUserRead" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /auth/login:
+    post:
+      operationId: loginWeb
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Login storefront email+password untuk akun active apa pun; operator yang berbelanja di sini adalah aktor web (X-Actor-Type diisi server dari guard). Cookie admin tidak pernah diterima guard web. Kredensial salah -> 401, bukan redirect HTML."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        "200":
+          description: "Sesi web dibuka (Set-Cookie elzara_web_session)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Set-Cookie: { $ref: "#/components/headers/WebSessionCookie" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: "#/components/schemas/AuthUserRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /auth/logout:
+    post:
+      operationId: logoutWeb
+      tags: [Identity]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      description: "Tutup sesi web: cookie dihapus dan baris user_sessions diberi revoked_at."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      responses:
+        "204":
+          description: "Sesi ditutup; tanpa body"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /auth/otp/request:
+    post:
+      operationId: requestOtp
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Minta OTP (otp_challenges, modul Identity) untuk purpose login | reset_password | verify_phone. Respons identik ada/tidaknya akun (anti-enumeration); kode hanya dikirim bila akun ada. Rate limit ketat di edge dan API."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, channel, purpose]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                channel: { type: string, enum: [email, whatsapp, sms] }
+                purpose: { type: string, enum: [login, reset_password, verify_phone] }
+      responses:
+        "200":
+          description: "Challenge dibuat (atau diam-diam tidak, bila akun tidak ada) + masa berlaku"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sent, expires_at]
+                properties:
+                  sent: { type: boolean }
+                  expires_at: { type: string, format: date-time }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /auth/otp/verify:
+    post:
+      operationId: verifyOtp
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Verifikasi kode OTP; percobaan dibatasi (otp_challenges.attempts) dan challenge sekali-pakai (consumed_at). purpose=login membuka sesi web; purpose lain menandai challenge terverifikasi untuk langkah berikutnya. Kode salah/kedaluwarsa -> 401."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, purpose, code]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                purpose: { type: string, enum: [login, reset_password, verify_phone] }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200":
+          description: "Terverifikasi; Set-Cookie hanya bila purpose=login"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Set-Cookie: { $ref: "#/components/headers/WebSessionCookie" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verified, purpose]
+                properties:
+                  verified: { type: boolean, const: true }
+                  purpose: { type: string, enum: [login, reset_password, verify_phone] }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /auth/social/{provider}/redirect:
+    get:
+      operationId: redirectSocialLogin
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Redirect OAuth untuk login DAN registrasi: google (driver bawaan laravel/socialite) atau x (socialiteproviders/twitter, OAuth 2.0; driver twitter bawaan Socialite adalah OAuth 1.0a yang sudah ditinggalkan X dan tidak dipakai). State OAuth diterbitkan di sini dan wajib divalidasi di callback."
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string, enum: [google, x] } }
+      responses:
+        "302":
+          description: "Redirect ke halaman otorisasi provider"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Location: { description: "URL otorisasi provider, membawa state", schema: { type: string, format: uri } }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /auth/social/{provider}/callback:
+    get:
+      operationId: handleSocialCallback
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Callback OAuth. Identitas sosial disimpan di user_identities (provider, provider_user_id) unik per provider. Penggabungan akun HANYA lewat email terverifikasi, bukan email mentah dari provider (Doc 11 §4.4 C). Sukses: sesi web dibuka + redirect ke app; state/code tidak valid -> 401 problem, bukan redirect diam-diam."
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string, enum: [google, x] } }
+        - { name: code, in: query, required: true, schema: { type: string, maxLength: 512 } }
+        - { name: state, in: query, required: true, schema: { type: string, maxLength: 512 } }
+      responses:
+        "302":
+          description: "Login/registrasi sosial sukses; redirect ke app dengan sesi web"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Location: { description: "URL app tujuan (same-origin)", schema: { type: string, format: uri } }
+            Set-Cookie: { $ref: "#/components/headers/WebSessionCookie" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /me/sessions:
+    get:
+      operationId: listMySessions
+      tags: [Identity]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      description: "Daftar sesi/perangkat aktif milik akun sendiri (user_sessions.revoked_at IS NULL), cursor."
+      parameters: [{ $ref: "#/components/parameters/Limit" }, { $ref: "#/components/parameters/Cursor" }]
+      responses:
+        "200":
+          description: "Halaman daftar sesi"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/SessionRead" } }
+                  meta: { $ref: "#/components/schemas/CursorMeta" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /me/sessions/{session_id}:
+    delete:
+      operationId: revokeMySession
+      tags: [Identity]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      description: "Cabut satu sesi perangkat (user_sessions.revoked_at). Hanya milik akun sendiri (policy owner); bukan milik sendiri -> 404. Mencabut sesi yang sedang dipakai = logout perangkat ini."
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: string, maxLength: 64 } }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "204":
+          description: "Sesi dicabut; tanpa body"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /auth/password/reset-request:
+    post:
+      operationId: requestPasswordReset
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Kirim token reset sekali-pakai ke email akun. Respons selalu sama ada/tidaknya akun (anti-enumeration). Rate limit ketat di edge dan API."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        "200":
+          description: "Permintaan diterima (pengiriman nyata hanya bila akun ada)"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sent]
+                properties:
+                  sent: { type: boolean }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /auth/password/reset-confirm:
+    post:
+      operationId: confirmPasswordReset
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Token reset sekali-pakai + password baru; semua sesi web lain dicabut setelah sukses. Token salah/kedaluwarsa/terpakai -> 401."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string, minLength: 16, maxLength: 128 }
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        "200":
+          description: "Password diganti; sesi lain dicabut"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reset]
+                properties:
+                  reset: { type: boolean, const: true }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /admin/auth/login:
+    post:
+      operationId: loginAdmin
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Login operator aktif. Ambil CSRF melalui GET /sanctum/csrf-cookie?scope=admin&purpose=login. Login biasanya menerbitkan challenge 2FA. Pada environment local, satu email operator yang dikonfigurasi dapat menerima sesi setelah kata sandi terverifikasi."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        "200":
+          description: "Tantangan 2FA atau sesi yang sudah dibuka untuk operator development lokal"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Set-Cookie: { $ref: "#/components/headers/AdminSessionCookie" }
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [two_factor_required, challenge_id, expires_at]
+                    properties:
+                      two_factor_required: { type: boolean, const: true }
+                      challenge_id: { type: string, maxLength: 128, description: "Token tantangan opaque ber-TTL pendek, ditandatangani server." }
+                      expires_at: { type: string, format: date-time }
+                  - type: object
+                    required: [two_factor_required, authenticated, user]
+                    properties:
+                      two_factor_required: { type: boolean, const: false }
+                      authenticated: { type: boolean, const: true }
+                      user: { $ref: "#/components/schemas/AuthUserRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /admin/auth/2fa/verify:
+    post:
+      operationId: verifyAdminTwoFactor
+      tags: [Identity]
+      x-elzara-auth: public
+      security: []
+      description: "Konfirmasi 2FA dari browser yang memulai challenge. Ambil CSRF dengan scope=admin dan purpose=login. Terima TOTP atau recovery code sekali pakai. Sukses meregenerasi sesi, menghapus cookie challenge, dan membuka guard admin. Kode salah atau challenge kedaluwarsa menghasilkan 401."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge_id, code]
+              properties:
+                challenge_id: { type: string, maxLength: 128 }
+                code: { type: string, minLength: 6, maxLength: 12, description: "TOTP 6 digit atau recovery code." }
+      responses:
+        "200":
+          description: "2FA terkonfirmasi; sesi admin dibuka"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Set-Cookie: { $ref: "#/components/headers/AdminSessionCookie" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authenticated, user]
+                properties:
+                  authenticated: { type: boolean, const: true }
+                  user: { $ref: "#/components/schemas/AuthUserRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+  /admin/auth/session:
+    get:
+      operationId: getAdminSession
+      tags: [Identity]
+      x-elzara-auth: admin
+      security: [{ adminSession: [] }]
+      description: "Verifikasi dan baca sesi operator dari cookie admin yang aktif. Operasi hanya membaca sesi pemanggil, tanpa izin modul tambahan."
+      responses:
+        "200":
+          description: "Sesi admin aktif yang memenuhi kebijakan autentikasi environment"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authenticated, user]
+                properties:
+                  authenticated: { type: boolean, const: true }
+                  user: { $ref: "#/components/schemas/AuthUserRead" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /admin/auth/logout:
+    post:
+      operationId: logoutAdmin
+      tags: [Identity]
+      x-elzara-auth: admin
+      security: [{ adminSession: [] }]
+      description: "Tutup sesi pemanggil, hapus cookie admin, dan isi user_sessions.revoked_at. Ambil CSRF melalui GET /sanctum/csrf-cookie?scope=admin. Logout berlaku bagi setiap pemilik sesi admin yang aktif."
+      parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
+      responses:
+        "204":
+          description: "Sesi admin ditutup; tanpa body"
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /sanctum/csrf-cookie:
+    servers:
+      - url: https://localhost
+        description: "Endpoint bawaan Sanctum di root host yang sama, DI LUAR /api/v1 (pemisah path edge; ADR-007 D-2a)."
+    get:
+      operationId: getCsrfCookie
+      tags: [Platform]
+      x-elzara-auth: public
+      security: []
+      description: "Dipanggil klien sebelum mutasi pertama. Men-set cookie XSRF-TOKEN yang sengaja TIDAK HttpOnly karena dibaca JavaScript untuk header X-XSRF-TOKEN - itu desain Sanctum, bukan kelalaian. Tidak membuka sesi apa pun."
+      parameters:
+        - name: scope
+          in: query
+          description: "Nilai admin memilih permukaan admin. Jika kosong, pilih storefront."
+          schema: { type: string, const: admin }
+        - name: purpose
+          in: query
+          description: "Dengan scope=admin, nilai login memilih cookie challenge untuk login dan verifikasi 2FA."
+          schema: { type: string, const: login }
+      responses:
+        "204":
+          description: "Cookie XSRF-TOKEN di-set; tanpa body"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Set-Cookie: { $ref: "#/components/headers/XsrfTokenCookie" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+
+components:
+  securitySchemes:
+    webSession:
+      type: apiKey
+      in: cookie
+      name: elzara_web_session
+      description: "Cookie sesi guard web (laravel/sanctum statefulApi). Secure; HttpOnly; SameSite=Lax; Path=/ - same-site karena edge satu host dengan pemisah path (/api/v1/webhooks/, /api/, /storage/, /admin, /), tanpa CORS lintas origin dan tanpa SameSite=None (ADR-007 D-2a). Path=/ wajib agar cookie ikut terkirim ke /api/; pemisahan dari admin lewat NAMA cookie + guard, bukan path. Setiap mutasi menuntut header X-XSRF-TOKEN (parameter XsrfToken). Otorisasi storefront = kepemilikan (policy owner) + status akun; spatie tidak dipakai di guard web, dan is_operator/is_admin tidak memberi hak apa pun di sini."
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: elzara_admin_session
+      description: "Cookie sesi guard admin. Secure; HttpOnly; SameSite=Lax; Path=/. Operator harus aktif dan memenuhi kebijakan 2FA. Pengecualian kata sandi berlaku untuk satu operator yang dikonfigurasi pada environment local. Cookie web tidak diterima guard admin. 403 FORBIDDEN bila permission modul yang diperlukan tidak dimiliki. is_admin = true membypass RBAC lewat Gate::before khusus guard admin dan SETIAP pemakaian menulis audit_logs (action rbac.bypass, reason, request_id)."
+    s2sSignature:
+      type: apiKey
+      in: header
+      name: X-Provider-Signature
+      description: "Penanda skema tanda tangan/HMAC server-to-server, BUKAN bearer token dan bukan cookie sesi. Nama header konkret mengikuti driver provider (X-<Provider>-Signature, Doc 12 §5.2); nilai = HMAC atas body mentah dengan secret per driver + replay window. Nama X-Provider-Signature di sini representasi kontrak: OpenAPI tidak memodelkan nama header per-provider dalam satu skema. Worker internal memakai jaringan internal, bukan header ini. personal_access_tokens tidak dibuat (ADR-007 D-3a)."
+  parameters:
+    XsrfToken:
+      name: X-XSRF-TOKEN
+      in: header
+      required: true
+      description: "Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3)."
+      schema: { type: string, minLength: 1, maxLength: 512 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: "Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3)."
+      schema: { type: string, maxLength: 512 }
+    RequestIdIn:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: "Dipakai apa adanya bila valid; bila kosong server membuat ULID (Doc 12 §3.2)."
+      schema: { type: string, pattern: "^[A-Za-z0-9._-]{1,128}$" }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: "UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4)."
+      schema:
+        type: string
+        pattern: "^([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|[0-9A-HJKMNP-TV-Z]{26})$"
+  headers:
+    RequestId:
+      description: "Selalu dikembalikan, termasuk 4xx/5xx dan response replay."
+      schema: { type: string, pattern: "^[A-Za-z0-9._-]{1,128}$" }
+    IdempotencyReplayed:
+      description: "true bila respons ini hasil replay key yang sama."
+      schema: { type: boolean }
+    WebSessionCookie:
+      description: "elzara_web_session=<opaque>; Secure; HttpOnly; SameSite=Lax; Path=/ (guard web)."
+      schema: { type: string }
+    AdminSessionCookie:
+      description: "elzara_admin_session=<opaque>; Secure; HttpOnly; SameSite=Lax; Path=/. Diterbitkan ketika sesi admin dibuka."
+      schema: { type: string }
+    XsrfTokenCookie:
+      description: "XSRF-TOKEN=<nilai>; Secure; SameSite=Lax; Path=/ - sengaja TANPA HttpOnly agar dibaca JavaScript untuk header X-XSRF-TOKEN (ADR-007 D-2a)."
+      schema: { type: string }
+  responses:
+    Problem:
+      description: "Error RFC 7807 (application/problem+json) dengan X-Request-Id."
+      headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
+  schemas:
+    ProblemDetails:
+      type: object
+      required: [type, title, status, code, request_id, retryable]
+      properties:
+        type: { type: string, pattern: "^urn:elzara:problem:[a-z-]+:[a-z0-9-]+$", description: "Kategori tertutup Doc 12 §4.2." }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: ["string", "null"] }
+        instance: { type: string }
+        request_id: { type: string }
+        code: { type: string, pattern: "^[A-Z][A-Z0-9_]+$" }
+        retryable: { type: boolean }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [pointer, code]
+            properties:
+              pointer: { type: string }
+              code: { type: string }
+              detail: { type: ["string", "null"] }
+    Money:
+      type: object
+      required: [amount_minor, currency]
+      description: "Minor unit integer; float/decimal di kawat dilarang (Doc 12 G5, Doc 01 §6.1, B-13)."
+      properties:
+        amount_minor: { type: integer, minimum: 0 }
+        currency: { type: string, const: IDR }
+    CursorMeta:
+      type: object
+      required: [limit, has_more]
+      description: "Tanpa total/last_page: COUNT(*) sengaja tidak dihitung di jalur daftar."
+      properties:
+        limit: { type: integer }
+        has_more: { type: boolean }
+        next_cursor: { type: ["string", "null"] }
+        prev_cursor: { type: ["string", "null"] }
+    MediaRef:
+      type: object
+      required: [id, url]
+      properties:
+        id: { type: string, pattern: "^media_[0-9A-Za-z]{20,32}$" }
+        url: { type: string, format: uri }
+        alt: { type: ["string", "null"] }
+    ProductSummary:
+      type: object
+      required: [id, slug, name, price, available, kind]
+      properties:
+        id: { type: string, pattern: "^prd_[0-9A-Za-z]{20,32}$" }
+        slug: { type: string }
+        name: { type: string }
+        brand: { type: ["string", "null"] }
+        price: { $ref: "#/components/schemas/Money" }
+        available: { type: integer, minimum: 0 }
+        kind: { type: string, enum: [rts, pre_order, request_order] }
+        primary_media: { oneOf: [{ $ref: "#/components/schemas/MediaRef" }, { type: "null" }] }
+    ProductVariant:
+      type: object
+      required: [id, sku, price, available]
+      properties:
+        id: { type: string, pattern: "^var_[0-9A-Za-z]{20,32}$" }
+        sku: { type: string }
+        price: { $ref: "#/components/schemas/Money" }
+        available: { type: integer, minimum: 0 }
+        attributes: { type: object, additionalProperties: { type: string } }
+    CartItemWrite:
+      type: object
+      required: [variant_id, quantity]
+      properties:
+        variant_id: { type: string, pattern: "^var_[0-9A-Za-z]{20,32}$" }
+        quantity: { type: integer, minimum: 1, maximum: 99 }
+    CartRead:
+      type: object
+      required: [id, items, subtotal]
+      properties:
+        id: { type: string, pattern: "^cart_[0-9A-Za-z]{20,32}$" }
+        items:
+          type: array
+          items:
+            allOf:
+              - { $ref: "#/components/schemas/CartItemWrite" }
+              - type: object
+                required: [id, line_total]
+                properties:
+                  id: { type: string, pattern: "^citem_[0-9A-Za-z]{20,32}$" }
+                  line_total: { $ref: "#/components/schemas/Money" }
+        subtotal: { $ref: "#/components/schemas/Money" }
+    CheckoutSessionRead:
+      type: object
+      required: [id, expires_at, total]
+      properties:
+        id: { type: string, pattern: "^cs_[0-9A-Za-z]{20,32}$" }
+        expires_at: { type: string, format: date-time }
+        total: { $ref: "#/components/schemas/Money" }
+    OrderRead:
+      type: object
+      required: [id, status, total, created_at]
+      properties:
+        id: { type: string, pattern: "^ord_[0-9A-Za-z]{20,32}$" }
+        # Nilai status dibaca dari CHECK Doc 09 lewat app/Platform/Domain/Status; tidak ada salinan kedua di spec (D-S0-4, Doc 11 §8.3).
+        status: { type: string }
+        total: { $ref: "#/components/schemas/Money" }
+        created_at: { type: string, format: date-time }
+    OrderItemRead:
+      type: object
+      required: [id, name, quantity, unit_price]
+      properties:
+        id: { type: string, pattern: "^item_[0-9A-Za-z]{20,32}$" }
+        name: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        unit_price: { $ref: "#/components/schemas/Money" }
+    StatusChange:
+      type: object
+      required: [axis, to, changed_at]
+      properties:
+        axis: { type: string, enum: [fulfillment, payment, sourcing, preorder] }
+        from: { type: ["string", "null"] }
+        to: { type: string }
+        changed_at: { type: string, format: date-time }
+    PreorderBatchSummary:
+      type: object
+      required: [id, name, status, closes_at]
+      properties:
+        id: { type: string, pattern: "^batch_[0-9A-Za-z]{20,32}$" }
+        name: { type: string }
+        status: { type: string, enum: [open, closing, closed, cancelled] }
+        closes_at: { type: string, format: date-time }
+    ProductRequestRead:
+      type: object
+      required: [id, status, created_at]
+      properties:
+        id: { type: string, pattern: "^prq_[0-9A-Za-z]{20,32}$" }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+    QuotationRead:
+      type: object
+      required: [id, current_version, status, total]
+      properties:
+        id: { type: string, pattern: "^quo_[0-9A-Za-z]{20,32}$" }
+        current_version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [draft, sent, accepted, rejected, expired] }
+        total: { $ref: "#/components/schemas/Money" }
+    AuthUserRead:
+      type: object
+      required: [user_id, name, email]
+      description: "Identitas publik akun = users.public_id (ULID, S-4); tanpa prefiks entitas bisnis karena user bukan objek transaksi."
+      properties:
+        user_id: { type: string, pattern: "^[0-9A-HJKMNP-TV-Z]{26}$" }
+        name: { type: string }
+        email: { type: string, format: email }
+        email_verified_at: { type: ["string", "null"], format: date-time }
+    SessionRead:
+      type: object
+      required: [id, last_seen_at, is_current]
+      description: "Baris user_sessions (modul Identity, layar perangkat di profil). id = session_hash: hash identitas sesi, BUKAN nilai cookie sesi, sehingga aman ditampilkan dan dipakai untuk revoke."
+      properties:
+        id: { type: string, maxLength: 64 }
+        device_label: { type: ["string", "null"], maxLength: 80 }
+        user_agent: { type: ["string", "null"], maxLength: 255 }
+        ip_address: { type: ["string", "null"] }
+        last_seen_at: { type: string, format: date-time }
+        is_current: { type: boolean, description: "true bila baris ini sesi yang sedang dipakai request ini (dihitung server)." }
