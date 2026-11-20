@@ -161,7 +161,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with: { php-version: "8.4", coverage: none }
       - name: composer audit
-        run: composer audit --locked --format=text
+        run: composer audit --locked
         working-directory: apps/api
       - name: Secret scan - gagal berisik, tidak pernah diam-diam lulus
         uses: gitleaks/gitleaks-action@v2
