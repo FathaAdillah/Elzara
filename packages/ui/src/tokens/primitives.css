@@ -1,0 +1,50 @@
+/* Lapis 1 - primitive. Tidak pernah dirujuk komponen; hanya Lapis 2 yang memanggilnya (Doc 04 §2).
+   Satu-satunya tempat nilai warna konkret (hex/rgb) ditulis, selain berkas preset yang meng-override lapis ini. */
+:root {
+  --neutral-0: #ffffff;
+  --neutral-50: #f7f7f8;
+  --neutral-500: #6b6b74;
+  --neutral-900: #141419;
+  --brand-50: #fdf0f6;
+  --brand-600: #f26b9a;
+  --coral-500: #ff8a5c;
+  --violet-600: #7b2bf9;
+  --green-600: #1c8a4f;
+  --red-600: #c62828;
+  --amber-500: #b45309;
+  --sky-600: #0369a1;
+  --neutral-overlay: rgb(0 0 0/.55);
+
+  /* keluarga font self-hosted, lisensi OFL/SIL (Doc 04 §5.2) */
+  --font-family-display: "ElzaraDisplay", ui-sans-serif;
+  --font-family-body: "ElzaraBody", ui-sans-serif;
+
+  /* skala tipe */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --leading-tight: 1.2;
+  --leading-body: 1.55;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-1: 6px;
+  --radius-2: 14px;
+  --radius-3: 20px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 2px rgb(0 0 0/.04);
+  --shadow-2: 0 8px 24px -12px rgb(0 0 0/.12);
+  --z-drawer: 60;
+  --z-modal: 70;
+  --z-toast: 80;
+  --motion-fast: 160ms;
+  --motion-base: 240ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+}

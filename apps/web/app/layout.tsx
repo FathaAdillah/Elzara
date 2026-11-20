@@ -1,0 +1,36 @@
+import type { Metadata, Viewport } from "next";
+import { brand } from "@/config/brand";
+import "./globals.css";
+
+/**
+ * Metadata publik diambil dari config brand, bukan string literal di komponen
+ * (Doc 04 §3, §5: nama toko / tagline / legal tidak boleh di-hardcode).
+ * OG image & logo adalah slot branding yang diisi aset orisinal milik klien
+ * di `public/brand/` (Doc 04 §5, Doc 01 §15).
+ */
+export const metadata: Metadata = {
+  title: { default: `${brand.name} — ${brand.tagline}`, template: `%s · ${brand.name}` },
+  description: brand.tagline,
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost"),
+  openGraph: { siteName: brand.seo.siteName, images: [brand.seo.defaultOg] },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang={brand.locale}>
+      {/* Skip-link "ke konten" adalah bagian gerbang aksesibilitas tiap sprint UI
+          (Doc 04 §5.2) — bukan hiasan, dan tidak memakai warna lokal. */}
+      <body className="bg-surface text-ink antialiased">
+        <a href="#konten" className="sr-only focus:not-sr-only focus:text-brand">
+          Ke konten
+        </a>
+        {children}
+      </body>
+    </html>
+  );
+}

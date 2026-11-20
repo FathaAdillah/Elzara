@@ -1,0 +1,12 @@
+/* Preset `playful` - merchandise karakter, longgar. Hanya menimpa Lapis 1 (Doc 04 §4). */
+:root {
+  --brand-600: #f26b9a;
+  --brand-50: #fdf0f6;
+  --coral-500: #ffc53d;
+  --neutral-0: #fffdf9;
+  --neutral-50: #fdeff5;
+  --neutral-500: #6e6469;
+  --neutral-900: #241c22;
+  --radius-3: 20px;
+  --motion-base: 240ms;
+}

@@ -1,0 +1,22 @@
+/* Lapis 3 - komponen/slot. Dipakai komponen bersama dengan Lapis 2; isinya ukuran, bukan warna brand. */
+:root {
+  --cart-drawer-width: 420px;
+  --pdp-gallery-ratio: 1/1;
+  --badge-radius: var(--radius-pill);
+  --button-height-sm: 40px;
+  --button-height: 44px;
+  --button-height-lg: 48px;
+
+  /* target sentuh minimum berlaku untuk semua ukuran (Doc 04 §5.2) */
+  --touch-target-min: 44px;
+  --grid-gutter: clamp(16px, 4vw, 40px);
+  --content-max: 1240px;
+
+  /* mirror warna chart: urutan ini yang dipakai ChartFrame di admin */
+  --chart-1: var(--brand-600);
+  --chart-2: var(--coral-500);
+  --chart-3: var(--violet-600);
+  --chart-4: var(--green-600);
+  --chart-5: var(--amber-500);
+  --chart-6: var(--red-600);
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@elzara/web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "proprietary",
+  "description": "Elzara storefront publik (Doc 01 sec 2.1). Lockfile sendiri, TIDAK ada npm workspace: kedua app harus bisa build dan deploy mandiri (Doc 01 sec 11.2, ADR-010 K-1/K-2). Kode berbagi dari packages/ dikonsumsi sebagai dependency lokal `file:`, bukan lewat workspace.",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@elzara/api-client": "file:../../packages/api-contracts",
+    "@elzara/shared-types": "file:../../packages/shared-types",
+    "@elzara/ui": "file:../../packages/ui",
+    "next": "^16.4.6",
+    "openapi-fetch": "^0.17.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0"
+  }
+}

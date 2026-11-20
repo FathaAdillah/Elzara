@@ -1,0 +1,13 @@
+/* Preset `bold-kpop` - fanbase, high-energy, dark-first: token surface/ink dibalik (Doc 04 §5.2). */
+:root {
+  color-scheme: dark;
+  --brand-600: #7b2bf9;
+  --brand-50: #1b1425;
+  --coral-500: #00e5a0;
+  --neutral-0: #0b0b12;
+  --neutral-50: #15151f;
+  --neutral-500: #9a9ab0;
+  --neutral-900: #f4f4fa;
+  --radius-3: 14px;
+  --motion-base: 200ms;
+}

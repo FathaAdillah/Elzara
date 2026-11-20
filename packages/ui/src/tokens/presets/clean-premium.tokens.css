@@ -1,0 +1,12 @@
+/* Preset `clean-premium` - minim, barang kolektibel, grid padat, shadow sangat tipis. */
+:root {
+  --brand-600: #1f2430;
+  --brand-50: #f4f5f7;
+  --coral-500: #b08d57;
+  --neutral-0: #ffffff;
+  --neutral-50: #f4f5f7;
+  --neutral-500: #5c6472;
+  --neutral-900: #12161d;
+  --radius-3: 6px;
+  --motion-base: 160ms;
+}
