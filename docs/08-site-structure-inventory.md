@@ -1,5 +1,9 @@
 # Dokumen 08 — Inventaris Struktur Situs Referensi (hasil reverse engineering struktural)
 
+> **Catatan status (ADR-003 K-4 · 2026-11-17) — BACA DULU.** Dokumen ini adalah **bukti (evidence) tentang SATU implementasi**, bukan resep dan bukan keputusan kami. Fakta struktural di sini **berlaku apa adanya sesuai yang teramati** dan sengaja tidak "dibetulkan" supaya cocok dengan Blueprint: **situs referensi yang kita amati TIDAK berjalan pada topologi tiga-aplikasi API-first yang digambar Blueprint §3.1** — ia satu aplikasi Next.js (storefront + admin + dashboard berbagi shell/chunk) dengan satu endpoint klien, tanpa REST publik. **Blueprint adalah resep yang KITA PILIH untuk platform sendiri**, bukan deskripsi situs sumber. Konsekuensinya: klaim apa pun "situs sumber memakai arsitektur [yang kita bangun]" adalah salah dan tidak boleh dibaca dari dokumen ini.
+>
+> Secara spesifik: **kesimpulan keputusan** di §3 butir 1 ("admin satu aplikasi **memvalidasi Opsi A**") dan di §8 (baris delta Doc 01) adalah **kesimpulan yang kini digantikan ADR-003 K-2 / Doc 11 (B-1)** — fakta "admin satu aplikasi" tetap benar sebagai observasi, tetapi ia **tidak lagi dipakai untuk membenarkan topologi kami**. Aturan §3 butir 2 (proteksi `/admin` wajib server-side) justru **tetap kita pegang** dan selaras dengan Blueprint §12. Perdebatan konflik hanya di Doc 11; dokumen ini cukup dibaca sebagai bukti.
+
 Tanggal: 2026-11-16 · Status: selesai untuk sisi publik.
 Alat: **REA (`rea-agents` 6.9.0)** mode pasif lewat CDP pada Chrome profil terpisah + probe HTTP (`curl`). Perintah inti: `rea list-browser-targets`, `rea analyze-web-bundle` (koleksi `endpoints` dan `javascript-routes`), `rea doctor`.
 
@@ -69,7 +73,7 @@ Nama chunk yang **sama** berarti file kode sumber halaman yang sama. Ini membaca
 
 Dua kesimpulan yang mengubah dokumen kita:
 
-1. **Panel admin bukan aplikasi terpisah.** Ia satu aplikasi, satu origin, satu layout dengan storefront, dan memakai tabel generik yang sama dengan halaman customer. Ini **memvalidasi keputusan Opsi A (modular monolith)** di ADR-001 — bukan cuma kita yang menyatukannya; tim sumber juga begitu, dan mereka berhasil. Doc 06 yang mengasumsikan "dashboard admin" sebagai permukaan tersendiri tetap benar secara fitur, tapi salah secara implikasi infra: tidak perlu service/UI terpisah.
+1. **Panel admin bukan aplikasi terpisah** (fakta observasi, tetap apa adanya). Ia satu aplikasi, satu origin, satu layout dengan storefront, dan memakai tabel generik yang sama dengan halaman customer. Dulu fakta ini kami kutip untuk **memvalidasi Opsi A (modular monolith)** di ADR-001; **kesimpulan itu kini digantikan ADR-003 K-2 / Doc 11 B-1** — topologi platform kita mengikuti Blueprint (`admin` app Next.js tersendiri), dan observasi situs sumber tidak lagi dipakai untuk membenarkan topologi kami. Doc 06 tetap benar sebagai spesifikasi fitur; implikasi infra-nya ("tidak perlu UI terpisah") tidak lagi jadi keputusan kita.
 2. **Semua shell halaman kembali 200 tanpa auth**, jadi proteksi mereka terjadi di klien (redirect setelah render) atau di pengambilan data. Ini celah yang **tidak** boleh kita tiru: di Laravel, `/admin/*` wajib dilindungi **server-side** (middleware role + policy), bukan disembunyikan di menu. Tambah sebagai aturan di Doc 01 §11.
 
 ## 4. Permukaan API: satu endpoint, itu pun bukan untuk katalog
@@ -116,6 +120,6 @@ Struktur tab/admin di balik login · skema basis data · rails pembayaran & webh
 |---|---|
 | `01-architecture.md` | Tambah baris delta **D8** (admin satu-aplikasi + tidak ada API publik) di §3.1; §8 Keamanan menerima daftar header §6 di doc ini sebagai baseline + aturan proteksi rute admin server-side + CSP `script-src`; §12 Risiko mencatat kerentanan origin 522 |
 | `05-customer-feature-inventory.md` | §1 terverifikasi independen oleh REA; koreksi: `/admin` memang ada; status "login" pada rute `/dashboard/*` perlu ditulis "shell 200, data butuh login"; kategori publik 8 bukan 6 |
-| `06-admin-dashboard-requirements.md` | Catat bahwa admin di situs sumber satu aplikasi dengan storefront (validasi Opsi A) + aturan proteksi server-side |
+| `06-admin-dashboard-requirements.md` | Catat bahwa admin di situs sumber satu aplikasi dengan storefront — **fakta observasi saja**; dulu dikutip sebagai "validasi Opsi A", kini digantikan ADR-003 K-2 / Doc 11 B-1 (lihat catatan di atas dokumen + §3 butir 1) + aturan proteksi server-side |
 | `02-business-flow-customer-features.md` | Kategori sebagai data dengan 8 nilai awal + ikon per kategori sebagai aset terupload |
-| `03-sprint-plan.md` | Tidak ada perubahan jadwal: tidak ada fitur baru yang muncul, hanya konfirmasi asumsi. Yang bertambah cuma pekerjaan hardening header/CSP (≈0,5 hari, masuk Sprint 0) |
+| `03-sprint-plan.md` | Tidak menambah fitur baru, hanya konfirmasi asumsi; yang bertambah cuma pekerjaan hardening header/CSP (≈0,5 hari). Pemetaannya ke sprint/Phase **mengikuti jadwal yang belum diputus (Q-1, Doc 03 §1 dan Doc 11 §5)** — dokumen ini tidak mengikat angka minggu |

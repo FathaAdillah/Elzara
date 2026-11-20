@@ -1,6 +1,8 @@
 # ADR-001 — Topologi: Modular Monolith dengan Jalur Ekstraksi Microservice
 
-Tanggal: 2026-11-16 · Status: **Accepted** (dikonfirmasi pemilik proyek 2026-11-17 bersama pilihan jalur ±18 minggu) · Konteks lengkap: `docs/01-architecture.md`
+Tanggal: 2026-11-16 · Status: **Accepted** (dikonfirmasi pemilik proyek 2026-11-17 bersama pilihan jalur ±18 minggu, **yang sekarang berstatus komitmen awal pra-Blueprint** — lihat catatan Jadwal di bawah) · Konteks lengkap: `docs/01-architecture.md`
+
+**Jadwal (amandemen 2026-11-17, ADR-003 K-5):** angka ±18 minggu yang disebut di ADR ini adalah **komitmen awal pra-Blueprint** dan sudah **diamandemen** — cakupan Blueprint penuh menuntut ±22–26 minggu, dan 18 minggu hanya bertahan pada opsi J-b/J-c (Doc 11 §5). Jadwal final adalah **keputusan klien yang masih terbuka → Q-1 (Doc 11 §6)**. Yang tidak berubah: keputusan topologi di ADR ini.
 
 ## Status
 
@@ -8,7 +10,7 @@ Kita memilih Opsi A: satu aplikasi Laravel modular dengan worker queue dan sched
 
 ## Konteks
 
-- Tim 1–2 developer, target MVP ±14 minggu (7 sprint) dengan empat fitur khas yang semuanya diminta masuk MVP: RTS, PO dengan deposit/pelunasan, Request Order privat, tracking + notifikasi. *(Catatan kemudian: angka ini disusun sebelum temuan Doc 05/06/07; jadwal revisi ±18 minggu ada di Doc 03 §10.5. Keputusan topologi di ADR ini tidak berubah — modular monolith justru menahan biaya tambahan itu tetap di satu pipeline.)*
+- Tim 1–2 developer, target MVP ±14 minggu (7 sprint) dengan empat fitur khas yang semuanya diminta masuk MVP: RTS, PO dengan deposit/pelunasan, Request Order privat, tracking + notifikasi. *(Catatan kemudian: angka ini disusun sebelum temuan Doc 05/06/07; jadwal revisi ±18 minggu ada di Doc 03 §2 dan **sudah diamandemen lagi** menjadi ±22–26 minggu untuk cakupan Blueprint penuh (catatan Jadwal di atas, Doc 11 §5). Keputusan topologi di ADR ini tidak berubah — modular monolith justru menahan biaya tambahan itu tetap di satu pipeline.)*
 - Model uangnya bernuansa stateful: deposit → pengingat → pelunasan → barang tiba → kirim. Alur ini menuntut konsistensi data dan rekonsiliasi yang keras.
 - Target hosting VPS tunggal dengan Docker Compose; trafik awal diasumsikan <50 order/jam.
 - Pemilik proyek meminta arsitektur microservice; permintaan itu valid sebagai tujuan jangka panjang, tapi harus diuji terhadap kapasitas tim dan risiko konsistensi.

@@ -1,6 +1,8 @@
 # ADR-002 — Amandemen model uang: invoice sebagai entitas terpisah dari order
 
-Tanggal: 2026-11-16 · Status: **Accepted** 2026-11-17 (pemilik proyek memilih jalur penuh ±18 minggu; implementasi masuk Sprint 2 & 4, skema di Doc 09 §5–6, urutan migrasi di Doc 10) · Dipicu oleh: `docs/05-customer-feature-inventory.md` §5.5
+Tanggal: 2026-11-16 · Status: **Accepted** 2026-11-17 (pemilik proyek memilih jalur penuh; implementasi masuk Sprint 2 & 4, skema di Doc 09 §5–6, urutan migrasi di Doc 10) · Dipicu oleh: `docs/05-customer-feature-inventory.md` §5.5
+
+**Catatan jadwal (amandemen 2026-11-17, ADR-003 K-5):** "jalur penuh" yang dipilih saat ADR ini diterima masih dihitung dalam ±18 minggu **pra-Blueprint**; angka itu sudah **diamandemen** menjadi ±22–26 minggu untuk cakupan Blueprint penuh, dan 18 minggu hanya bertahan pada opsi J-b/J-c (Doc 11 §5, keputusan terbuka Q-1). Tidak ada butir keputusan ADR ini yang berubah karena jadwal: model invoice tetap terpisah dari order, dan Sprint 2 & 4 hanyalah penomoran sementara sampai Q-1 dijawab.
 
 ## Konteks
 

@@ -1,11 +1,9 @@
-# dependencies
-/vendor/
-/node_modules/
-/public/build/
-/public/hot
-/public/storage/
-/storage/*.key
-/storage/private/
+# dependencies — pola tidak berjangkar: instalasi terjadi per app (apps/api/vendor,
+# apps/*/node_modules), bukan di root, jadi /vendor dan /node_modules tidak cukup.
+vendor/
+node_modules/
+
+# editor
 /.idea/
 /.vscode/
 /.history/
@@ -14,6 +12,7 @@
 .env
 .env.*
 !.env.example
+!docker/.env.production.example
 *.pem
 *.key
 auth.json
@@ -28,6 +27,7 @@ secrets/
 Homestead.json
 Homestead.yaml
 docker-compose.override.yml
+docker/.env
 
 # bukti hasil reverse engineering disimpan di luar repo (Doc 08 §0)
 /rea-evidence/
