@@ -134,13 +134,14 @@ jobs:
       WORKER_MEMORY_LIMIT: 512M
       NEXT_PUBLIC_API_BASE_URL: /api/v1
       NEXT_PUBLIC_BRAND_THEME: brand
-      ELZARA_ENV_FILE: ${{ runner.temp }}/ci.env
       TLS_CERT_DIR: ./nginx/certs
       GIT_SHA: ci
     steps:
       - uses: actions/checkout@v4
       - name: Berkas env kosong untuk render (config membaca env_file, bukan isi rahasianya)
-        run: touch "${ELZARA_ENV_FILE}"
+        run: |
+          touch "${RUNNER_TEMP}/ci.env"
+          printf 'ELZARA_ENV_FILE=%s\n' "${RUNNER_TEMP}/ci.env" >> "${GITHUB_ENV}"
       - name: Basis Dokploy dan profil lokal, staging, production dapat dirender
         run: |
           docker compose -f docker/compose.yaml config --quiet
