@@ -77,8 +77,11 @@ jobs:
           coverage: none
       - uses: ramsey/composer-install@v3
         with: { working-directory: apps/api }
-      - name: Kunci ephemeral CI (bukan kredensial; dibangkitkan tiap run, tidak pernah di-commit)
-        run: echo "APP_KEY=base64:$(head -c 32 /dev/urandom | base64 -w0)" >> "$GITHUB_ENV"
+      - name: Siapkan lingkungan pengujian
+        run: |
+          touch .env
+          echo "APP_KEY=base64:$(head -c 32 /dev/urandom | base64 -w0)" >> "$GITHUB_ENV"
+        working-directory: apps/api
       - run: php artisan test --testsuite=Unit
         working-directory: apps/api
 
@@ -123,7 +126,11 @@ jobs:
           coverage: none
       - uses: ramsey/composer-install@v3
         with: { working-directory: apps/api }
-      - run: echo "APP_KEY=base64:$(head -c 32 /dev/urandom | base64 -w0)" >> "$GITHUB_ENV"
+      - name: Siapkan lingkungan pengujian
+        run: |
+          touch .env
+          echo "APP_KEY=base64:$(head -c 32 /dev/urandom | base64 -w0)" >> "$GITHUB_ENV"
+        working-directory: apps/api
       - name: Satu jalur migrasi (ADR-010 K-5)
         run: php artisan migrate --force
         working-directory: apps/api
