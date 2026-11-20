@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Buat tepat enam bucket aplikasi + service account least-privilege + TTL exports (Doc 01 §9.2, ADR-008).
+# Idempoten, aman diulang. Bucket ketujuh terlarang: dump backup selalu off-node, bukan di MinIO node ini (Doc 11 §8.7).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SCRIPT_HOST_DIR="$(cd "${SCRIPT_DIR}" && (pwd -W 2>/dev/null || pwd))"
+export MSYS_NO_PATHCONV=1
+
+# Dev: kredensial dibaca dari docker/.env bila belum ada di environment shell.
+if [ -f "${ROOT}/docker/.env" ]; then
+  set -a
+  . "${ROOT}/docker/.env"
+  set +a
+fi
+
+: "${MINIO_ROOT_USER:?MINIO_ROOT_USER wajib diisi - kredensial root MinIO, lihat docker/.env.example}"
+: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib diisi - kredensial root MinIO}"
+: "${ELZARA_S3_ACCESS_KEY:?ELZARA_S3_ACCESS_KEY wajib diisi - access key service account aplikasi}"
+: "${ELZARA_S3_SECRET_KEY:?ELZARA_S3_SECRET_KEY wajib diisi - secret key service account aplikasi}"
+if (( ${#ELZARA_S3_SECRET_KEY} < 8 || ${#ELZARA_S3_SECRET_KEY} > 40 )); then
+  echo 'ELZARA_S3_SECRET_KEY harus berisi 8 sampai 40 karakter.' >&2
+  exit 1
+fi
+
+MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://minio:9000}"
+COMPOSE_NETWORK="${COMPOSE_NETWORK:-elzara_backend}"
+# Tag mc dipasangkan dengan tag minio/minio di compose.yaml; keduanya diukur ulang saat onboarding node.
+MC_IMAGE="${MC_IMAGE:-minio/mc:RELEASE.2025-04-22T22-12-26Z}"
+AWS_CLI_IMAGE="${AWS_CLI_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.34.42}"
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-elzara-1}"
+BUCKETS="product-media request-attachments invoice-documents shipment-documents exports audit-archives"
+
+# mc dan aws tidak pernah diinstal di host (Doc 01 §11.2): keduanya container sekali-pakai di
+# jaringan backend, satu-satunya tempat minio:9000 bisa dijangkau.
+docker run --rm \
+  --entrypoint sh \
+  --network "${COMPOSE_NETWORK}" \
+  --volume "${SCRIPT_HOST_DIR}:/minio:ro" \
+  -e MINIO_ENDPOINT="${MINIO_ENDPOINT}" \
+  -e MINIO_ROOT_USER="${MINIO_ROOT_USER}" \
+  -e MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}" \
+  -e ELZARA_S3_ACCESS_KEY="${ELZARA_S3_ACCESS_KEY}" \
+  -e ELZARA_S3_SECRET_KEY="${ELZARA_S3_SECRET_KEY}" \
+  "${MC_IMAGE}" -euc '
+    MC="mc --config-dir /tmp/mc"
+    ${MC} alias set local "${MINIO_ENDPOINT}" "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" >/dev/null
+    for b in product-media request-attachments invoice-documents shipment-documents exports audit-archives; do
+      ${MC} mb --ignore-existing "local/${b}"
+      ${MC} anonymous set private "local/${b}"
+    done
+    # Satu-satunya bucket yang boleh dibaca anonim; sisanya hanya lewat presigned URL.
+    ${MC} anonymous set download local/product-media
+    if ! ${MC} ilm rule ls --json local/exports | grep -Eq "\"(days|Days)\"[[:space:]]*:[[:space:]]*7([,}])"; then
+      ${MC} ilm rule add --expire-days 7 local/exports
+    fi
+    ${MC} admin user svcacct add local "${MINIO_ROOT_USER}" \
+      --access-key "${ELZARA_S3_ACCESS_KEY}" --secret-key "${ELZARA_S3_SECRET_KEY}" \
+      --policy /minio/policies/elzara-app.json >/dev/null 2>&1 \
+      || ${MC} admin user svcacct ls local "${MINIO_ROOT_USER}" | grep -q "${ELZARA_S3_ACCESS_KEY}"
+    count=$(${MC} ls local --json | grep -c folder || true)
+    [ "${count}" -eq 6 ] || { echo "bucket = ${count}, harus tepat 6 (Doc 01 §9.2)"; exit 1; }
+  '
+
+# Profil lokal mengatur daftar origin di server MinIO. Profil lain mengatur bucket melalui S3 API.
+if [ "${ELZARA_MINIO_SERVER_CORS:-0}" != 1 ]; then
+docker run --rm \
+  --entrypoint sh \
+  --network "${COMPOSE_NETWORK}" \
+  --volume "${SCRIPT_HOST_DIR}:/minio:ro" \
+  -e AWS_ACCESS_KEY_ID="${MINIO_ROOT_USER}" \
+  -e AWS_SECRET_ACCESS_KEY="${MINIO_ROOT_PASSWORD}" \
+  -e AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION}" \
+  -e MINIO_ENDPOINT="${MINIO_ENDPOINT}" \
+  "${AWS_CLI_IMAGE}" -euc '
+    for b in product-media request-attachments invoice-documents shipment-documents exports audit-archives; do
+      aws --endpoint-url "${MINIO_ENDPOINT}" s3api put-bucket-cors \
+        --bucket "${b}" --cors-configuration file:///minio/cors/bucket-cors.json >/dev/null
+    done
+  '
+fi
+
+echo "enam bucket siap: ${BUCKETS}"

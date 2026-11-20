@@ -1,0 +1,11 @@
+.git
+.agents
+.codex
+.qoder
+**/.env*
+**/node_modules
+**/.next
+**/.nuxt
+**/.output
+**/vendor
+docker/nginx/certs

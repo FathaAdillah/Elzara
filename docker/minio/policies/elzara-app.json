@@ -1,0 +1,35 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload"],
+      "Resource": [
+        "arn:aws:s3:::product-media/*",
+        "arn:aws:s3:::request-attachments/*",
+        "arn:aws:s3:::invoice-documents/*",
+        "arn:aws:s3:::shipment-documents/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject"],
+      "Resource": ["arn:aws:s3:::exports/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Resource": ["arn:aws:s3:::audit-archives/*"]
+    },
+    {
+      "Effect": "Deny",
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::audit-archives/*"]
+    },
+    {
+      "Effect": "Deny",
+      "Action": ["s3:DeleteBucket", "s3:ListAllMyBuckets"],
+      "Resource": ["arn:aws:s3:::*"]
+    }
+  ]
+}

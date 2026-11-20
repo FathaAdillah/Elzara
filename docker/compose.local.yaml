@@ -1,0 +1,7 @@
+name: elzara
+
+# Docker Desktop development. Paths are resolved relative to this directory.
+include:
+  - path:
+      - compose.yaml
+      - profiles/local.yaml

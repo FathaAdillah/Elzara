@@ -1,0 +1,48 @@
+# Override staging: basis yang sama (docker/compose.yaml) untuk environment lain (Doc 01 §11.6).
+# Yang diubah hanya parameter rilis; tidak ada service data store yang didefinisikan ulang di sini.
+
+x-env-file: &x-env-file
+  # Berkas env hasil decrypt di server target; tidak pernah ada di repo (Doc 01 §11.3).
+  env_file: ${ELZARA_ENV_FILE:?ELZARA_ENV_FILE wajib diisi - path berkas env environment ini di host target}
+
+services:
+  api:
+    <<: *x-env-file
+    restart: unless-stopped
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "false"
+
+  worker:
+    <<: *x-env-file
+    restart: unless-stopped
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "false"
+
+  scheduler:
+    <<: *x-env-file
+    restart: unless-stopped
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "false"
+
+  web:
+    <<: *x-env-file
+    restart: unless-stopped
+
+  admin:
+    <<: *x-env-file
+    restart: unless-stopped
+
+  nginx:
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./nginx/tls.conf:/etc/nginx/conf.d/default.conf:ro
+      # Material TLS environment ini dipasang dari luar repo; lokasinya variabel, isinya tidak (Q-1).
+      - ${TLS_CERT_DIR:?TLS_CERT_DIR wajib diisi - direktori sertifikat edge di host, tidak pernah di repo}:/etc/nginx/certs:ro
+
+networks:
+  monitoring:
+    internal: true

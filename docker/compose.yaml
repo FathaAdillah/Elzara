@@ -1,0 +1,279 @@
+name: elzara
+
+# Entrypoint production Dokploy dan basis untuk docker/compose.local.yaml.
+# Tidak ada satu pun variabel yang dibaca kode tanpa terdaftar di docker/.env.example (Doc 01 §11.3).
+x-env: &x-env
+  APP_KEY: ${APP_KEY:?APP_KEY wajib diisi - buat dengan php artisan key:generate di dalam container api}
+  APP_URL: ${ELZARA_EDGE_URL:?ELZARA_EDGE_URL wajib diisi - origin edge publik, lihat .env.example}
+  ELZARA_ADMIN_ORIGIN: ${ELZARA_ADMIN_ORIGIN:-https://${ELZARA_ADMIN_HOST:-admin.localhost}}
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_DATABASE: ${POSTGRES_DB:?POSTGRES_DB wajib diisi}
+  DB_USERNAME: ${POSTGRES_USER:?POSTGRES_USER wajib diisi}
+  DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  SESSION_DRIVER: redis
+  QUEUE_CONNECTION: redis
+  CACHE_STORE: redis
+  # Endpoint internal container != endpoint yang dilihat browser (ADR-008 K-7): dua-duanya wajib ada.
+  AWS_ENDPOINT_URL: http://minio:9000
+  MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:?MINIO_PUBLIC_ENDPOINT wajib diisi - URL presign yang dijangkau browser, di-proxy edge lewat location /storage}
+  AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:?AWS_DEFAULT_REGION wajib diisi}
+  AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?MINIO_ROOT_USER wajib diisi}
+  AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib diisi}
+  ELZARA_S3_ACCESS_KEY: ${ELZARA_S3_ACCESS_KEY:?ELZARA_S3_ACCESS_KEY wajib diisi - service account aplikasi, bukan root}
+  ELZARA_S3_SECRET_KEY: ${ELZARA_S3_SECRET_KEY:?ELZARA_S3_SECRET_KEY wajib diisi}
+  MAIL_MAILER: smtp
+  MAIL_HOST: ${SMTP_HOST:?SMTP_HOST wajib diisi - penangkap email lokal di dev, provider nyata di produksi}
+  MAIL_PORT: ${SMTP_PORT:?SMTP_PORT wajib diisi}
+  MAIL_SCHEME: ${SMTP_SCHEME:-smtp}
+  MAIL_USERNAME: ${SMTP_USERNAME:-}
+  MAIL_PASSWORD: ${SMTP_PASSWORD:-}
+  MAIL_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-hello@localhost}
+
+# Tujuh dan hanya tujuh antrian (Doc 11 §8.1, pemilik Blueprint §9). `default`/`search`/`reconcile` terlarang.
+x-queues: &x-queues
+  HORIZON_QUEUES: payments,orders,inventory,notifications,imports,reports,media
+  HORIZON_PREFIX: ${HORIZON_PREFIX:?HORIZON_PREFIX wajib diisi - prefix Redis terisolasi per environment (ADR-004)}
+
+x-search: &x-search
+  ELASTICSEARCH_URL: http://elasticsearch:9200
+  ELASTICSEARCH_API_KEY: ${ELASTICSEARCH_API_KEY:-}
+
+x-common: &x-common
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *x-common
+    build:
+      # Semua image dibangun dari konteks root repo, satu Dockerfile per app (ADR-010 K-1, Doc 01 §11.2).
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: elzara/api:${GIT_SHA:-dev}
+    environment:
+      <<: [*x-env, *x-search]
+      APP_ENV: ${APP_ENV:?APP_ENV wajib diisi (local|staging|production)}
+      APP_DEBUG: ${APP_DEBUG:?APP_DEBUG wajib diisi}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    networks: [frontend, backend, search]
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 9000) ? 0 : 1);'"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+
+  worker:
+    <<: *x-common
+    image: elzara/api:${GIT_SHA:-dev}
+    command: ["php", "artisan", "horizon"]
+    environment:
+      <<: [*x-env, *x-queues, *x-search]
+      APP_ENV: ${APP_ENV:?APP_ENV wajib diisi (local|staging|production)}
+      APP_DEBUG: "false"
+    # Horizon adalah komponen yang paling mudah menghabiskan RAM VPS (Doc 01 §11.1).
+    ulimits:
+      nofile: { soft: 65535, hard: 65535 }
+      nproc: { soft: 4096, hard: 4096 }
+    deploy:
+      resources:
+        limits:
+          memory: ${WORKER_MEMORY_LIMIT:?WORKER_MEMORY_LIMIT wajib diisi (mis. 512M)}
+          cpus: "1.00"
+    depends_on:
+      api: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend, search, worker-egress]
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:status | grep -qi 'running'"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  scheduler:
+    <<: *x-common
+    image: elzara/api:${GIT_SHA:-dev}
+    # Jatuh tempo invoice, expirasi stock_reservations, tutup batch, reindex, rekonsiliasi (Doc 01 §11.1).
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      <<: *x-env
+      APP_ENV: ${APP_ENV:?APP_ENV wajib diisi (local|staging|production)}
+      APP_DEBUG: "false"
+    depends_on:
+      api: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan schedule:list > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  web:
+    <<: *x-common
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL wajib diisi - basis URL /api/v1 yang dilihat browser}
+        NEXT_PUBLIC_BRAND_THEME: ${NEXT_PUBLIC_BRAND_THEME:?NEXT_PUBLIC_BRAND_THEME wajib diisi (playful|clean-premium|bold-kpop|brand)}
+        NEXT_PUBLIC_SITE_URL: ${ELZARA_EDGE_URL}
+        MEDIA_PUBLIC_ORIGIN: ${MINIO_PUBLIC_ENDPOINT}
+    image: elzara/web:${GIT_SHA:-dev}
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_URL: http://nginx:8080
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL wajib diisi}
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [frontend]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  admin:
+    <<: *x-common
+    build:
+      context: ..
+      dockerfile: apps/admin/Dockerfile
+    image: elzara/admin:${GIT_SHA:-dev}
+    environment:
+      NODE_ENV: production
+      NUXT_API_INTERNAL_ORIGIN: http://nginx:8080
+      NUXT_ADMIN_ORIGIN: ${ELZARA_ADMIN_ORIGIN:-https://${ELZARA_ADMIN_HOST:-admin.localhost}}
+      NUXT_ADMIN_SESSION_PATH: ${ADMIN_SESSION_PATH:-/api/v1/admin/auth/session}
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [frontend]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  nginx:
+    <<: *x-common
+    image: nginx:1.27-alpine
+    environment:
+      ELZARA_ADMIN_HOST: ${ELZARA_ADMIN_HOST:-admin.localhost}
+      ELZARA_EDGE_URL: ${ELZARA_EDGE_URL}
+      NGINX_ENVSUBST_FILTER: ^ELZARA_(ADMIN_HOST|EDGE_URL)$
+    volumes:
+      - ./nginx/dokploy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro
+      - ./nginx/routes.inc:/etc/nginx/elzara/routes.inc:ro
+    expose: ["8080"]
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+      admin: { condition: service_healthy }
+    networks: [frontend, backend]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/nginx-healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    <<: *x-common
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB wajib diisi}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER wajib diisi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # SATU-SATUNYA sumber kebenaran; tidak pernah berpublikasi ke host (Doc 01 §11.1, akses via SSH tunnel).
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    <<: *x-common
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  elasticsearch:
+    <<: *x-common
+    profiles: [search]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.25
+    mem_limit: ${ELASTICSEARCH_MEMORY_LIMIT:-1g}
+    environment:
+      discovery.type: single-node
+      node.store.allow_mmap: "false"
+      xpack.license.self_generated.type: basic
+      xpack.security.enabled: "true"
+      xpack.security.autoconfiguration.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.ml.enabled: "false"
+      ELASTIC_PASSWORD: ${ELASTICSEARCH_PASSWORD:-}
+    volumes:
+      - elasticsearchdata:/usr/share/elasticsearch/data
+    networks: [search]
+    healthcheck:
+      test: ["CMD-SHELL", "test -n \"$$ELASTIC_PASSWORD\" && curl -fsS --max-time 5 -u \"elastic:$$ELASTIC_PASSWORD\" 'http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=4s' >/dev/null"]
+      interval: 15s
+      timeout: 7s
+      retries: 5
+      start_period: 60s
+
+  minio:
+    <<: *x-common
+    build:
+      context: ..
+      dockerfile: docker/minio/Dockerfile
+    image: elzara/minio:${GIT_SHA:-dev}
+    command: ["server", "/data", "--console-address", "0.0.0.0:9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER wajib diisi}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib diisi}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${ELZARA_EDGE_URL},${ELZARA_ADMIN_ORIGIN:-https://${ELZARA_ADMIN_HOST:-admin.localhost}}
+      MINIO_REGION_NAME: ${AWS_DEFAULT_REGION}
+    volumes:
+      - miniodata:/data
+    # Konsol 9001 dan API 9000 keduanya hanya terjangkau dari jaringan backend (ADR-008 K-6).
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+networks:
+  frontend: {}
+  # Horizon needs outbound access to external SMTP providers in production.
+  worker-egress: {}
+  search:
+    internal: true
+  # internal: true = tidak ada jalur keluar/masuk dari host selain lewat nginx (Doc 01 §11.1).
+  backend:
+    internal: true
+
+volumes:
+  elasticsearchdata: {}
+  pgdata: {}
+  redisdata: {}
+  miniodata: {}
