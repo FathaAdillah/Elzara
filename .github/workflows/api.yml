@@ -1,0 +1,247 @@
+# Pipeline artefak api - stage wajib & berurutan sesuai ADR-010 K-4 dan Doc 01 §11.4.
+# Filter path: hanya apps/api + kontrak; perubahan di apps/admin atau apps/web TIDAK memicu pipeline ini (K-2).
+
+name: api
+
+on:
+  pull_request:
+    paths:
+      - apps/api/**
+      - packages/api-contracts/**
+      - docker/compose.yaml
+      - docker/profiles/**
+      - scripts/migrate.sh
+      - scripts/codegen.sh
+      - scripts/check-contract-drift.sh
+      - .github/workflows/api.yml
+  push:
+    branches: [master]
+    paths:
+      - apps/api/**
+      - packages/api-contracts/**
+      - docker/compose.yaml
+      - docker/profiles/**
+      - scripts/migrate.sh
+      - scripts/codegen.sh
+      - scripts/check-contract-drift.sh
+      - .github/workflows/api.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target deploy (staging|production) - belum bisa dieksekusi sampai Q-1/Q-6 tertutup
+        required: true
+        default: staging
+
+permissions: { contents: read }
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: elzara/api
+
+jobs:
+  lint:
+    name: 1. lint (PSR + PHPStan + Deptrac)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, redis, intl, gd, bcmath, zip, opcache
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with: { working-directory: apps/api }
+      - run: composer lint
+        working-directory: apps/api
+      - run: composer analyse
+        working-directory: apps/api
+      - name: Architecture test B1-B6
+        run: composer deptrac
+        working-directory: apps/api
+
+  unit:
+    name: 2. unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, redis, intl, gd, bcmath, zip, opcache
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with: { working-directory: apps/api }
+      - name: Kunci ephemeral CI (bukan kredensial; dibangkitkan tiap run, tidak pernah di-commit)
+        run: echo "APP_KEY=base64:$(head -c 32 /dev/urandom | base64 -w0)" >> "$GITHUB_ENV"
+      - run: php artisan test --testsuite=Unit
+        working-directory: apps/api
+
+  integration:
+    name: 3. integration (PostgreSQL 16 + Redis nyata)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: unit
+    # SQLite eksplisit tidak cukup: ia tidak memvalidasi locking Postgres, prasyarat ADR-005 (K-4, B-11).
+    # Testcontainers adalah alternatif bila suite butuh instance per kelas; service container dipakai di sini.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: elzara_test
+          POSTGRES_USER: elzara
+          POSTGRES_PASSWORD: elzara
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U elzara" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_DATABASE: elzara_test
+      DB_USERNAME: elzara
+      DB_PASSWORD: elzara
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, redis, intl, gd, bcmath, zip, opcache
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with: { working-directory: apps/api }
+      - run: echo "APP_KEY=base64:$(head -c 32 /dev/urandom | base64 -w0)" >> "$GITHUB_ENV"
+      - name: Satu jalur migrasi (ADR-010 K-5)
+        run: php artisan migrate --force
+        working-directory: apps/api
+      - run: php artisan test --testsuite=Feature,Contract
+        working-directory: apps/api
+      - name: Suite konkurensi ikut integration, bukan pekerjaan manual (K-4)
+        run: php artisan test --testsuite=Concurrency
+        working-directory: apps/api
+
+  contract:
+    name: 3b. gerbang kontrak (K-3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - name: Klien TypeScript hasil generate harus identik dengan openapi.yaml
+        run: bash scripts/check-contract-drift.sh
+
+  security:
+    name: 4. security scan (dependency + secret)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [integration, contract]
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: "8.4", coverage: none }
+      - name: composer audit
+        run: composer audit --format=text
+        working-directory: apps/api
+      - name: Secret scan - gagal berisik, tidak pernah diam-diam lulus
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  image:
+    name: 5. build image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: security
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Tag = GIT_SHA (Doc 01 §11.2); rollback = tag sebelumnya. Tidak ada push di pipeline ini:
+      # registry privat masih keputusan klien (Q-1 biaya infra, Q-6 domain/edge).
+      - name: Build lokal tanpa push
+        run: docker build -f apps/api/Dockerfile -t "${IMAGE}:${GITHUB_SHA}" .
+      - name: Image tidak boleh berisi .env atau kredensial
+        run: |
+          docker save "${IMAGE}:${GITHUB_SHA}" | tar -t | grep -E '\.env$|\.env\.example$|\.pem$|\.key$' && {
+            echo "image berisi berkas env/secret - build ditolak"; exit 1; } || true
+
+  migration-compat:
+    name: 6. migration compatibility check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: image
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Basename migrasi unik di seluruh repo (Doc 10 §10/C2, K-5)
+        run: |
+          dup=$(find apps/api -path '*/Migrations/*.php' -printf '%f\n' | sort | uniq -d)
+          [ -z "$dup" ] || { echo "basename duplikat: $dup"; exit 1; }
+      - name: Riwayat migrasi yang sudah merge dibekukan (M-4)
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.sha }}"
+          frozen=""
+          for f in $(git diff --name-only "$base" HEAD -- apps/api | grep '/Migrations/.*\.php$' || true); do
+            git cat-file -e "${base}:${f}" 2>/dev/null && frozen="${frozen} ${f}"
+          done
+          if [ -n "${frozen}" ]; then
+            echo "berkas migrasi lama disunting (M-4):${frozen} - koreksi selalu berupa berkas baru"
+            exit 1
+          fi
+          echo "riwayat migrasi tidak ada yang disunting"
+
+  deploy:
+    name: 7. deploy (TERHALA - keputusan klien)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch'
+    needs: migration-compat
+    environment: ${{ inputs.environment }}
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_SSH_USER }}
+      REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+    steps:
+      # Urutan rilis tetap seperti Doc 01 §11.4 dan dijalankan dari server target, bukan dari runner:
+      #   1. php artisan down            (maintenance mode)
+      #   2. php artisan horizon:terminate (drain halus; horizon:clear TERLARANG - queue-stuck.md §3.3)
+      #   3. bash infrastructure/backup/offnode-backup.sh  (pre-<release>, Doc 10 §9 langkah 1)
+      #   4. bash scripts/migrate.sh     (backward-compatible saja, M-4/M-13)
+      #   5. docker compose -f docker/compose.yaml -f docker/profiles/<env>.yaml up -d --no-deps api worker scheduler
+      #   6. smoke test, lalu php artisan up
+      # Langkah di bawah ini sengaja gagal, bukan dilewati: deploy yang diam-diam tidak terjadi lebih
+      # berbahaya daripada yang gagal (ADR-010 K-2). Blokiran: Q-1 (kapasitas/biaya infra),
+      # Q-6 (domain/edge/registry), Q-7 (gateway + akun staging untuk smoke nyata).
+      - name: Gerbang keputusan klien
+        run: |
+          test -n "$DEPLOY_HOST" || { echo "target deploy belum diputuskan (Q-1/Q-6) - tidak ada kredensial deploy di repo, dan tidak akan pernah ada nilai contoh."; exit 1; }
+          test -n "$REGISTRY" || { echo "registry privat belum diputuskan (Q-1) - image hanya ada di runner, tidak dipush dari CI."; exit 1; }
+
+  smoke:
+    name: 8. smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'workflow_dispatch'
+    needs: deploy
+    steps:
+      # Setelah deploy nyata: GET /health lewat edge + assert X-Request-Id (Doc 12 §3.2).
+      - name: Smoke terhadap environment target
+        env:
+          SMOKE_URL: ${{ secrets.SMOKE_BASE_URL }}
+        run: |
+          test -n "$SMOKE_URL" || { echo "SMOKE_BASE_URL belum ada (Q-6 domain/edge) - smoke target nyata dilewati dengan pesan, bukan tanpa suara."; exit 1; }
+          curl -fsS -D /tmp/smoke.headers "$SMOKE_URL/health"
+          grep -qi '^x-request-id:' /tmp/smoke.headers

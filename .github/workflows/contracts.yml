@@ -1,0 +1,236 @@
+# Pipeline bersama untuk kontrak + infra (ADR-010 K-2): apa yang harus hijau kalau packages/ atau docker/ berubah.
+# Job docs hanya manual karena lima pemeriksa Doc 11 §8.8 memang hidup di luar repo, bukan deliverable yang bisa di-fetch CI.
+
+name: contracts
+
+on:
+  pull_request:
+    paths:
+      - packages/**
+      - docker/**
+      - scripts/**
+      - docs/**
+      - .github/workflows/contracts.yml
+  push:
+    branches: [master]
+    paths:
+      - packages/**
+      - docker/**
+      - scripts/**
+      - docs/**
+      - .github/workflows/contracts.yml
+  workflow_dispatch:
+    inputs:
+      auditors_dir:
+        description: Direktori lima pemeriksa Doc 11 §8.8 di workstation (mis. C:/temp) - tidak ada di repo
+        required: false
+        default: ""
+
+permissions: { contents: read }
+
+concurrency:
+  group: contracts-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  openapi:
+    name: Kontrak OpenAPI 3.1
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Spektral lint (aturan elzara-* ikut jalan)
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}/packages/api-contracts:/w" -w /w \
+            -v elzara-codegen-cache:/root/.npm node:22-alpine \
+            sh -ec 'npm install --no-package-lock --no-audit --no-fund --ignore-scripts && npx --no-install spectral lint -r .spectral.yaml openapi.yaml'
+      - name: Pastikan semua jalur Blueprint §7 tersedia
+        run: |
+          status=0
+          while IFS= read -r path; do
+            if ! grep -Fxq "  ${path}:" packages/api-contracts/openapi.yaml; then
+              printf 'Jalur Blueprint hilang: %s\n' "$path"
+              status=1
+            fi
+          done <<'BLUEPRINT_PATHS'
+          /health
+          /products
+          /products/{slug}
+          /preorder-batches
+          /preorder-batches/{id}
+          /cart/items
+          /checkout/sessions
+          /orders
+          /me/orders/{id}
+          /payment-intents
+          /webhooks/payments/{provider}
+          /product-requests
+          /product-requests/{id}/attachments/presign
+          /me/quotations/{id}
+          /quotations/{id}/accept
+          /admin/preorder-batches/{id}/close
+          /admin/purchase-orders
+          /admin/shipments
+          BLUEPRINT_PATHS
+          exit "$status"
+      - name: Pastikan skema keamanan tersedia sesuai ADR-007
+        run: |
+          grep -Fxq '  securitySchemes:' packages/api-contracts/openapi.yaml
+      - name: Uang selalu integer minor-unit, mata uang const IDR (Doc 01 §6.1)
+        run: |
+          grep -A2 'amount_minor:' packages/api-contracts/openapi.yaml | grep -q 'type: integer'
+          grep -A3 'currency:' packages/api-contracts/openapi.yaml | grep -q 'const: IDR'
+
+  drift:
+    name: Klien hasil generate vs spesifikasi (K-3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/check-contract-drift.sh
+
+  packages:
+    name: packages/ui + shared-types
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: shared-types typecheck
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}/packages/shared-types:/w" -w /w \
+            -v elzara-codegen-cache:/root/.npm node:22-alpine \
+            sh -ec 'npm install --no-package-lock --no-audit --no-fund --ignore-scripts && npx tsc --noEmit'
+      - name: ui typecheck
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}/packages/ui:/w" -w /w \
+            -v elzara-codegen-cache:/root/.npm node:22-alpine \
+            sh -ec 'npm install --no-package-lock --no-audit --no-fund --ignore-scripts && npm run typecheck'
+      - name: Tidak ada hex di luar lapis-1 token (Doc 04 §2)
+        run: |
+          hits=$(grep -rn --include='*.css' --include='*.tsx' --include='*.ts' -E '#[0-9a-fA-F]{3,8}' packages/ui/src | grep -v 'src/tokens/primitives.css' | grep -v 'src/tokens/presets/' || true)
+          if [ -n "${hits}" ]; then echo "nilai warna konkret di luar lapis 1/preset:"; echo "${hits}"; exit 1; fi
+
+  compose:
+    name: Render compose + batas infra
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_KEY: base64:0000000000000000000000000000000000000000000
+      ELZARA_EDGE_URL: https://shop.example.com
+      APP_ENV: local
+      APP_DEBUG: "false"
+      POSTGRES_DB: elzara
+      POSTGRES_USER: elzara
+      POSTGRES_PASSWORD: elzara
+      MINIO_ROOT_USER: ci-only
+      MINIO_ROOT_PASSWORD: ci-only
+      MINIO_PUBLIC_ENDPOINT: https://shop.example.com/storage
+      AWS_DEFAULT_REGION: elzara-1
+      ELZARA_S3_ACCESS_KEY: ci-only
+      ELZARA_S3_SECRET_KEY: ci-only
+      SMTP_HOST: smtp.example.com
+      SMTP_PORT: "587"
+      HORIZON_PREFIX: elzara-ci
+      WORKER_MEMORY_LIMIT: 512M
+      NEXT_PUBLIC_API_BASE_URL: /api/v1
+      NEXT_PUBLIC_BRAND_THEME: brand
+      ELZARA_ENV_FILE: ${{ runner.temp }}/ci.env
+      TLS_CERT_DIR: ./nginx/certs
+      GIT_SHA: ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Berkas env kosong untuk render (config membaca env_file, bukan isi rahasianya)
+        run: touch "${ELZARA_ENV_FILE}"
+      - name: Basis Dokploy dan profil lokal, staging, production dapat dirender
+        run: |
+          docker compose -f docker/compose.yaml config --quiet
+          SMTP_HOST=mailpit SMTP_PORT=1025 docker compose -f docker/compose.local.yaml config --quiet
+          SMTP_HOST=mailpit SMTP_PORT=1025 docker compose -f docker/compose.local.yaml --profile search config --quiet
+          docker compose -f docker/compose.yaml -f docker/profiles/staging.yaml config --quiet
+          docker compose -f docker/compose.yaml -f docker/profiles/production.yaml config --quiet
+      - name: Development memakai HTTP dan Mailpit pada loopback
+        env:
+          ELZARA_EDGE_URL: http://localhost
+          ELZARA_ADMIN_ORIGIN: http://admin.localhost
+          MINIO_PUBLIC_ENDPOINT: http://localhost/storage
+        run: |
+          SMTP_HOST=mailpit SMTP_PORT=1025 docker compose -f docker/compose.local.yaml config --format json | jq -e '
+            .services.mailpit.ports[0].host_ip == "127.0.0.1" and
+            .services.api.environment.MAIL_HOST == "mailpit" and
+            .services.api.environment.SESSION_SECURE_COOKIE == "false" and
+            (.services.nginx.ports | map(.target) == [80]) and
+            (.services.nginx.volumes | map(.target) | index("/etc/nginx/certs") == null)
+          '
+      - name: Dokploy memakai SMTP produksi dan TLS di Traefik
+        run: |
+          docker compose -f docker/compose.yaml config --format json | jq -e '
+            (.services | has("mailpit") | not) and
+            .services.api.environment.MAIL_HOST == "smtp.example.com" and
+            (.services.nginx.ports // [] | length == 0)
+          '
+      - name: Tidak ada service data store yang didefinisikan ulang oleh profil (satu berkas satu definisi)
+        run: |
+          count=$(docker compose -f docker/compose.yaml -f docker/profiles/production.yaml config | grep -c 'image: postgres')
+          if [ "${count}" != "1" ]; then echo "postgres didefinisikan ${count} kali"; exit 1; fi
+      - name: Tujuh dan hanya tujuh antrian Horizon (Doc 11 §8.1)
+        run: |
+          names=$(grep -oE 'HORIZON_QUEUES: [a-z,]+' docker/compose.yaml | cut -d' ' -f2 | tr ',' '\n' | sort -u | grep -c .)
+          if [ "${names}" != "7" ]; then echo "jumlah antrian = ${names}, harus tepat 7"; exit 1; fi
+          for forbidden in default search reconcile; do
+            if grep -E "HORIZON_QUEUES: [a-z,]*${forbidden}" docker/compose.yaml docker/profiles/*.yaml; then
+              echo "antrian terlarang ikut terdaftar: ${forbidden}"; exit 1
+            fi
+          done
+          if grep -rn 'horizon:clear' docker scripts; then
+            echo "horizon:clear per antrian terlarang (runbook queue-stuck §3.3)"; exit 1
+          fi
+      - name: postgres/redis/minio tidak mempublikasikan port ke host (Doc 01 §11.1)
+        run: |
+          rendered=$(docker compose -f docker/compose.yaml -f docker/profiles/production.yaml config --format json)
+          for svc in postgres redis minio; do
+            ports=$(echo "${rendered}" | jq -r ".services.${svc}.ports // empty")
+            if [ -n "${ports}" ]; then echo "service ${svc} mempublikasikan port ke host: ${ports}"; exit 1; fi
+          done
+      - name: Elasticsearch Basic berjalan di jaringan internal tanpa port host
+        run: |
+          docker compose -f docker/compose.yaml --profile search config --format json | jq -e '
+            .networks.search.internal == true and
+            (.services.elasticsearch.networks | keys == ["search"]) and
+            (.services.elasticsearch.ports // [] | length == 0) and
+            .services.elasticsearch.environment["xpack.license.self_generated.type"] == "basic"
+          '
+      - name: Tepat enam bucket, tanpa bucket backup di node (Doc 01 §9.2, Doc 11 §8.7)
+        run: |
+          grep -q 'product-media request-attachments invoice-documents shipment-documents exports audit-archives' docker/minio/init-buckets.sh
+          if grep -qE '\blocal/backups\b|\bbucket.*backups\b' docker/minio/init-buckets.sh; then
+            echo "bucket backup di MinIO node ini terlarang"; exit 1
+          fi
+      - name: Setiap ${VAR:?} punya barisnya di docker/.env.example (Doc 01 §11.3)
+        run: |
+          vars=$(grep -hoE '\$\{[A-Z0-9_]+' docker/compose.yaml docker/profiles/*.yaml | tr -d '${' | sort -u)
+          missing=""
+          for v in ${vars}; do
+            grep -qE "^${v}=|^${v} " docker/.env.example || missing="${missing} ${v}"
+          done
+          if [ -n "${missing}" ]; then echo "variabel tidak terdaftar di docker/.env.example:${missing}"; exit 1; fi
+
+  docs:
+    name: Konsistensi dokumen (manual - pemeriksa di luar repo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      # Lima pemeriksa Doc 11 §8.8 (verify_schema.py, audit_sweep3.py, audit_blueprint_coverage.py,
+      # scan_unicode.py, list_dead_cites.py) tidak di-commit ke repo dan membaca docs/ dari path yang
+      # ditanam di dalamnya, termasuk berkas Blueprint di luar repo. Karena itu gerbang ini dijalankan
+      # dari workstation, bukan dari runner; mengirimnya ke CI berarti membuat gerbang palsu.
+      - name: Jalankan pemeriksa
+        env:
+          ELZARA_AUDITORS_DIR: ${{ inputs.auditors_dir }}
+        run: |
+          if [ -z "${ELZARA_AUDITORS_DIR}" ]; then
+            echo "ELZARA_AUDITORS_DIR kosong - jalankan gate dari workstation lewat scripts/verify-docs.sh."
+            exit 1
+          fi
+          bash scripts/verify-docs.sh

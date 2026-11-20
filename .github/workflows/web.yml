@@ -1,0 +1,151 @@
+# Pipeline artefak web - storefront, artefak ter-deploy-mandiri ketiga (ADR-010 K-1/K-2).
+# Filter path hanya apps/web + paket yang dibakar ke bundle-nya; apps/admin tidak pernah memicu ini (K-2).
+
+name: web
+
+on:
+  pull_request:
+    paths:
+      - apps/web/**
+      - packages/api-contracts/**
+      - packages/shared-types/**
+      - packages/ui/**
+      - .github/workflows/web.yml
+  push:
+    branches: [master]
+    paths:
+      - apps/web/**
+      - packages/api-contracts/**
+      - packages/shared-types/**
+      - packages/ui/**
+      - .github/workflows/web.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target deploy (staging|production)
+        required: true
+        default: staging
+
+permissions: { contents: read }
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP: apps/web
+  IMAGE: elzara/web
+
+jobs:
+  verify:
+    name: 1. typecheck + unit (di dalam node:22, tidak di runner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lockfile app ini harus ada - dua app, dua lockfile (Doc 01 §11.2)
+        run: |
+          if [ ! -f "${APP}/package-lock.json" ]; then
+            echo "package-lock.json belum di-commit; bangkitkan di dalam container, bukan di host:"
+            echo "  docker run --rm -v \"\$PWD:/w\" -w /w/${APP} node:22 npm install"
+            exit 1
+          fi
+      - name: npm ci + typecheck
+        run: docker run --rm -v "${GITHUB_WORKSPACE}:/w" -w "/w/${APP}" node:22 sh -ec 'npm ci && npm run typecheck'
+      - name: Unit test hanya bila app punya runner; tanpa itu tidak ada langkah palsu
+        run: |
+          if grep -q '"test"' "${APP}/package.json"; then
+            docker run --rm -v "${GITHUB_WORKSPACE}:/w" -w "/w/${APP}" node:22 sh -ec 'npm ci && npm test'
+          else
+            echo "suite unit belum ada untuk app ini - dilewati dengan pesan, bukan pura-pura hijau"
+          fi
+
+  tokens:
+    name: 1b. paket token & klien ikut ter-generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+      - name: packages/ui harus typecheck sendiri (sumber token bersama, Doc 04 §11)
+        run: docker run --rm -v "${GITHUB_WORKSPACE}:/repo" -w /repo/packages/ui node:22 sh -ec 'npm install --no-package-lock --no-audit --no-fund && npm run typecheck'
+      - name: Klien kontrak yang dipakai storefront identik dengan openapi.yaml (K-3)
+        run: bash scripts/check-contract-drift.sh
+
+  security:
+    name: 2. security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [verify, tokens]
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: npm audit (production deps)
+        run: docker run --rm -v "${GITHUB_WORKSPACE}:/w" -w "/w/${APP}" node:22 sh -ec 'npm ci && npm audit --omit=dev'
+      - name: NEXT_PUBLIC_* tidak boleh berisi rahasia (Doc 04 §12, Blueprint §12)
+        run: |
+          if grep -rEn 'NEXT_PUBLIC_(SECRET|TOKEN|API_KEY|PASSWORD)' "${APP}" packages; then
+            echo "nilai rahasia ditemukan di NEXT_PUBLIC_* - browser membacanya"; exit 1
+          fi
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  image:
+    name: 3. build image
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: security
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Preset tema dipilih saat build (Doc 04 §4); tanpa arg, build memakai default storefront.
+      - name: Build lokal tanpa push
+        run: docker build -f apps/web/Dockerfile -t "${IMAGE}:${GITHUB_SHA}" .
+      - name: Storefront tidak membawa kode admin (Doc 04 §12)
+        run: |
+          if docker save "${IMAGE}:${GITHUB_SHA}" | tar -t | grep -E '(^|/)apps/admin(/|$)'; then
+            echo "image storefront memuat berkas apps/admin - build gabungan terlarang"; exit 1
+          fi
+
+  deploy:
+    name: 4. deploy (TERHALA - keputusan klien)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch'
+    needs: image
+    environment: ${{ inputs.environment }}
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+      REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+    steps:
+      # Web naik sendiri: docker compose -f docker/compose.yaml -f docker/profiles/<env>.yaml
+      # up -d --no-deps web - container api/admin tidak boleh berubah id-nya (bukti kemandirian, Task 20 §7).
+      # Blokiran yang sama: Q-1 (kapasitas/biaya), Q-6 (domain/edge/CDN), Q-4 (ambang SLO smoke nyata
+      # baru bisa ditetapkan setelah k6 jalan di staging).
+      - name: Gerbang keputusan klien
+        run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$REGISTRY" ]; then
+            echo "target deploy/registry belum diputuskan (Q-1/Q-6) - tidak ada kredensial di repo dan tidak ada nilai contoh."
+            exit 1
+          fi
+
+  smoke:
+    name: 5. smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'workflow_dispatch'
+    needs: deploy
+    env:
+      SMOKE_URL: ${{ secrets.SMOKE_BASE_URL }}
+    steps:
+      - name: Storefront menjawab dan API health ikut hidup
+        run: |
+          if [ -z "$SMOKE_URL" ]; then
+            echo "SMOKE_BASE_URL belum ada (Q-6 domain/edge) - smoke target nyata tidak dijalankan."
+            exit 1
+          fi
+          curl -fsS -o /dev/null -w '%{http_code}\n' "${SMOKE_URL}/"
+          curl -fsS -D /tmp/smoke.headers "${SMOKE_URL}/api/v1/health"
+          grep -qi '^x-request-id:' /tmp/smoke.headers
