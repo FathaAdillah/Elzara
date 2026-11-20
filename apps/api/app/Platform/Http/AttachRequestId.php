@@ -21,9 +21,9 @@ final class AttachRequestId
             return $next($request);
         }
 
-        $requestId = self::getOrAssign($request);
+        self::getOrAssign($request);
         $response = $next($request);
-        $response->headers->set(self::HEADER, $requestId);
+        $response->headers->set(self::HEADER, self::getOrAssign($request));
 
         return $response;
     }
@@ -46,9 +46,15 @@ final class AttachRequestId
             ? $candidate
             : (string) Str::ulid();
 
-        $request->attributes->set('request_id', $requestId);
-        Context::add('request_id', $requestId);
+        self::restore($request, $requestId);
 
         return $requestId;
+    }
+
+    /** Assign an application-generated or persisted request ID. */
+    public static function restore(Request $request, string $requestId): void
+    {
+        $request->attributes->set('request_id', $requestId);
+        Context::add('request_id', $requestId);
     }
 }

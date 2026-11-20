@@ -1790,13 +1790,18 @@ idempotency_keys                          [Lintas modul]  tabel baru (BP §6, Do
   actor_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE   tamu = user anonim tunggal per sesi (konvensi di §2, Doc 11 §4.4 L)
   operation varchar(80) NOT NULL         order.create, charge.create, refund.create, ...
   idempotency_key varchar(120) NOT NULL  header Idempotency-Key
-  request_hash char(64) NOT NULL         SHA-256 payload — key sama + hash beda → 409
+  request_hash char(64) NOT NULL         SHA-256 identitas request HTTP (Doc 12 §3.4); key sama + hash beda → 409
   status varchar(16) NOT NULL DEFAULT 'in_progress'  in_progress | succeeded | failed
-  response_ref varchar(200)              pointer hasil (mis. order code) untuk replay
+  response_ref varchar(200)              referensi hasil lama (mis. order code)
+  response_status smallint NULL         status HTTP asli, 200 sampai 499
+  response_body text NULL               isi respons HTTP asli, termasuk string kosong
+  response_headers jsonb NULL           objek berisi Content-Type, Location, dan X-Request-Id yang tersedia (nilai string)
   expires_at timestamptz NOT NULL        TTL
   --
   uq idempotency_once (actor_id, operation, idempotency_key)       scope BP §6 (actor, operation, key)
   CHECK (status IN ('in_progress','succeeded','failed'))
+  CHECK ck_idempotency_response_snapshot  tiga kolom snapshot semuanya NULL atau semuanya terisi dengan status 200–499
+  CHECK ck_idempotency_response_headers   snapshot hanya menyimpan tiga nama header di atas
   idx idempotency_expiry (expires_at)
 
 audit_logs                                [Audit]         append-only (S-6) — wajib untuk mutasi admin

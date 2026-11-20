@@ -207,10 +207,12 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 | 0076 | `0076_Settings_create_feature_flags_table.php` | feature_flags | L2 |
 | 0078 | `0078_Settings_create_feature_flag_overrides_table.php` | feature_flag_overrides; setelah feature_flags | L3 |
 | 0079 | `0079_Platform_link_idempotency_keys_to_users.php` | FK idempotency_keys.actor_id ke users | L2 |
+| 0080 | `0080_Platform_add_idempotency_response_snapshot.php` | tambah status HTTP, body asli, dan JSONB allowlist header untuk replay idempotensi | L2 |
 
 - `0010` mendahului `0042` untuk FK media. `0040/0041` mendahului pivot `0043–0045`. `0042` mendahului FK Identity, Audit, Content, Settings, dan FK reliability `0079`. Tes C3 di bagian 10 memverifikasi urutan berdasarkan FK.
 - Bentuk tabel paket mengikuti keputusan proyek dan ditulis di bawah modul yang memiliki tabel (bagian 5.7). Kolom morph tetap memakai `model_type` dan `model_id` sesuai Doc 11 bagian 4.4 B.
 - Migrasi maju `0054` menambah kolom nullable tanpa backfill atau penulisan ulang data lama. `0050` tetap beku. Perubahan ini hanya berlaku pada `activity_log`; jejak aksi sensitif tetap berada di `audit_logs`.
+- Migrasi maju `0080` memperluas `idempotency_keys` di PostgreSQL untuk menyimpan respons HTTP asli (Doc 09 §17, Doc 12 §3.4). Ketiga kolom snapshot nullable dan harus terisi bersama bila ada snapshot. Baris dengan `response_ref` lama tanpa snapshot tetap sah; `0080` tidak merekonstruksi respons lama. Guard mencegah eksekusi ulang atas reservasi aktif tanpa snapshot.
 - `0077` disediakan untuk `settings`. Pembuatan berkas tertunda sampai pemilik memutuskan konflik `settings.updated_by`. Doc 09 bagian 15 menetapkan FK ke `users(id)` dengan `NOT NULL`, sedangkan plan Sprint 0 Task 11 dan seeder Task 15 mengasumsikan nilai `NULL` saat bootstrap. Selaraskan keputusan skema dan cara seeding sebelum menambah migrasi.
 - Untuk basis data yang sudah berisi data, gunakan urutan expand, backfill, validasi, dan contract di bagian 6.2. Alokasi dan berkas di atas adalah baseline baru. Rollout atas basis data lama belum diverifikasi.
 

@@ -407,16 +407,17 @@ Semua daftar yang bisa melewati satu halaman memakai cursor. **Offset dilarang**
 
 | Aspek | Spesifikasi |
 |---|---|
-| Header | `Idempotency-Key: <UUIDv4 atau ULID>` — **wajib** pada setiap operasi bertanda "Idem = ya" di §2. Kehilangan header → `400 urn:elzara:problem:idempotency:key-required`. |
-| Scope penyimpanan | `(actor_id, operation, idempotency_key)` unik di `idempotency_keys`. `operation` = `operationId` spec, **bukan** URL — supaya `POST /orders` dan `POST /admin/orders` tidak saling menabrak. |
-| Yang disimpan | hash SHA-256 dari body ternormalisasi + status + response body + `created_at` + `expires_at` |
-| **Key sama + payload sama** | **hasil yang sama**: status code dan body identik dengan respons pertama; header `Idempotency-Replayed: true`. Tidak ada order kedua, tidak ada charge kedua, tidak ada event kedua. |
-| **Key sama + payload berbeda** | `409 urn:elzara:problem:idempotency:key-payload-mismatch`. Ini bukan kesalahan yang boleh "di-auto-retry" oleh klien — artinya ada bug di klien. |
-| Key sama masih diproses (concurrent) | request kedua memblokir pada row lock/unique constraint sampai pertama selesai, lalu mengembalikan hasil pertama atau 409. **Tidak pernah** dua eksekusi paralel. |
-| TTL | 24 jam untuk mutasi customer; 7 hari untuk refund/payout/manual capture; 30 hari untuk batch close & goods receipt. Setelah TTL key boleh dipakai ulang. |
-| Response 5xx | **tidak** disimpan sebagai hasil. Key tetap terbuka supaya klien boleh mencoba lagi; inilah gunanya — retry aman setelah crash. |
+| Header | Kirim tepat satu `Idempotency-Key` berupa UUIDv4 atau ULID pada operasi bertanda "Idem = ya" di §2. UUID dinormalisasi ke huruf kecil dan ULID ke huruf besar. Request tanpa header menghasilkan `400` dengan problem `idempotency:key-required`. Format tidak valid menghasilkan `400` dengan problem `idempotency:key-invalid`. |
+| Scope penyimpanan | `(actor_id, operation, idempotency_key)` unik di `idempotency_keys`. Guard harus menyelesaikan ID aktor terautentikasi. Saat memasang middleware, tentukan `operationId` dari spec dan guard secara eksplisit setelah pemeriksaan autentikasi dan akses yang berlaku. |
+| Identitas request | SHA-256 atas metode HTTP, path aktual (termasuk nilai parameter path), query ternormalisasi, penanda ada tidaknya body, dan JSON ternormalisasi. Urutan key objek dinormalisasi, urutan elemen list dipertahankan. |
+| Snapshot PostgreSQL | Simpan status HTTP dan body JSON asli atau body kosong. Header yang tersimpan hanya `Content-Type`, `Location`, dan `X-Request-Id`. `Set-Cookie` dan kredensial respons berada di luar snapshot. Gunakan guard untuk mutasi database dengan keluaran yang aman untuk disimpan, tanpa penerbitan sesi atau token. |
+| **Key aktif + request sama** | Replay mengembalikan status dan body asli, header yang tersimpan, serta `Idempotency-Replayed: true`. Respons pada request yang memperoleh klaim membawa `Idempotency-Replayed: false`. |
+| **Key aktif + request berbeda** | `409 urn:elzara:problem:idempotency:key-payload-mismatch`. Perbaiki request atau gunakan key baru untuk operasi berbeda. |
+| Persaingan dan reservasi lama | Unique constraint dan row lock mengurutkan klaim dalam transaksi PostgreSQL. Key aktif tanpa snapshot, termasuk baris lama yang hanya punya `response_ref`, menghasilkan `409` dengan problem `idempotency:result-unavailable` untuk request yang cocok. Handler tetap dilewati sampai key kedaluwarsa. |
+| TTL | Saat memasang guard, gunakan durasi sesuai operasi dengan default 24 jam. Rencana TTL adalah 24 jam untuk mutasi customer, 7 hari untuk refund/payout/manual capture, dan 30 hari untuk batch close serta goods receipt. Key kedaluwarsa dapat diklaim ulang. |
+| Kegagalan handler | Jika handler mengembalikan respons 4xx atau Laravel merender exception menjadi 4xx, guard membatalkan efek database handler ke savepoint lalu menyimpan respons 4xx asli untuk replay. Respons 5xx atau exception yang lolos membatalkan efek dan klaim tanpa snapshot. Jadwalkan efek eksternal melalui outbox atau setelah commit dan gunakan idempotensi provider bila tersedia. |
 | Retry dari sisi kami | job internal memakai key yang diturunkan dari ID entitas (`order:{id}:place`), bukan dari `random()`. Key acak di dalam job = idempotensi palsu. |
-| Batas | body request yang di-hash dibatasi 256 KB; lebih besar → `413`. |
+| Batas | Body request maksimal 256 KiB. Ukuran di atas batas menghasilkan `413`. Body terisi dengan `Content-Type` non-JSON menghasilkan `415`, sedangkan JSON yang tidak valid menghasilkan `400`. |
 
 ### 3.5 Rate limit — header yang dijamin
 
