@@ -1,0 +1,5 @@
+# cakupan hanya app ini: pola root /vendor tidak menjangkau apps/api/vendor
+/vendor
+/.phpunit.cache
+/bootstrap/cache/*
+!/bootstrap/cache/.gitkeep
