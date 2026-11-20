@@ -1,0 +1,33 @@
+{
+  "name": "@elzara/admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "proprietary",
+  "description": "Panel operasional Elzara dengan Nuxt UI.",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "start": "node .output/server/index.mjs",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@elzara/api-client": "file:../../packages/api-contracts",
+    "@fontsource-variable/geist": "^5.2.6",
+    "@iconify-json/lucide": "^1.2.0",
+    "@nuxt/ui": "4.13.0",
+    "apexcharts": "^8.9.1",
+    "nuxt": "^4.2.0",
+    "tailwindcss": "^4.1.0",
+    "vue": "^3.5.25",
+    "vue-router": "^4.6.3",
+    "vue3-apexcharts": "^1.11.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vue-tsc": "^3.1.0"
+  }
+}

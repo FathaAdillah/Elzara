@@ -1,0 +1,23 @@
+# Scoped ke app ini saja (pola root `.gitignore` sudah menjangkau `node_modules/`
+# dan `.env`, tapi build/deploy mandiri per app butuh daftarnya sendiri supaya
+# tidak ada yang diam-diam menambah pengecualian lintas app).
+
+# dependencies — instalasi HANYA terjadi di image `node:22` (Doc 01 §11.2),
+# jadi direktori ini tidak pernah boleh masuk repo.
+node_modules/
+
+# keluaran build lokal
+.next/
+.nuxt/
+.output/
+out/
+*.tsbuildinfo
+
+# environment nyata: `.env.example` di-commit, isinya tidak
+.env
+.env.*
+!.env.example
+
+# artefak lokal
+*.log
+.DS_Store

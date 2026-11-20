@@ -1,0 +1,4 @@
+# Slot branding milik app ini (Doc 04 §5): logo.svg / logo-mark / favicon set /
+# og-default / manifest diisi aset orisinal klien, BUKAN aset dari situs mana pun
+# (Doc 01 §15). Berkas ini hanya menahan direktori di repo supaya langkah
+# `COPY ... public ./public` di Dockerfile tetap sah sebelum asetnya ada.
