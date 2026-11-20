@@ -422,6 +422,8 @@ Manfaat: satu order PO bisa simultan `order_status = processing`, `payment_statu
 
 Bayaran yang kami terima sadar: (a) setiap transisi perlu guard per sumbu, (b) test matriks transisi jadi wajib (Doc 11 §5: "state machine test per transisi"), (c) label customer harus dipetakan lewat satu fungsi turunan yang teruji, bukan dirangkai di Blade atau di komponen React. Mesin status didefinisikan deklaratif (config per status + guard + action); **setiap transisi menulis riwayat append-only** (`order_events`, diproyeksikan sebagai `order_status_history` — Doc 11 §4.1). Tidak ada transisi yang menghapus jejak; koreksi = transisi balik dengan `reason` wajib.
 
+Pada fondasi Sprint 0, `StateMachineRunner` menyediakan `TransitionSink` opsional. Jika dipasang, sink menerima sumbu, nilai sebelum dan sesudah, serta alasan yang wajib diisi, hanya setelah perubahan status berhasil. Sink memakai koneksi database yang dipilih untuk transisi dan menulis dalam transaksi yang sama. Exception dari sink membatalkan perubahan status. Integrasi produksi Orders/Audit untuk menyimpan riwayat append-only masih menjadi pekerjaan lanjutan.
+
 ### 5.3 Diagram jalur
 
 Keempat sumbu berjalan **paralel dan tidak saling meniru**. Yang di bawah ini hanya kepala jalurnya; rantai tahap `fulfillment_status` per lane tidak digambar di sini supaya tidak ada dua daftar untuk satu fakta — lihat §5.4.
