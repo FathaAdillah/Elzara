@@ -55,7 +55,7 @@ final class ApiProblemTest extends TestCase
     public function test_authentication_failure_remains_a_problem_without_accept_header(): void
     {
         Route::middleware('api')->get('/api/v1/__probe/private', static function (): never {
-            throw new AuthenticationException();
+            throw new AuthenticationException;
         });
 
         $response = $this->get('/api/v1/__probe/private')

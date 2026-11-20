@@ -17,13 +17,21 @@ final class AdminLoginTest extends TestCase
     use DatabaseTransactions;
 
     private const SECRET = 'JBSWY3DPEHPK3PXP';
+
     private const RECOVERY = 'A1B2C3D4E5F6';
+
     private const PASSWORD = 'fixture-password';
+
     private const CHALLENGE_COOKIE = 'elzara_admin_challenge';
+
     private const SESSION_COOKIE = 'elzara_admin_session';
+
     private const LOGIN = '/api/v1/admin/auth/login';
+
     private const VERIFY = '/api/v1/admin/auth/2fa/verify';
+
     private const SESSION = '/api/v1/admin/auth/session';
+
     private const LOGOUT = '/api/v1/admin/auth/logout';
 
     public function test_login_enforces_csrf_password_and_operator_status(): void
@@ -178,7 +186,7 @@ final class AdminLoginTest extends TestCase
     {
         $cookies = [];
         foreach ($response->headers->getCookies() as $cookie) {
-            if (!$cookie->isCleared()) {
+            if (! $cookie->isCleared()) {
                 $cookies[$cookie->getName()] = $cookie->getValue();
             }
         }

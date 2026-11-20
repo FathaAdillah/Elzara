@@ -9,9 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 final class OutboxWriter
 {
-    public function __construct(private readonly ?string $connection = null)
-    {
-    }
+    public function __construct(private readonly ?string $connection = null) {}
 
     /** Sengaja tanpa listener afterCommit: INSERT ini harus ikut transaksi penyebabnya (B4). */
     public function record(DomainEvent $event): int

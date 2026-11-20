@@ -18,14 +18,15 @@ final class EnrollAdminTwoFactor extends Command
 
     public function handle(StaffTwoFactor $factors): int
     {
-        if (!$this->input->isInteractive()) {
+        if (! $this->input->isInteractive()) {
             $this->error('Pendaftaran 2FA memerlukan terminal interaktif privat.');
 
             return self::FAILURE;
         }
 
         $user = User::query()->where('email', $this->argument('email'))->first();
-        if ($user === null || !$user->canAccessAdmin() || $user->getAuthPassword() === null) {
+        $email = $user->email ?? '';
+        if ($user === null || ! $user->canAccessAdmin() || $user->getAuthPassword() === null || $email === '') {
             $this->error('Hanya operator aktif dengan kata sandi yang dapat mendaftar.');
 
             return self::FAILURE;
@@ -36,8 +37,8 @@ final class EnrollAdminTwoFactor extends Command
             return self::FAILURE;
         }
 
-        $otp = TOTP::generate(new NativeClock());
-        $otp->setLabel($user->email);
+        $otp = TOTP::generate(new NativeClock);
+        $otp->setLabel($email);
         $otp->setIssuer('Elzara Admin');
         $this->line('Masukkan URI ini di aplikasi autentikator pada perangkat operator.');
         $this->line($otp->getProvisioningUri());

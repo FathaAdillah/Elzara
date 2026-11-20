@@ -17,8 +17,8 @@ final class InboxConsumer
     /**
      * Efek hanya menulis lewat koneksi yang diberikan agar ikut dalam transaksi inbox.
      *
-     * @param array<string, mixed> $payload
-     * @param callable(ConnectionInterface): void $effect
+     * @param  array<string, mixed>  $payload
+     * @param  callable(ConnectionInterface): void  $effect
      */
     public function run(string $consumer, string $eventId, array $payload, callable $effect): bool
     {
@@ -41,7 +41,7 @@ final class InboxConsumer
                 ->where('event_id', $eventId)
                 ->lockForUpdate()
                 ->firstOrFail(['id', 'status']);
-            if (!in_array($record->status, ['pending', 'failed'], true)) {
+            if (! in_array($record->status, ['pending', 'failed'], true)) {
                 return false;
             }
 
@@ -73,7 +73,7 @@ final class InboxConsumer
         if ($result instanceof Throwable) {
             throw $result;
         }
-        if (!$result) {
+        if (! $result) {
             Log::info('inbox.dedup_ignored', ['consumer' => $consumer, 'event_id' => $eventId]);
         }
 

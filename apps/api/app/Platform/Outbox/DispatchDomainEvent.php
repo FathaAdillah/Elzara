@@ -21,8 +21,7 @@ final class DispatchDomainEvent implements ShouldQueue
         public readonly string $aggregateType,
         public readonly int $aggregateId,
         public readonly array $payload = [],
-    ) {
-    }
+    ) {}
 
     /** @return list<int> eksponensial + jitter (Doc 01 §10); setelah $tries habis job masuk failed_jobs sebagai DLQ */
     public function backoff(): array

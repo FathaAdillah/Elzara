@@ -20,7 +20,7 @@ final class OutboxDispatchTest extends TestCase
     {
         parent::setUp();
 
-        $schema = 'outbox_feature_' . bin2hex(random_bytes(8));
+        $schema = 'outbox_feature_'.bin2hex(random_bytes(8));
         DB::statement("CREATE SCHEMA {$schema}");
         $this->fixtureSchema = $schema;
         DB::statement("SET search_path TO {$schema}");

@@ -25,19 +25,19 @@ final class ModuleServiceProvider extends ServiceProvider
     {
         $modules = array_map(
             static fn (string $path): array => ['name' => basename($path), 'path' => $path],
-            glob($modulesRoot . '/*', GLOB_ONLYDIR | GLOB_NOSORT) ?: [],
+            glob($modulesRoot.'/*', GLOB_ONLYDIR | GLOB_NOSORT) ?: [],
         );
 
         usort($modules, static fn (array $a, array $b): int => strcmp($a['name'], $b['name']));
 
-        return array_values($modules);
+        return $modules;
     }
 
     /** @return list<string> modul bertabel; Search dan Reporting tidak punya migrasi (Doc 01 §3.1) */
     public static function migrationPaths(string $modulesRoot): array
     {
         return array_values(array_filter(array_map(
-            static fn (array $module): string => $module['path'] . '/' . self::MIGRATIONS,
+            static fn (array $module): string => $module['path'].'/'.self::MIGRATIONS,
             self::discover($modulesRoot),
         ), static fn (string $path): bool => is_dir($path)));
     }
@@ -45,10 +45,10 @@ final class ModuleServiceProvider extends ServiceProvider
     /** @return list<string> satu jalur global (M-1): migrasi modul + trio reliability milik Platform */
     public static function allMigrationPaths(string $appRoot): array
     {
-        $platform = $appRoot . '/Platform/' . self::MIGRATIONS;
+        $platform = $appRoot.'/Platform/'.self::MIGRATIONS;
 
         return array_values(array_filter([
-            ...self::migrationPaths($appRoot . '/Modules'),
+            ...self::migrationPaths($appRoot.'/Modules'),
             is_dir($platform) ? $platform : null,
         ]));
     }

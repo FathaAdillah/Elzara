@@ -47,17 +47,18 @@ final class ApiProblemRenderer
 
     public function render(Throwable $exception, Request $request): ?Response
     {
-        if (!AttachRequestId::appliesTo($request)) {
+        if (! AttachRequestId::appliesTo($request)) {
             return null;
         }
 
         $requestId = AttachRequestId::getOrAssign($request);
         $status = $this->status($exception);
+        /** @var array<string, list<string>|string|null> $headers */
         $headers = $exception instanceof HttpExceptionInterface ? $exception->getHeaders() : [];
 
         if ($exception instanceof HttpResponseException) {
             $response = $exception->getResponse();
-            if (!$response->isClientError() && !$response->isServerError()) {
+            if (! $response->isClientError() && ! $response->isServerError()) {
                 $response->headers->set(AttachRequestId::HEADER, $requestId);
 
                 return $response;
@@ -69,7 +70,7 @@ final class ApiProblemRenderer
         $response = $this->problem($exception, $status)->forRequest($request, $requestId)->toResponse();
         foreach ($headers as $name => $value) {
             if (in_array(strtolower($name), ['allow', 'retry-after', 'www-authenticate'], true)) {
-                $response->headers->set($name, $value);
+                $response->headers->set($name, is_array($value) ? array_values(array_filter($value, is_string(...))) : $value);
             }
         }
 
@@ -109,9 +110,11 @@ final class ApiProblemRenderer
 
         $problem = ApiProblem::make($category, $slug, $title, $status, $code, $retryable);
         if ($exception instanceof ValidationException) {
-            foreach ($exception->errors() as $attribute => $messages) {
+            /** @var array<array-key, list<string>> $errors */
+            $errors = $exception->errors();
+            foreach ($errors as $attribute => $messages) {
                 $segments = explode('.', (string) $attribute);
-                $pointer = '/' . implode('/', str_replace(['~', '/'], ['~0', '~1'], $segments));
+                $pointer = '/'.implode('/', str_replace(['~', '/'], ['~0', '~1'], $segments));
                 foreach ($messages as $message) {
                     $problem = $problem->withError([
                         'pointer' => $pointer,

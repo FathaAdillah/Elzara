@@ -26,8 +26,7 @@ final class OutboxDispatcher
     public function __construct(
         private readonly ?string $connection = null,
         private readonly int $maxAttempts = self::MAX_ATTEMPTS,
-    ) {
-    }
+    ) {}
 
     /** @return array{claimed: int, dispatched: int, failed: int, dead: int} */
     public function dispatchBatch(int $limit = 50, ?string $onlyQueue = null): array
@@ -36,7 +35,7 @@ final class OutboxDispatcher
             throw new InvalidArgumentException('Batas batch outbox harus bilangan positif.');
         }
 
-        if ($onlyQueue !== null && !QueueRouting::isQueue($onlyQueue)) {
+        if ($onlyQueue !== null && ! QueueRouting::isQueue($onlyQueue)) {
             throw new InvalidArgumentException("Antrian '{$onlyQueue}' bukan salah satu dari tujuh nama kanonik (Doc 11 §8.1).");
         }
 
@@ -61,12 +60,14 @@ final class OutboxDispatcher
                     throw new RuntimeException('Koneksi null membuang job outbox.');
                 }
 
+                /** @var array<string, mixed> $payload */
+                $payload = json_decode($row->payload, true, 8, JSON_THROW_ON_ERROR);
                 $job = new DispatchDomainEvent(
                     outboxId: $id,
-                    eventName: (string) $row->event_name,
-                    aggregateType: (string) $row->aggregate_type,
+                    eventName: $row->event_name,
+                    aggregateType: $row->aggregate_type,
                     aggregateId: (int) $row->aggregate_id,
-                    payload: json_decode((string) $row->payload, true, 8, JSON_THROW_ON_ERROR),
+                    payload: $payload,
                 );
                 $queue->push($job, queue: QueueRouting::for($job->eventName));
             } catch (Throwable $e) {
@@ -95,13 +96,14 @@ final class OutboxDispatcher
         ];
     }
 
-    /** @return Collection<int, object> */
+    /** @return Collection<int, object{id: int|numeric-string, event_name: string, aggregate_type: string, aggregate_id: int|numeric-string, payload: string}> */
     private function claim(int $limit, ?string $onlyQueue, string $worker): Collection
     {
         return $this->db()->transaction(function () use ($limit, $onlyQueue, $worker): Collection {
             $query = $this->availableEvents($onlyQueue)
                 ->where('attempts', '<', $this->maxAttempts);
 
+            /** @var Collection<int, object{id: int|numeric-string, event_name: string, aggregate_type: string, aggregate_id: int|numeric-string, payload: string}> $rows */
             $rows = $query->orderBy('occurred_at')->orderBy('id')->lock('for update skip locked')->limit($limit)->get();
 
             if ($rows->isEmpty()) {

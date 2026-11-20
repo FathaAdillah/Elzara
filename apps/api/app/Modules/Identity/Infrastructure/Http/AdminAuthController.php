@@ -8,20 +8,25 @@ use App\Modules\Identity\Infrastructure\Models\User;
 use App\Modules\Identity\Infrastructure\Security\StaffTwoFactor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpFoundation\Response;
 
 final class AdminAuthController
 {
     private const PENDING = 'admin.login_challenge';
+
     private const MINUTES = 5;
+
     private const MAX_FACTOR_ATTEMPTS = 5;
+
     private const DUMMY_PASSWORD = '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
 
     public function __construct(private readonly StaffTwoFactor $factors, private readonly AdminSession $sessions) {}
 
     public function login(Request $request): JsonResponse
     {
+        /** @var array{email: string, password: string} $data */
         $data = $request->validate([
             'email' => 'required|string|email|max:254',
             'password' => 'required|string|max:128',
@@ -53,10 +58,10 @@ final class AdminAuthController
         RateLimiter::clear($rateKey);
         $session->regenerate(true);
         $nonce = bin2hex(random_bytes(24));
-        $challenge = $nonce.'.'.hash_hmac('sha256', $nonce, config('app.key'));
+        $challenge = $nonce.'.'.hash_hmac('sha256', $nonce, Config::string('app.key'));
         $expires = now()->addMinutes(self::MINUTES);
         $session->put(self::PENDING, [
-            'user_id' => $user->getKey(),
+            'user_id' => $user->id,
             'digest' => hash('sha256', $challenge),
             'expires_at' => $expires->getTimestamp(),
             'attempts' => 0,
@@ -71,13 +76,15 @@ final class AdminAuthController
 
     public function verify(Request $request): JsonResponse
     {
+        /** @var array{challenge_id: string, code: string} $data */
         $data = $request->validate([
             'challenge_id' => 'required|string|max:128',
             'code' => 'required|string|min:6|max:12',
         ]);
         $session = $request->session();
+        /** @var array{user_id: int, digest: string, expires_at: int, attempts: int}|null $pending */
         $pending = $session->get(self::PENDING);
-        if (!is_array($pending) || $pending['expires_at'] <= now()->getTimestamp()) {
+        if (! is_array($pending) || $pending['expires_at'] <= now()->getTimestamp()) {
             $session->forget(self::PENDING);
             abort(401);
         }

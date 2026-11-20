@@ -1,0 +1,5 @@
+{
+    "notPath": [
+        "app/Platform/Infrastructure/Database/Migrations/0001_Platform_create_reliability_tables.php"
+    ]
+}

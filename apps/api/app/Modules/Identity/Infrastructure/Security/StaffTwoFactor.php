@@ -6,6 +6,7 @@ namespace App\Modules\Identity\Infrastructure\Security;
 
 use App\Modules\Identity\Infrastructure\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use OTPHP\TOTP;
@@ -26,6 +27,7 @@ final class StaffTwoFactor
     public function consume(User $user, string $code): bool
     {
         return DB::transaction(function () use ($user, $code): bool {
+            /** @var object{id: int, encrypted: string, recovery: string}|null $factor */
             $factor = DB::table('staff_2fa_secrets')
                 ->where('user_id', $user->getKey())
                 ->whereNotNull('confirmed_at')
@@ -37,14 +39,19 @@ final class StaffTwoFactor
             }
 
             if (preg_match('/\A[0-9]{6}\z/', $code) === 1) {
-                $otp = TOTP::createFromSecret(Crypt::decryptString($factor->encrypted), new NativeClock());
-                if (!$otp->verify($code, now()->getTimestamp(), self::CLOCK_LEEWAY)) {
+                $secret = Crypt::decryptString($factor->encrypted);
+                if ($secret === '') {
                     return false;
                 }
 
-                $digest = hash_hmac('sha256', $code, config('app.key'));
+                $otp = TOTP::createFromSecret($secret, new NativeClock);
+                if (! $this->verifyCurrentCode($otp, $code)) {
+                    return false;
+                }
 
-                return Cache::add("admin-totp-used:{$user->getKey()}:{$digest}", true, 90);
+                $digest = hash_hmac('sha256', $code, Config::string('app.key'));
+
+                return Cache::add("admin-totp-used:{$user->id}:{$digest}", true, 90);
             }
 
             $normalized = strtoupper($code);
@@ -52,7 +59,9 @@ final class StaffTwoFactor
                 return false;
             }
 
-            foreach (json_decode($factor->recovery, true, 8, JSON_THROW_ON_ERROR) as $hash) {
+            /** @var list<string> $hashes */
+            $hashes = json_decode($factor->recovery, true, 8, JSON_THROW_ON_ERROR);
+            foreach ($hashes as $hash) {
                 if (password_get_info($hash)['algoName'] === 'argon2id' && password_verify($normalized, $hash)) {
                     $deleted = DB::update(
                         'UPDATE staff_2fa_secrets SET recovery_hashes = array_remove(recovery_hashes, ?), updated_at = ? WHERE id = ?',
@@ -71,7 +80,7 @@ final class StaffTwoFactor
     public function enroll(User $user, TOTP $otp, string $verificationCode): ?array
     {
         if (preg_match('/\A[0-9]{6}\z/', $verificationCode) !== 1
-            || !$otp->verify($verificationCode, now()->getTimestamp(), self::CLOCK_LEEWAY)) {
+            || ! $this->verifyCurrentCode($otp, $verificationCode)) {
             return null;
         }
 
@@ -88,8 +97,8 @@ final class StaffTwoFactor
         $placeholders = implode(', ', array_fill(0, count($hashes), '?'));
 
         return DB::transaction(function () use ($user, $otp, $codes, $hashes, $placeholders): ?array {
-            $locked = User::query()->lockForUpdate()->find($user->getKey());
-            if ($locked === null || !$locked->canAccessAdmin() || $this->isConfirmed($locked)) {
+            $locked = User::query()->lockForUpdate()->find($user->id);
+            if ($locked === null || ! $locked->canAccessAdmin() || $this->isConfirmed($locked)) {
                 return null;
             }
 
@@ -105,5 +114,12 @@ final class StaffTwoFactor
 
             return $affected === 1 ? array_values($codes) : null;
         });
+    }
+
+    private function verifyCurrentCode(TOTP $otp, string $code): bool
+    {
+        $timestamp = now()->getTimestamp();
+
+        return $code !== '' && $timestamp >= self::CLOCK_LEEWAY && $otp->verify($code, $timestamp, self::CLOCK_LEEWAY);
     }
 }

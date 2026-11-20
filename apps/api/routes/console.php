@@ -15,6 +15,11 @@ Artisan::command('platform:outbox:dispatch {--queue=} {--limit=50}', function (O
     }
 
     $queue = $this->option('queue');
+    if ($queue !== null && ! is_string($queue)) {
+        $this->error('Antrian harus berupa satu nama.');
+
+        return 1;
+    }
     try {
         $result = $dispatcher->dispatchBatch($limit, $queue);
     } catch (InvalidArgumentException $exception) {

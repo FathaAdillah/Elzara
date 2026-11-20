@@ -28,8 +28,7 @@ final class ApiProblem implements Stringable
         public readonly string $instance = '',
         public readonly string $requestId = '',
         public readonly array $errors = [],
-    ) {
-    }
+    ) {}
 
     public static function make(
         string $category,
@@ -40,7 +39,7 @@ final class ApiProblem implements Stringable
         bool $retryable = false,
         string $detail = '',
     ): self {
-        if (!in_array($category, self::CATEGORIES, true)) {
+        if (! in_array($category, self::CATEGORIES, true)) {
             throw new \InvalidArgumentException("Kategori problem '{$category}' tidak ada di daftar tertutup Doc 12 §4.2.");
         }
 
@@ -51,7 +50,7 @@ final class ApiProblem implements Stringable
     {
         return new self(
             $this->type, $this->title, $this->status, $this->code, $this->retryable,
-            $this->detail, '/' . ltrim($request->path(), '/'), $requestId, $this->errors,
+            $this->detail, '/'.ltrim($request->path(), '/'), $requestId, $this->errors,
         );
     }
 

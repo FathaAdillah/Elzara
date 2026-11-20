@@ -17,6 +17,7 @@ final class VerifyAdminCsrf
 {
     public function __construct(private readonly Encrypter $encrypter) {}
 
+    /** @param Closure(Request): Response $next */
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->isMethodSafe()) {
@@ -24,7 +25,7 @@ final class VerifyAdminCsrf
         }
 
         $token = $this->token($request);
-        if (!$request->hasSession() || $token === null || !hash_equals($request->session()->token(), $token)) {
+        if (! $request->hasSession() || $token === null || ! hash_equals($request->session()->token(), $token)) {
             throw new TokenMismatchException('CSRF token mismatch.');
         }
 
@@ -34,12 +35,13 @@ final class VerifyAdminCsrf
     private function token(Request $request): ?string
     {
         $headers = $request->headers->all('X-XSRF-TOKEN');
-        if (count($headers) !== 1 || strlen($headers[0]) > 1024) {
+        $header = $headers[0] ?? null;
+        if (count($headers) !== 1 || $header === null || strlen($header) > 1024) {
             return null;
         }
 
         try {
-            $value = $this->encrypter->decrypt($headers[0], EncryptCookies::serialized('XSRF-TOKEN'));
+            $value = $this->encrypter->decrypt($header, EncryptCookies::serialized('XSRF-TOKEN'));
         } catch (DecryptException) {
             return null;
         }

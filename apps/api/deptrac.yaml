@@ -1,0 +1,202 @@
+# Doc 01 §3.2. This gate checks static dependencies. Table ownership, payload
+# shape, transaction semantics and migration paths require runtime/layout checks.
+deptrac:
+    paths: [./app]
+    layers:
+        - name: ModuleContracts
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\[^\\]+\\Contracts\\' }
+        - name: PlatformShared
+          collectors:
+              - { type: classLike, value: '^App\\Platform\\(?:Domain\\|Http\\ApiProblem$|Outbox\\(?:DomainEvent|OutboxWriter|InboxConsumer)$|StateMachine\\)' }
+        - name: PlatformInternal
+          collectors:
+              - { type: classLike, value: '^App\\Platform\\(?!(?:Domain\\|Http\\ApiProblem$|Outbox\\(?:DomainEvent|OutboxWriter|InboxConsumer)$|StateMachine\\))' }
+        - name: DatabaseAccess
+          collectors:
+              - { type: classLike, value: '^Illuminate\\(?:Database\\|Support\\Facades\\DB$)' }
+        - name: ProcessDispatch
+          collectors:
+              - { type: classLike, value: '^Illuminate\\(?:Support\\Facades\\(?:Bus|Event|Queue)|Contracts\\(?:(?:Bus|Events)\\Dispatcher|Queue\\(?:Factory|Queue)))$' }
+        - name: Audit
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Audit\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: AuditControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Audit\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Billing
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Billing\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: BillingControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Billing\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Cart
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Cart\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: CartControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Cart\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Catalog
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Catalog\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: CatalogControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Catalog\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Content
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Content\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: ContentControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Content\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Fulfillment
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Fulfillment\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: FulfillmentControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Fulfillment\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Identity
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Identity\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: IdentityControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Identity\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Inventory
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Inventory\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: InventoryControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Inventory\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Logistics
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Logistics\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: LogisticsControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Logistics\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: MarketplacePurchase
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\MarketplacePurchase\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: MarketplacePurchaseControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\MarketplacePurchase\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Notification
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Notification\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: NotificationControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Notification\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Orders
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Orders\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: OrdersControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Orders\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Payments
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Payments\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: PaymentsControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Payments\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: PreOrder
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\PreOrder\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: PreOrderControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\PreOrder\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Procurement
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Procurement\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: ProcurementControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Procurement\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Promotion
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Promotion\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: PromotionControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Promotion\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Reporting
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Reporting\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: ReportingControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Reporting\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Search
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Search\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: SearchControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Search\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Settings
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Settings\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: SettingsControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Settings\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Sourcing
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Sourcing\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: SourcingControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Sourcing\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: Support
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Support\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: SupportControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\Support\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+        - name: UGC
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\UGC\\(?!(?:Contracts\\|Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$))' }
+        - name: UGCControllers
+          collectors:
+              - { type: classLike, value: '^App\\Modules\\UGC\\Infrastructure\\Http\\(?:[^\\]+\\)*[^\\]*Controller$' }
+    ruleset:
+        ModuleContracts: [PlatformShared]
+        PlatformShared: [PlatformInternal, DatabaseAccess]
+        PlatformInternal: [PlatformShared, DatabaseAccess, ProcessDispatch]
+        DatabaseAccess: []
+        ProcessDispatch: []
+        Audit: &module_dependencies [ModuleContracts, PlatformShared, DatabaseAccess]
+        AuditControllers: [ModuleContracts, PlatformShared, Audit]
+        Billing: *module_dependencies
+        BillingControllers: [ModuleContracts, PlatformShared, Billing]
+        Cart: *module_dependencies
+        CartControllers: [ModuleContracts, PlatformShared, Cart]
+        Catalog: *module_dependencies
+        CatalogControllers: [ModuleContracts, PlatformShared, Catalog]
+        Content: *module_dependencies
+        ContentControllers: [ModuleContracts, PlatformShared, Content]
+        Fulfillment: *module_dependencies
+        FulfillmentControllers: [ModuleContracts, PlatformShared, Fulfillment]
+        Identity: *module_dependencies
+        IdentityControllers: [ModuleContracts, PlatformShared, Identity]
+        Inventory: *module_dependencies
+        InventoryControllers: [ModuleContracts, PlatformShared, Inventory]
+        Logistics: *module_dependencies
+        LogisticsControllers: [ModuleContracts, PlatformShared, Logistics]
+        MarketplacePurchase: *module_dependencies
+        MarketplacePurchaseControllers: [ModuleContracts, PlatformShared, MarketplacePurchase]
+        Notification: *module_dependencies
+        NotificationControllers: [ModuleContracts, PlatformShared, Notification]
+        Orders: *module_dependencies
+        OrdersControllers: [ModuleContracts, PlatformShared, Orders]
+        Payments: *module_dependencies
+        PaymentsControllers: [ModuleContracts, PlatformShared, Payments]
+        PreOrder: *module_dependencies
+        PreOrderControllers: [ModuleContracts, PlatformShared, PreOrder]
+        Procurement: *module_dependencies
+        ProcurementControllers: [ModuleContracts, PlatformShared, Procurement]
+        Promotion: *module_dependencies
+        PromotionControllers: [ModuleContracts, PlatformShared, Promotion]
+        Reporting: *module_dependencies
+        ReportingControllers: [ModuleContracts, PlatformShared, Reporting]
+        Search: *module_dependencies
+        SearchControllers: [ModuleContracts, PlatformShared, Search]
+        Settings: *module_dependencies
+        SettingsControllers: [ModuleContracts, PlatformShared, Settings]
+        Sourcing: *module_dependencies
+        SourcingControllers: [ModuleContracts, PlatformShared, Sourcing]
+        Support: *module_dependencies
+        SupportControllers: [ModuleContracts, PlatformShared, Support]
+        UGC: *module_dependencies
+        UGCControllers: [ModuleContracts, PlatformShared, UGC]

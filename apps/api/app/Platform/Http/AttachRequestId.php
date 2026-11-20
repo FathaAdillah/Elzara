@@ -14,9 +14,10 @@ final class AttachRequestId
 {
     public const HEADER = 'X-Request-Id';
 
+    /** @param Closure(Request): Response $next */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!self::appliesTo($request)) {
+        if (! self::appliesTo($request)) {
             return $next($request);
         }
 
@@ -40,8 +41,9 @@ final class AttachRequestId
         }
 
         $incoming = $request->headers->all(self::HEADER);
-        $requestId = count($incoming) === 1 && preg_match('/\A[A-Za-z0-9._-]{1,128}\z/', $incoming[0]) === 1
-            ? $incoming[0]
+        $candidate = $incoming[0] ?? null;
+        $requestId = count($incoming) === 1 && $candidate !== null && preg_match('/\A[A-Za-z0-9._-]{1,128}\z/', $candidate) === 1
+            ? $candidate
             : (string) Str::ulid();
 
         $request->attributes->set('request_id', $requestId);

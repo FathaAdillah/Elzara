@@ -16,7 +16,7 @@ final class CreateAdminOperator extends Command
 
     public function handle(): int
     {
-        if (!$this->input->isInteractive()) {
+        if (! $this->input->isInteractive()) {
             $this->error('Pembuatan operator memerlukan terminal interaktif privat.');
 
             return self::FAILURE;
@@ -24,14 +24,14 @@ final class CreateAdminOperator extends Command
 
         $email = mb_strtolower(trim($this->argument('email')));
         $name = trim($this->argument('name'));
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254 || $name === '' || mb_strlen($name) > 120) {
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254 || $name === '' || mb_strlen($name) > 120) {
             $this->error('Email atau nama operator tidak valid.');
 
             return self::FAILURE;
         }
 
         $password = $this->secret('Kata sandi baru (minimal 12 karakter)', false);
-        if (!is_string($password) || mb_strlen($password) < 12 || mb_strlen($password) > 128
+        if (! is_string($password) || mb_strlen($password) < 12 || mb_strlen($password) > 128
             || $password !== $this->secret('Ulangi kata sandi', false)) {
             $this->error('Kata sandi tidak valid atau konfirmasi berbeda.');
 

@@ -26,7 +26,7 @@ final class TransitionGraph
         if ($axis === Axis::Fulfillment && $lane !== null) {
             $stages = $lane->stages();
             $index = array_search(FulfillmentStatus::tryFrom($from), $stages, true);
-            if ($index === false || !isset($stages[$index + 1])) {
+            if ($index === false || ! isset($stages[$index + 1])) {
                 return [];
             }
 

@@ -58,7 +58,7 @@ final class AdminSession
         abort_unless($request->hasSession(), 401);
 
         $user = Auth::guard('admin')->user();
-        if (!$user instanceof User) {
+        if (! $user instanceof User) {
             $request->attributes->set('expire_admin_cookie', SelectAdminSession::AUTH_COOKIE);
             abort(401);
         }
@@ -66,7 +66,7 @@ final class AdminSession
         $factorValid = $request->session()->get(self::LOCAL_PASSWORD_ONLY) === true
             ? $this->allowsLocalPasswordOnly($user)
             : DB::table('staff_2fa_secrets')->where('user_id', $user->getKey())->whereNotNull('confirmed_at')->exists();
-        if (!$user->canAccessAdmin() || !$factorValid) {
+        if (! $user->canAccessAdmin() || ! $factorValid) {
             $this->close($request, $user);
             abort(401);
         }
