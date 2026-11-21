@@ -9,8 +9,11 @@ import "./globals.css";
  * di `public/brand/` (Doc 04 §5, Doc 01 §15).
  */
 export const metadata: Metadata = {
-  title: { default: `${brand.name} — ${brand.tagline}`, template: `%s · ${brand.name}` },
-  description: brand.tagline,
+  title: {
+    default: brand.tagline ? `${brand.name} — ${brand.tagline}` : brand.name,
+    template: `%s · ${brand.name}`,
+  },
+  description: brand.tagline || undefined,
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost"),
   openGraph: { siteName: brand.seo.siteName, images: [brand.seo.defaultOg] },
 };
