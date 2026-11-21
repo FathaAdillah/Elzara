@@ -6,6 +6,7 @@ namespace App\Modules\Identity;
 
 use App\Modules\Audit\Contracts\AuditRecorder;
 use App\Modules\Identity\Infrastructure\Models\User;
+use App\Platform\Observability\Metrics;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -28,6 +29,7 @@ final class IdentityServiceProvider extends ServiceProvider
                 app(AuditRecorder::class)->record($user->id, 'rbac.bypass', 'users', $user->id, [], [],
                     'is_admin bypass: '.$ability, $request->attributes->getString('request_id', (string) $request->header('X-Request-Id')),
                     $request->ip(), (string) $request->userAgent());
+                Metrics::increment('elzara_rbac_bypass_total');
 
                 return true;
             }
