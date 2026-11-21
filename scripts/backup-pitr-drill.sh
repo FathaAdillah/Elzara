@@ -3,7 +3,8 @@
 # mengarsip WAL terenkripsi ke MinIO terpisah (stand-in tujuan off-node), lalu restore ke cluster scratch
 # pada titik waktu sebelum "insiden". Tidak menyentuh stack yang sedang jalan; semua resource berprefix elzara-drill.
 # Butuh image elzara/postgres:dev dan elzara/minio:dev (docker build -f docker/{postgres,minio}/Dockerfile .).
-# ELZARA_DRILL_MIGRATE=1 (default bila php tersedia) menjalankan migrasi Laravel asli ke primary lewat 127.0.0.1.
+# ELZARA_DRILL_MIGRATE=1 (default bila image API ada) menjalankan migrasi Laravel asli dari container API_IMAGE
+# (docker build -f apps/api/Dockerfile -t elzara/api:dev .), tidak pernah dengan PHP host.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PG_IMAGE="${PG_IMAGE:-elzara/postgres:dev}"
@@ -13,7 +14,8 @@ NET=elzara-drill
 KEY="$(openssl rand -hex 32)"
 S3_SECRET="$(openssl rand -hex 16)"
 PGPASS="$(openssl rand -hex 12)"
-MIGRATE="${ELZARA_DRILL_MIGRATE:-$(command -v php >/dev/null && echo 1 || echo 0)}"
+API_IMAGE="${API_IMAGE:-elzara/api:dev}"
+MIGRATE="${ELZARA_DRILL_MIGRATE:-$(docker image inspect "$API_IMAGE" >/dev/null 2>&1 && echo 1 || echo 0)}"
 
 cleanup() {
   docker rm -f elzara-drill-primary elzara-drill-restore elzara-drill-wrongkey elzara-drill-s3 >/dev/null 2>&1 || true
@@ -45,9 +47,13 @@ wait_ready elzara-drill-primary
 sleep 3; wait_ready elzara-drill-primary
 
 if [ "$MIGRATE" = 1 ]; then
-  log "migrasi Laravel asli ke primary"
-  (cd "$ROOT/apps/api" && DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT="$PORT" DB_DATABASE=elzara DB_USERNAME=postgres \
-    DB_PASSWORD="$PGPASS" APP_KEY="base64:$(openssl rand -base64 32)" php artisan migrate --force >/dev/null)
+  log "migrasi Laravel asli ke primary (container $API_IMAGE)"
+  docker run --rm --network "$NET" -e DB_CONNECTION=pgsql -e DB_HOST=elzara-drill-primary -e DB_PORT=5432 \
+    -e DB_DATABASE=elzara -e DB_USERNAME=postgres -e "DB_PASSWORD=$PGPASS" -e "APP_KEY=base64:$(openssl rand -base64 32)" \
+    -e CACHE_STORE=array -e SESSION_DRIVER=array -e QUEUE_CONNECTION=sync -e LOG_CHANNEL=stderr \
+    "$API_IMAGE" php artisan migrate --force >/dev/null
+else
+  log "migrasi Laravel dilewati: image $API_IMAGE tidak ada"
 fi
 psql_in elzara-drill-primary "CREATE TABLE drill_orders (id bigint generated always as identity primary key, batch text not null, created_at timestamptz not null default clock_timestamp())"
 psql_in elzara-drill-primary "INSERT INTO drill_orders (batch) SELECT 'before-base' FROM generate_series(1, 500)"
