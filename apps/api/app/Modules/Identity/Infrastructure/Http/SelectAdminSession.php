@@ -33,6 +33,7 @@ final class SelectAdminSession
         $preAuth = $request->is('api/v1/admin/auth/login', 'api/v1/admin/auth/2fa/verify')
             || ($bootstrap && (($query['purpose'] ?? null) === 'login' || ! $request->cookies->has(self::AUTH_COOKIE)));
         $previous = Config::array('session');
+        $previousGuard = Auth::getDefaultDriver();
         $previousCookie = Config::string('session.cookie');
         $secure = config('app.env') !== 'local' || $previous['secure'] !== false;
         config(['session' => array_replace($previous, [
@@ -66,6 +67,7 @@ final class SelectAdminSession
             $store->flush();
             $store->setName($previousCookie);
             Auth::forgetGuards();
+            Auth::shouldUse($previousGuard);
             config(['session' => $previous]);
         }
     }

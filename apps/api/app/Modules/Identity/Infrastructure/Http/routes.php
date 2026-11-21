@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Modules\Identity\Infrastructure\Http\AdminAccessController;
 use App\Modules\Identity\Infrastructure\Http\AdminAuthController;
 use App\Modules\Identity\Infrastructure\Http\EnsureWebSession;
 use App\Modules\Identity\Infrastructure\Http\MySessionsController;
+use App\Modules\Identity\Infrastructure\Http\RequireAccessIdempotencyKey;
+use App\Modules\Identity\Infrastructure\Http\RequireAdminPermission;
 use App\Modules\Identity\Infrastructure\Http\SocialAuthController;
 use App\Modules\Identity\Infrastructure\Http\StorefrontAuthController;
 use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
@@ -17,6 +20,16 @@ Route::prefix('admin/auth')->middleware(['rate:admin', VerifySessionCsrf::class]
         ->middleware('rate:admin-auth');
     Route::get('session', [AdminAuthController::class, 'session']);
     Route::post('logout', [AdminAuthController::class, 'logout']);
+});
+
+Route::prefix('admin/users/{user}')->middleware('rate:admin')->group(function (): void {
+    Route::get('access', [AdminAccessController::class, 'show'])->middleware(RequireAdminPermission::class.':user.view');
+    Route::middleware([RequireAdminPermission::class.':user.update', VerifySessionCsrf::class, RequireAccessIdempotencyKey::class])->group(function (): void {
+        Route::post('permissions', [AdminAccessController::class, 'grant'])->middleware('idempotency:adminUserPermissionGrant,admin,86400');
+        Route::delete('permissions/{permission}', [AdminAccessController::class, 'revokePermission'])->middleware('idempotency:adminUserPermissionRevoke,admin,86400');
+        Route::post('roles', [AdminAccessController::class, 'assignRole'])->middleware('idempotency:adminUserRoleAssign,admin,86400');
+        Route::delete('roles/{role}', [AdminAccessController::class, 'revokeRole'])->middleware('idempotency:adminUserRoleRevoke,admin,86400');
+    });
 });
 
 // Storefront memakai guard `web` dan cookie elzara_web_session; CSRF diperiksa untuk setiap mutasi.

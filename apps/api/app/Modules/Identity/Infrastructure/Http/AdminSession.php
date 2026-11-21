@@ -82,6 +82,8 @@ final class AdminSession
             abort(401);
         }
 
+        Auth::shouldUse('admin');
+
         return $user;
     }
 
