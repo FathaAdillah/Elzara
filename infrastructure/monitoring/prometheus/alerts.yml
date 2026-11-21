@@ -1,0 +1,75 @@
+# Ambang awal; sesuaikan setelah baseline staging (Doc 01 §12). Setiap alert merujuk runbook di docs/runbooks/.
+groups:
+  - name: elzara-api
+    rules:
+      - alert: ElzaraMetricsDown
+        expr: up{job="elzara-api"} == 0 or min(elzara_metrics_collector_up) == 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: "Exporter /metrics API tidak terjangkau atau collector gagal" }
+      - alert: ElzaraHigh5xxRate
+        expr: sum(rate(elzara_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(elzara_http_requests_total[5m])), 1e-9) > 0.02
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: "Error 5xx API > 2% selama 10 menit" }
+      - alert: ElzaraSlowP95
+        expr: histogram_quantile(0.95, sum by (le) (rate(elzara_http_request_duration_seconds_bucket[5m]))) > 1
+        for: 15m
+        labels: { severity: ticket }
+        annotations: { summary: "Latensi p95 API > 1 detik" }
+  - name: elzara-queues
+    rules:
+      - alert: ElzaraQueueLag
+        expr: max by (queue) (elzara_queue_lag_seconds) > 300
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: "Job tertua di antrian {{ $labels.queue }} menunggu > 5 menit" }
+      - alert: ElzaraDeadLetterJobs
+        expr: sum by (queue) (elzara_queue_dlq_jobs) > 0
+        for: 5m
+        labels: { severity: ticket }
+        annotations: { summary: "Ada job di failed_jobs (DLQ) antrian {{ $labels.queue }}" }
+      - alert: ElzaraOutboxStuck
+        expr: elzara_outbox_oldest_pending_seconds > 300 or elzara_outbox_dead_events > 0
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: "Outbox tertahan > 5 menit atau ada event mati" }
+  - name: elzara-integrity
+    rules:
+      - alert: ElzaraOversellAnomaly
+        expr: increase(elzara_oversell_anomalies_total[15m]) > 0
+        labels: { severity: page }
+        annotations: { summary: "Anomali oversell terdeteksi; ikuti runbook oversell-incident" }
+      - alert: ElzaraPaidStockException
+        expr: increase(elzara_paid_stock_exceptions_total[15m]) > 0
+        labels: { severity: page }
+        annotations: { summary: "Order lunas tanpa stok" }
+      - alert: ElzaraRbacBypassUsed
+        expr: increase(elzara_rbac_bypass_total[5m]) > 0
+        labels: { severity: page }
+        annotations: { summary: "Jalur bypass RBAC dipakai" }
+      - alert: ElzaraStorageErrors
+        expr: increase(elzara_storage_errors_total[10m]) > 5
+        labels: { severity: ticket }
+        annotations: { summary: "Error MinIO/S3 meningkat" }
+  - name: elzara-database
+    rules:
+      - alert: ElzaraPgLockWaits
+        expr: elzara_pg_lock_waits > 10
+        for: 5m
+        labels: { severity: ticket }
+        annotations: { summary: "Lebih dari 10 lock Postgres menunggu" }
+      - alert: ElzaraPgDeadlocks
+        expr: increase(elzara_pg_deadlocks_total[15m]) > 0
+        labels: { severity: ticket }
+        annotations: { summary: "Deadlock Postgres terjadi" }
+      - alert: ElzaraPgConnectionSaturation
+        expr: elzara_pg_connections / elzara_pg_max_connections > 0.8
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: "Koneksi Postgres > 80% max_connections" }
+      - alert: ElzaraWalArchiveFailing
+        expr: increase(elzara_pg_wal_archive_failures_total[15m]) > 0 or elzara_pg_wal_last_archived_age_seconds > 900
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: "Arsip WAL off-node gagal/terlambat: RPO melebihi target; ikuti runbook backup-restore-drill" }

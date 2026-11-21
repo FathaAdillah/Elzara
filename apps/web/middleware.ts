@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { childTraceparent } from "./lib/trace";
 
 /**
  * Route-guard non-otoritatif untuk halaman privat customer (Doc 04 §1: `middleware.ts`
@@ -23,6 +24,7 @@ export function middleware(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.set("Content-Security-Policy", policy);
   headers.set("x-nonce", nonce);
+  headers.set("traceparent", childTraceparent(req.headers.get("traceparent")));
   const res = NextResponse.next({ request: { headers } });
   res.headers.set("Content-Security-Policy", policy);
   if (PRIVATE_PREFIXES.some((prefix) => req.nextUrl.pathname.startsWith(prefix))) {

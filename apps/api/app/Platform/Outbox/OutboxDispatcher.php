@@ -68,6 +68,8 @@ final class OutboxDispatcher
                     aggregateType: $row->aggregate_type,
                     aggregateId: (int) $row->aggregate_id,
                     payload: $payload,
+                    requestId: $row->request_id,
+                    traceId: $row->trace_id,
                 );
                 $queue->push($job, queue: QueueRouting::for($job->eventName));
             } catch (Throwable $e) {
@@ -96,14 +98,14 @@ final class OutboxDispatcher
         ];
     }
 
-    /** @return Collection<int, object{id: int|numeric-string, event_name: string, aggregate_type: string, aggregate_id: int|numeric-string, payload: string}> */
+    /** @return Collection<int, object{id: int|numeric-string, event_name: string, aggregate_type: string, aggregate_id: int|numeric-string, payload: string, request_id: ?string, trace_id: ?string}> */
     private function claim(int $limit, ?string $onlyQueue, string $worker): Collection
     {
         return $this->db()->transaction(function () use ($limit, $onlyQueue, $worker): Collection {
             $query = $this->availableEvents($onlyQueue)
                 ->where('attempts', '<', $this->maxAttempts);
 
-            /** @var Collection<int, object{id: int|numeric-string, event_name: string, aggregate_type: string, aggregate_id: int|numeric-string, payload: string}> $rows */
+            /** @var Collection<int, object{id: int|numeric-string, event_name: string, aggregate_type: string, aggregate_id: int|numeric-string, payload: string, request_id: ?string, trace_id: ?string}> $rows */
             $rows = $query->orderBy('occurred_at')->orderBy('id')->lock('for update skip locked')->limit($limit)->get();
 
             if ($rows->isEmpty()) {

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Platform\Observability\StructuredLogProcessor;
 use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
@@ -46,7 +47,8 @@ return [
                 'stream' => 'php://stderr',
             ],
             'formatter' => env('LOG_STDERR_FORMATTER', JsonFormatter::class),
-            'processors' => [PsrLogMessageProcessor::class],
+            // Monolog menjalankan processor terakhir lebih dulu: redaksi selesai sebelum placeholder diisi.
+            'processors' => [StructuredLogProcessor::class, PsrLogMessageProcessor::class],
         ],
 
         'null' => [

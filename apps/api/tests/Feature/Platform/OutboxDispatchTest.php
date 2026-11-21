@@ -8,7 +8,9 @@ use App\Platform\Outbox\DispatchDomainEvent;
 use App\Platform\Outbox\DomainEvent;
 use App\Platform\Outbox\OutboxDispatcher;
 use App\Platform\Outbox\OutboxWriter;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -25,8 +27,10 @@ final class OutboxDispatchTest extends TestCase
         $this->fixtureSchema = $schema;
         DB::statement("SET search_path TO {$schema}");
 
-        $migration = require app_path('Platform/Infrastructure/Database/Migrations/0001_Platform_create_reliability_tables.php');
-        $migration->up();
+        foreach (['0001_Platform_create_reliability_tables', '0081_Platform_add_outbox_correlation'] as $file) {
+            $migration = require app_path("Platform/Infrastructure/Database/Migrations/{$file}.php");
+            $migration->up();
+        }
     }
 
     protected function tearDown(): void
@@ -64,6 +68,33 @@ final class OutboxDispatchTest extends TestCase
         $this->assertNotNull(DB::table('outbox_events')->where('id', $stale)->value('dispatched_at'));
         $this->assertNull(DB::table('outbox_events')->where('id', $payment)->value('dispatched_at'));
         $this->assertSame('other-worker', DB::table('outbox_events')->where('id', $live)->value('locked_by'));
+    }
+
+    public function test_outbox_event_carries_the_causing_request_and_trace_into_the_job(): void
+    {
+        Queue::fake();
+        Context::add('request_id', 'req-outbox-1');
+        Context::add('trace_id', '4bf92f3577b34da6a3ce929d0e0e4736');
+        $id = $this->record('OrderPlaced');
+        Context::flush();
+
+        $this->assertSame(
+            ['request_id' => 'req-outbox-1', 'trace_id' => '4bf92f3577b34da6a3ce929d0e0e4736'],
+            (array) DB::table('outbox_events')->where('id', $id)->first(['request_id', 'trace_id']),
+        );
+
+        app(OutboxDispatcher::class)->dispatchBatch(onlyQueue: 'orders');
+
+        Queue::assertPushed(DispatchDomainEvent::class, function (DispatchDomainEvent $job) use ($id): bool {
+            Event::fake();
+            $job->handle();
+
+            return $job->outboxId === $id
+                && $job->requestId === 'req-outbox-1'
+                && Context::get('request_id') === 'req-outbox-1'
+                && Context::get('trace_id') === '4bf92f3577b34da6a3ce929d0e0e4736'
+                && Context::get('event_name') === 'OrderPlaced';
+        });
     }
 
     public function test_discarding_queue_does_not_mark_event_delivered(): void

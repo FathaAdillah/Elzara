@@ -47,6 +47,8 @@ COPY --from=vendor --chown=www-data:www-data /build /app
 WORKDIR /app
 
 RUN mkdir -p /usr/local/var/run && chown -R www-data:www-data /usr/local/var/run
+# Satu event log JSON = satu baris: batas default 1024 byte php-fpm memecah baris log stderr worker.
+RUN printf '[global]\nlog_limit = 65536\n' > /usr/local/etc/php-fpm.d/zz-elzara-logging.conf
 # non-root (Doc 01 §11.1); fpm master tidak bisa setuid, php-fpm hanya menolak opsi user= dengan peringatan.
 USER www-data
 

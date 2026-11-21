@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Platform\Outbox;
 
+use App\Platform\Http\TraceContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
 use Ramsey\Uuid\Uuid;
 
@@ -21,6 +23,8 @@ final class DispatchDomainEvent implements ShouldQueue
         public readonly string $aggregateType,
         public readonly int $aggregateId,
         public readonly array $payload = [],
+        public readonly ?string $requestId = null,
+        public readonly ?string $traceId = null,
     ) {}
 
     /** @return list<int> eksponensial + jitter (Doc 01 §10); setelah $tries habis job masuk failed_jobs sebagai DLQ */
@@ -34,6 +38,15 @@ final class DispatchDomainEvent implements ShouldQueue
 
     public function handle(): void
     {
+        Context::add('outbox_id', $this->outboxId);
+        Context::add('event_name', $this->eventName);
+        if ($this->requestId !== null) {
+            Context::add('request_id', $this->requestId);
+        }
+        if ($this->traceId !== null) {
+            TraceContext::startSpan($this->traceId);
+        }
+
         Event::dispatch($this->eventName, [['event_id' => $this->eventId()] + $this->toArray()]);
     }
 

@@ -60,7 +60,7 @@ Status per task terhadap scaffold yang sudah ada. "Scaffold" = artefak ada di di
 | 0.9 | parsial — `docker/minio/init-buckets.sh` + policies + cors ada | presigned/finalize/validasi MIME belum; bucket belum pernah dibuat nyata |
 | 0.10 | belum — migrasi modul masih `.gitkeep` | seluruh task |
 | 0.11 | belum | seluruh task (bentuk spatie, lihat baris 0.11) |
-| 0.12 | parsial — `config/logging.php` ada; `infrastructure/monitoring/` README-only | OTel, dasbor, backup + restore drill belum |
+| 0.12 | selesai di repo — `traceparent` W3C web/admin → API → job (outbox membawa `request_id`/`trace_id`); log JSON stderr dengan redaksi PII; `/metrics` Prometheus internal; `infrastructure/monitoring/` (alert + dasbor Grafana); WAL-G terenkripsi ke tujuan off-node + drill PITR lokal lulus | drill ulang dari bucket off-node staging Dokploy (host belum ada); emit metrik reservasi/payment/Waiting Room ditambahkan oleh modul pemiliknya; ekspor OTLP ke kolektor belum dipilih |
 | 0.13 | parsial — `docs/threat-model.md` ada sebagai draf | review isi terhadap kontrol cookie/CSRF final + sign-off klien |
 | 0.14 | scaffold — 12 berkas ADR (001–012) + 16 runbook ada di disk (terhitung via ls) | status Accept per ADR dirawat di berkasnya masing-masing; sign-off P-6 menunggu |
 | 0.15 | milik klien | tidak berubah |
