@@ -18,7 +18,9 @@ final class UpdateFeatureFlags
     public function handle(AuditRecorder $audit): void
     {
         DB::transaction(function () use ($audit): void {
-            foreach ($this->flags as $row) {
+            $flags = $this->flags;
+            usort($flags, fn (array $left, array $right): int => strcmp($left['code'], $right['code']));
+            foreach ($flags as $row) {
                 $flag = FeatureFlag::query()->where('code', $row['code'])->lockForUpdate()->first() ?? throw new MissingFeatureFlag;
                 $override = isset($row['env']) ? FeatureFlagOverride::query()->where('flag_code', $row['code'])->where('env', $row['env'])->first() : null;
                 $before = ['default_enabled' => $flag->default_enabled, 'override' => $override?->toArray()];
