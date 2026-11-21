@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Identity;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -34,6 +35,21 @@ final class AdminLoginTest extends TestCase
 
     private const LOGOUT = '/api/v1/admin/auth/logout';
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Cache::flush();
+    }
+
+    public function test_auth_inputs_reject_unknown_fields_before_credentials(): void
+    {
+        $cookies = $this->csrf([], login: true);
+        $this->request('POST', self::LOGIN, $cookies, ['email' => 'nobody@example.test', 'password' => 'password', 'role' => 'admin'])
+            ->assertUnprocessable()->assertJsonPath('errors.0.pointer', '/role')->assertJsonPath('errors.0.code', 'unknown_field');
+        $this->request('POST', self::VERIFY.'?extra=1', $cookies, ['challenge_id' => 'invalid', 'code' => '123456'])
+            ->assertUnprocessable()->assertJsonPath('errors.0.pointer', '/extra')->assertJsonPath('errors.0.code', 'unknown_field');
+    }
+
     public function test_login_enforces_csrf_password_and_operator_status(): void
     {
         $operator = $this->operator();
@@ -53,6 +69,7 @@ final class AdminLoginTest extends TestCase
     public function test_pending_challenge_becomes_verified_admin_session_and_logout_revokes_it(): void
     {
         $operator = $this->operator();
+        DB::table('users')->where('email', $operator)->update(['timezone' => 'Asia/Makassar', 'email_verified_at' => '2026-11-17 04:12:33+00']);
         [$challenge, $cookies] = $this->challenge($operator);
         $this->request('GET', self::SESSION, $cookies)->assertUnauthorized();
         $code = TOTP::createFromSecret(self::SECRET)->at(now()->getTimestamp());
@@ -61,7 +78,9 @@ final class AdminLoginTest extends TestCase
         $wrongCode = $code === '000000' ? '999999' : '000000';
         $this->request('POST', self::VERIFY, $cookies, ['challenge_id' => $challenge, 'code' => $wrongCode])->assertUnauthorized();
         $response = $this->request('POST', self::VERIFY, $cookies, ['challenge_id' => $challenge, 'code' => $code])
-            ->assertOk()->assertJsonPath('authenticated', true)->assertJsonPath('user.email', $operator);
+            ->assertOk()->assertJsonPath('authenticated', true)->assertJsonPath('user.email', $operator)
+            ->assertJsonPath('user.timezone', 'Asia/Makassar')->assertJsonPath('user.email_verified_at', '2026-11-17T04:12:33.000Z')
+            ->assertHeader('X-Displayed-Timezone', 'Asia/Makassar');
         $admin = $this->cookieJar($response);
         $this->assertArrayHasKey(self::SESSION_COOKIE, $admin);
         $this->request('GET', self::SESSION, $admin)->assertOk()->assertJsonPath('user.email', $operator);
@@ -72,7 +91,7 @@ final class AdminLoginTest extends TestCase
 
         $admin = $this->csrf($admin);
         $this->request('POST', self::LOGOUT, $admin, [], false)->assertStatus(419);
-        $this->request('POST', self::LOGOUT, $admin)->assertNoContent();
+        $this->request('POST', self::LOGOUT, $admin)->assertNoContent()->assertHeader('X-Displayed-Timezone', 'Asia/Makassar');
         $this->request('GET', self::SESSION, $admin)->assertUnauthorized();
         $this->assertTrue(DB::table('user_sessions')->whereNotNull('revoked_at')->exists());
     }
@@ -161,6 +180,7 @@ final class AdminLoginTest extends TestCase
             ->assertOk()->assertJsonPath('two_factor_required', true)
             ->assertJsonStructure(['challenge_id', 'expires_at'])
             ->assertCookieMissing(self::SESSION_COOKIE);
+        $this->assertMatchesRegularExpression('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\z/', $response->json('expires_at'));
         $cookies = array_replace($cookies, $this->cookieJar($response));
         $this->assertArrayHasKey(self::CHALLENGE_COOKIE, $cookies);
 

@@ -23,7 +23,7 @@ final class PublicFeatureFlagsTest extends TestCase
         foreach ([...ListFeatureFlags::PUBLIC_CODES, 'auth.social_google'] as $code) {
             FeatureFlag::create(['code' => $code, 'description' => $code, 'default_enabled' => true]);
         }
-        $response = $this->getJson('/api/v1/feature-flags')->assertOk();
+        $response = $this->getJson('/api/v1/feature-flags')->assertOk()->assertHeader('X-RateLimit-Policy', 'public');
         $this->assertTrue($response->headers->hasCacheControlDirective('no-store'));
         $this->assertSame(array_map(fn ($code) => ['code' => $code, 'enabled' => true], ListFeatureFlags::PUBLIC_CODES), $response->json('data'));
         $this->assertStringNotContainsString('auth.social_google', $response->getContent());
@@ -31,7 +31,7 @@ final class PublicFeatureFlagsTest extends TestCase
 
     public function test_missing_reference_data_returns_not_found_not_an_enabled_default(): void
     {
-        $this->getJson('/api/v1/feature-flags')->assertNotFound()->assertJsonPath('code', 'NOT_FOUND');
+        $this->getJson('/api/v1/feature-flags')->assertNotFound()->assertJsonPath('code', 'NOT_FOUND')->assertHeader('X-RateLimit-Policy', 'public');
     }
 
     public function test_public_flags_and_checkout_use_the_same_authenticated_rollout_subject(): void

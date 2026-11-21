@@ -25,6 +25,7 @@ final class KillSwitchTest extends TestCase
         foreach (['id', 'en', 'en-US,en;q=0.9', 'fr'] as $language) {
             $locale = str_starts_with($language, 'en') ? 'en' : 'id';
             $this->postJson('/api/v1/orders', [], ['Accept-Language' => $language])->assertStatus(503)
+                ->assertHeader('X-RateLimit-Policy', 'web')
                 ->assertHeader('Content-Type', 'application/problem+json')
                 ->assertJsonPath('type', 'urn:elzara:problem:server:checkout-disabled')
                 ->assertJsonPath('code', 'CHECKOUT_DISABLED')

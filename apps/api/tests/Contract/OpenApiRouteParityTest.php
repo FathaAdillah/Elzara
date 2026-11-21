@@ -22,6 +22,11 @@ final class OpenApiRouteParityTest extends TestCase
                 $this->assertSame($operation, $spec['paths'][$path][$method]['operationId']);
                 $route = $routes->match(Request::create('/api/v1'.$path, strtoupper($method)));
                 $this->assertContains(strtoupper($method), $route->methods());
+                $this->assertContains($path === '/admin/feature-flags' ? 'rate:admin' : 'rate:public', $route->gatherMiddleware());
+                $this->assertSame('#/components/responses/RateLimited', $spec['paths'][$path][$method]['responses'][429]['$ref']);
+                foreach (['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'X-RateLimit-Policy', 'X-Displayed-Timezone'] as $header) {
+                    $this->assertArrayHasKey($header, $spec['paths'][$path][$method]['responses'][200]['headers']);
+                }
                 if ($path === '/admin/feature-flags') {
                     $permission = $spec['paths'][$path][$method]['x-elzara-permission'];
                     $this->assertContains(RequireAdminPermission::class.':'.$permission, $route->gatherMiddleware());
@@ -30,6 +35,7 @@ final class OpenApiRouteParityTest extends TestCase
         }
         $order = $routes->match(Request::create('/api/v1/orders', 'POST'));
         $this->assertContains(EnsureCheckoutEnabled::class, $order->gatherMiddleware());
+        $this->assertContains('rate:web', $order->gatherMiddleware());
         $this->assertArrayHasKey('503', $spec['paths']['/orders']['post']['responses']);
         $this->assertSame('CHECKOUT_DISABLED', $spec['paths']['/orders']['post']['responses'][503]['content']['application/problem+json']['schema']['allOf'][1]['properties']['code']['const']);
     }
