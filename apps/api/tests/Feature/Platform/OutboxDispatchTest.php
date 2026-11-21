@@ -138,4 +138,19 @@ final class OutboxDispatchTest extends TestCase
     {
         return DB::transaction(fn () => app(OutboxWriter::class)->record(new DomainEvent($eventName, 'order', 1)));
     }
+
+    public function test_job_serialized_before_correlation_columns_still_handles(): void
+    {
+        $serialized = serialize(new DispatchDomainEvent(5, 'OrderPlaced', 'order', 9));
+        $legacy = preg_replace_callback('/^O:(\d+):"([^"]+)":(\d+):/', static fn (array $m): string => 'O:'.$m[1].':"'.$m[2].'":'.((int) $m[3] - 2).':', $serialized);
+        $legacy = str_replace(['s:9:"requestId";N;', 's:7:"traceId";N;'], '', (string) $legacy);
+        $this->assertNotSame($serialized, $legacy);
+        $job = unserialize($legacy);
+        $this->assertInstanceOf(DispatchDomainEvent::class, $job);
+        Event::fake(['OrderPlaced']);
+
+        $job->handle();
+
+        Event::assertDispatched('OrderPlaced');
+    }
 }

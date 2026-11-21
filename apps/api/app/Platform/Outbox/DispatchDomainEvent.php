@@ -40,11 +40,14 @@ final class DispatchDomainEvent implements ShouldQueue
     {
         Context::add('outbox_id', $this->outboxId);
         Context::add('event_name', $this->eventName);
-        if ($this->requestId !== null) {
-            Context::add('request_id', $this->requestId);
+        // Job yang diserialisasi sebelum kolom korelasi ada tidak punya kedua properti ini (unserialize tidak menjalankan constructor).
+        $requestId = $this->requestId ?? null;
+        $traceId = $this->traceId ?? null;
+        if ($requestId !== null) {
+            Context::add('request_id', $requestId);
         }
-        if ($this->traceId !== null) {
-            TraceContext::startSpan($this->traceId);
+        if ($traceId !== null) {
+            TraceContext::startSpan($traceId);
         }
 
         Event::dispatch($this->eventName, [['event_id' => $this->eventId()] + $this->toArray()]);
