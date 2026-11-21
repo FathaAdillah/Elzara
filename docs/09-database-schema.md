@@ -8,6 +8,8 @@ Dokumen ini adalah satu-satunya sumber kebenaran untuk bentuk data. Kalau kode d
 
 Pasangan dokumen: `10-migration-plan.md` (cara mengubah skema ini tanpa saling menggesek). Daftar rename (§4.1), tabel baru (§4.2), dan yang tidak diambil (§4.3) hidup di `11-blueprint-reconciliation.md` — dokumen ini hanya memakai hasilnya.
 
+**Snapshot implementasi 2026-11-22 (K4.2).** Baseline Phase 0–4 di §19 bukan jumlah tabel yang sudah terpasang. `migrate:status` di container API lokal menunjukkan **29 Ran, 0 Pending**, cocok dengan 29 basename Doc 10 §4.3. Katalog PostgreSQL lokal memiliki **28 tabel publik**: Identity 14, Content 2 (`media`, `localizations`), Settings 3, Audit 2, reliability Platform 3, framework 3 (`jobs`, `failed_jobs`, `job_batches`), dan tabel pelacak `migrations`. Modul domain lain masih target desain, bukan hasil migrasi lokal. Slot `0051–0053` belum berupa file; flag pengguna sudah final sejak create 0042. Dua nomor `0075` mempunyai basename berbeda (Content/Identity). Snapshot ini tidak menggantikan enam auditor eksternal, tidak membuktikan rollout legacy, dan tidak mengubah tally desain §19.
+
 ## 1. Keputusan desain yang mengikat
 
 | # | Keputusan | Alasan |
@@ -27,7 +29,7 @@ Pasangan dokumen: `10-migration-plan.md` (cara mengubah skema ini tanpa saling m
 ### Konvensi
 
 - Nama: tabel `snake_case` plural, kolom `snake_case`, FK `{tabel_singular}_id`, index `idx_{tabel}_{kolom}`, unique `uq_{tabel}_{kolom}`, check `ck_{tabel}_{syarat}`, FK `fk_{tabel}_{referensi}`.
-- Setiap tabel punya `id bigint generated always as identity primary key`, `created_at timestamptz not null default now()`, `updated_at timestamptz not null default now()` — **tidak diulang** di definisi bawah. Tabel append-only boleh tidak punya `updated_at`.
+- Tabel aplikasi umumnya punya `id bigint generated always as identity primary key`, `created_at timestamptz not null default now()`, `updated_at timestamptz not null default now()` — **tidak diulang** di definisi bawah. Tabel append-only boleh tidak punya `updated_at`. Pivot spatie, `role_scopes`, dan `feature_flag_overrides` tidak mempunyai id/timestamps tersebut; tabel framework mempertahankan bentuk Laravel (`jobs`/`job_batches` memakai epoch integer dan `failed_jobs.failed_at` timestamp tanpa zona).
 - Kolom `*_at` yang null berarti "belum terjadi", bukan "tidak diketahui".
 - Kolom `kind` pada tabel domain (collections, media, vouchers, warehouses, dst.) adalah klasifikasi isi tabelnya sendiri, **bukan** pembeda populasi `users` — pembeda populasi yang lama sudah dihapus (Doc 11 §4.4 A). Catatan "(bukan pembeda populasi lama)" pada definisi di bawah menandai pembedaan itu supaya sapuan nama mati tidak menyasar kolom yang sah.
 - Tabel yang ditulis admin/staff saja punya `created_by bigint references users(id)` (diisi otomatis oleh trait audit).
@@ -161,7 +163,8 @@ roles                                     [Identity]      10 role Blueprint (Doc
   --
   uq roles_name_guard (name, guard_name)
   di-seed (Doc 10 §8), bukan hardcode. Pemisah "pengaju vs pemberi persetujuan"
-  (Doc 06 §1) ditegakkan oleh permission berpasangan: *.request vs *.approve.
+  (Doc 06 §1) adalah kebutuhan policy + grant terpisah; *.request/*.approve tidak ada
+  dalam 76 permission aktual dan tidak boleh ditambahkan tanpa perubahan register Doc 11.
   `superadmin` tidak lagi berarti bypass: bypass hanya lewat users.is_admin dan tercatat
   (Doc 11 §4.4 A/B). Bentuk kolom mengikuti paket supaya tidak perlu fork; kolom ekstra
   kita (description, is_system) tetap hidup.
@@ -213,8 +216,10 @@ role_scopes                               [Identity]      baru (Doc 11 §4.4 B);
   scope_type varchar(24)                NULL = global; batch | category | warehouse
   scope_id bigint                        di-query app; bukan FK agar scope bebas bentuk
   --
-  PRIMARY KEY (user_id, role_id, COALESCE(scope_type,''), COALESCE(scope_id,0))
-  idx role_scopes_user (user_id)
+  UNIQUE INDEX uq_role_scopes_identity (user_id, role_id, COALESCE(scope_type,''), COALESCE(scope_id,0))
+  CHECK ck_role_scopes_type (scope_type IN ('batch','category','warehouse'))
+  CHECK ck_role_scopes_pair  kedua kolom NULL atau tipe dan id terisi dengan id > 0
+  idx_role_scopes_user (user_id)
   -- Satu pasangan user-role boleh punya scope global DAN beberapa scope berbaris
   --   (aturan COALESCE lama dipertahankan). Membatasi permission saja tidak membatasi
   --   baris mana yang boleh dilihat; scope tetap hidup lewat tabel ini.
@@ -223,6 +228,7 @@ user_identities                           [Identity]      baru (Doc 11 §4.4 C) 
   provider varchar(24) NOT NULL          google | x (driver socialiteproviders/twitter, OAuth 2.0)
   provider_user_id varchar(120) NOT NULL  id subjek dari provider
   user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  linked_at timestamptz NOT NULL DEFAULT now()
   --
   uq user_identities_provider (provider, provider_user_id)
   idx user_identities_user (user_id)
@@ -239,6 +245,8 @@ staff_2fa_secrets                         [Identity]      2FA admin wajib (Doc 0
                                                   entri yang dipakai dihapus. Dulu satu kolom `recovery_hash varchar(255)`
                                                   = hanya satu kode, yang berarti kehilangan 9 dari 10 kode setelah
                                                   pemulihan pertama. Verifikasi membandingkan setiap entri secara konstan.
+  -- Migrasi 0075_Identity_wrap_legacy_recovery_hashes membungkus hash SHA-256 lama
+  --   menjadi legacy-sha256$<argon2id>; bukan backfill flag pengguna.
 ```
 
 ## 3. Catalog
@@ -1573,6 +1581,7 @@ media                                     [Content]       lihat S-3 — pemilik 
   kind varchar(24) NOT NULL              image | video | file | icon | label_pdf | proof | attachment   (bukan pembeda populasi lama)
   disk varchar(24) NOT NULL DEFAULT 's3'
   path varchar(512) NOT NULL
+  object_version varchar(255)            nullable; versi objek MinIO untuk pembacaan version-pinned (0084)
   mime varchar(80), size_bytes bigint, width integer, height integer
   sha256 char(64)                         deteksi duplikat + integritas
   alt_key varchar(120)                     alt text wajib untuk gambar produk (Doc 04 §7)
@@ -1812,8 +1821,9 @@ audit_logs                                [Audit]         append-only (S-6) — 
   before jsonb, after jsonb              diff, bukan salinan penuh
   reason varchar(320) NOT NULL           wajib untuk aksi berisiko (Doc 01 §3.3 AuditThis)
   ip inet, user_agent varchar(255), occurred_at timestamptz NOT NULL DEFAULT now()
-  request_id varchar(26)                        ULID yang sama dengan header X-Request-Id (Doc 12 §3.2)
+  request_id varchar(26) NOT NULL               ULID yang sama dengan header X-Request-Id (Doc 12 §3.2)
   --
+  CHECK ck_audit_logs_reason (length(trim(reason)) > 0)
   idx audit_target (target_type, target_id, occurred_at DESC)
   idx audit_actor_time (actor_id, occurred_at DESC)
   -- Wajib juga untuk SETIAP pemakaian bypass users.is_admin: action = rbac.bypass + reason

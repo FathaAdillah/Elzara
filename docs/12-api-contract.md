@@ -274,7 +274,7 @@ Catatan kelompok K: `POST /admin/preorder-batches/{id}/close` **sudah ada di Blu
 | POST | `/auth/register` | Registrasi hybrid email+password; sosial lewat redirect | publik | — |
 | POST | `/auth/login` | Login storefront email+password (akun `active` apa pun) | publik | — |
 | POST | `/auth/logout` | Tutup sesi web + cabut baris `user_sessions` | customer | — |
-| POST | `/auth/otp/request` | Minta OTP (`otp_challenges`: login/reset_password/verify_phone); respons anti-enumeration | publik | — |
+| POST | `/auth/otp/request` | Minta OTP email untuk `login` atau `verify_email`; purpose/channel lain saat ini 422; respons anti-enumeration | publik | — |
 | POST | `/auth/otp/verify` | Verifikasi OTP; `purpose=login` membuka sesi web | publik | — |
 | GET | `/auth/social/{provider}/redirect` | Redirect OAuth `google`/`x` + state (login DAN registrasi) | publik | — |
 | GET | `/auth/social/{provider}/callback` | Callback sosial; `user_identities`, penggabungan hanya lewat email terverifikasi | publik | — |
@@ -282,7 +282,7 @@ Catatan kelompok K: `POST /admin/preorder-batches/{id}/close` **sudah ada di Blu
 | DELETE | `/me/sessions/{session_id}` | Cabut sesi perangkat (policy owner; bukan milik sendiri → 404) | customer | — |
 | POST | `/auth/password/reset-request` | Token reset sekali-pakai via email; respons anti-enumeration | publik | — |
 | POST | `/auth/password/reset-confirm` | Password baru dengan token; sesi web lain dicabut | publik | — |
-| POST | `/admin/auth/login` | Verifikasi email dan kata sandi operator aktif yang telah enrol 2FA, lalu terbitkan challenge dengan respons `200` | publik | — |
+| POST | `/admin/auth/login` | Verifikasi kata sandi operator aktif + faktor terkonfirmasi, lalu challenge `200`; pengecualian satu operator local dapat langsung membuka sesi (§3.1) | publik | — |
 | POST | `/admin/auth/2fa/verify` | Verifikasi TOTP atau recovery code sekali pakai, lalu buka sesi guard `admin` | publik | — |
 | GET | `/admin/auth/session` | Verifikasi sesi admin aktif milik pemanggil | admin | — |
 | POST | `/admin/auth/logout` | Tutup sesi admin sendiri | admin | — |
@@ -290,17 +290,33 @@ Catatan kelompok K: `POST /admin/preorder-batches/{id}/close` **sudah ada di Blu
 
 Catatan kelompok S: semua mutasi memakai `X-XSRF-TOKEN` (§3.1). Untuk login dan verifikasi 2FA admin, panggil `/sanctum/csrf-cookie?scope=admin&purpose=login`. Browser menyimpan cookie sementara `elzara_admin_challenge` dan mengirim challenge dari sesi yang sama. Untuk logout, ambil token sesi aktif dari `/sanctum/csrf-cookie?scope=admin`. Pembacaan dan penutupan sesi sendiri memerlukan guard admin dan sesi terverifikasi, tanpa izin modul tambahan. `GET /sanctum/csrf-cookie` memakai path-level server override karena endpoint bawaan Sanctum berada di root.
 
+**Pemeriksaan runtime 2026-11-22.** `php artisan route:list --json` di container `api` mencocokkan method/path seluruh 16 operasi kelompok S dengan OpenAPI: sembilan `/auth/*`, empat `/admin/auth/*`, CSRF root, dan dua operasi `/me/sessions`. Laravel menambahkan `HEAD` untuk GET; parameter runtime `{sessionId}` adalah `{session_id}` di kontrak, dengan nilai hash sesi yang sama. Login dan verifikasi 2FA sukses mengembalikan 200 (bukan 202); register 201; logout web/admin dan pencabutan sesi 204; redirect/callback sosial sukses 302.
+
+Lima operasi pengelolaan akses operator juga sudah ada di OpenAPI dan daftar rute, bukan endpoint auth publik. Seluruhnya memakai `adminSession`; mutasi memerlukan CSRF, `Idempotency-Key`, dan alasan audit:
+
+| Method | Endpoint | Permission | Idem |
+|---|---|---|---|
+| GET | `/admin/users/{user}/access` | `user.view` | — |
+| POST | `/admin/users/{user}/permissions` | `user.update` | ya |
+| DELETE | `/admin/users/{user}/permissions/{permission}` | `user.update` | ya |
+| POST | `/admin/users/{user}/roles` | `user.update` | ya |
+| DELETE | `/admin/users/{user}/roles/{role}` | `user.update` | ya |
+
+**Selisih kontrak masih terbuka:** callback sosial menolak penautan email provider yang belum terverifikasi dengan HTTP **409**, tanpa membuat identitas baru (`AuthSecurityGatesTest::test_unverified_provider_email_returns_http_conflict_without_linking`); respons 409 belum didaftarkan pada operasi callback di OpenAPI. Perlu perubahan spec dan regenerasi klien tersendiri; drift nol hanya membuktikan klien sama dengan spec, bukan bahwa semua respons runtime sudah tercakup.
+
 ### 2.3 Ringkasan jumlah
 
-| Kelompok | Operasi |
+| Cakupan pada 2026-11-22 | Jumlah |
 |---|---|
-| Blueprint §7 (§2.1) — 15 baris | 17 |
-| Tambahan kita (§2.2, kelompok A–S) | 115 |
-| **Total operasi yang dinormakan** | **132** |
-| Rute ber-`Idempotency-Key` wajib | 64 (§2.1 10 + §2.2 54; kelompok S tidak menambah — lihat catatannya) |
-| Baris per sisi akses (130 baris) | `admin` 55 · `customer` 54 · `publik` 17 · `s2s` 2 · `customer/admin` 2 |
+| Path pada `openapi.yaml` | 44 |
+| Operasi pada `openapi.yaml` | 45 |
+| Path wajib Blueprint yang dicek CI sebagai subset | 18 |
+| Path auth wajib yang dicek CI sebagai subset | 14 |
+| Operasi kelompok S di atas (termasuk dua `/me/sessions`) | 16 |
+| Operasi pengelolaan akses operator | 5 |
+| Entri `route:list --json` seluruh aplikasi | 56 |
 
-Angka ini adalah hasil menghitung baris di §2.1 dan §2.2 pada dokumen ini, bukan klaim cakupan; kelompok S (15 operasi auth) ditambahkan pada amandemen 2026-11-18 dan angkanya dihitung ulang di sini. Kalau `openapi.yaml` menghasilkan jumlah berbeda, **dokumen ini yang salah** dan harus disamakan (peraturan §1).
+Daftar kebutuhan domain di §2.1/§2.2 bukan klaim seluruh endpoint sudah masuk spec atau runtime; kebutuhan yang belum ada harus dinormakan di OpenAPI sebelum dipakai frontend. Angka lama 132 bukan jumlah kontrak mesin aktual. Entri Laravel juga mencakup rute framework/internal, sehingga tidak dibandingkan langsung dengan jumlah operasi spec. CI mempertahankan subset Blueprint dan memeriksa auth serta tepat tiga nama skema keamanan lewat parser YAML; pemeriksaan lokal positif exit 0 dan salinan tanpa `/auth/login` exit 1. Drift klien TS terhadap spec nol.
 
 ### 2.4 Belum dinormakan di dokumen ini (pendaftaran tugas, bukan kelalaian diam-diam)
 
@@ -334,9 +350,12 @@ Blueprint §7 menawarkan dua jalur ("OAuth2/OIDC atau server-side session/BFF se
 |---|---|---|---|
 | `elzara_web_session` | `web` | `Secure; HttpOnly; SameSite=Lax; Path=/` | Sesi storefront; otorisasi = kepemilikan + status akun |
 | `elzara_admin_session` | `admin` | `Secure; HttpOnly; SameSite=Lax; Path=/` | Sesi admin dibuka setelah kebijakan autentikasi environment terpenuhi |
+| `elzara_admin_challenge` | belum terautentikasi | `Secure; HttpOnly; SameSite=Lax; Path=/` | Sesi sementara untuk CSRF login dan challenge 2FA; bukan sesi admin aktif |
 | `XSRF-TOKEN` | — | `Secure; SameSite=Lax; Path=/`; sengaja **TANPA `HttpOnly`** | Dibaca JavaScript untuk header `X-XSRF-TOKEN`; itu desain Sanctum, bukan kelalaian |
 
-**Rasional same-site.** Edge kita satu host dengan pemisah path (`/api/v1/webhooks/`, `/api/`, `/storage/`, `/admin`, `/` — `docker/nginx/dev.conf`), jadi halaman dan API berada pada origin yang sama: cookie sesi adalah **same-site**, `SameSite=Lax` cukup, **tidak ada CORS lintas origin dan tidak ada `SameSite=None`**. `Path=/` wajib karena cookie harus ikut terkirim ke `/api/`; pemisahan admin/storefront dilakukan lewat **nama cookie + guard, bukan lewat path**. Cookie web tidak pernah diterima guard admin, sehingga XSS di storefront tidak menjadi akses admin. Kalau produksi kelak memindahkan admin ke subdomain terpisah, cookie menjadi lintas-site dan **keputusan ini harus dibuka kembali** (ADR-007 D-6a) — itu perubahan topologi, bukan setelan.
+`Secure` pada tabel adalah kebijakan HTTPS staging/production; HTTP lokal memakai `SESSION_SECURE_COOKIE=false`. Test cookie juga menjalankan konfigurasi production-like dengan Secure aktif. Itu bukan bukti TLS produksi sudah berjalan.
+
+**Rasional same-site.** Pada topologi saat ini, edge merutekan storefront dan dashboard berdasarkan host (`localhost`/`admin.localhost` di lokal; `docker/nginx/edge.conf.template`), dan meneruskan `/api/` pada origin masing-masing ke Laravel. Browser tidak perlu memanggil API lintas origin. `Path=/` wajib karena cookie harus ikut terkirim ke `/api/`; pemisahan sesi dilakukan lewat **nama cookie + guard**, bukan path. Cookie web tidak diterima guard admin. Subdomain tidak otomatis berarti cross-site: scope cookie, origin, dan site harus diperiksa terpisah. Domain/TLS produksi via Dokploy belum diuji; perubahan ke origin API atau site terpisah memerlukan review ADR-007 D-6a, bukan sekadar mengganti SameSite.
 
 **Alur CSRF (wajib pada setiap mutasi, tanpa pengecualian admin).**
 
@@ -346,7 +365,7 @@ Blueprint §7 menawarkan dua jalur ("OAuth2/OIDC atau server-side session/BFF se
 
 **Tidak ada token jangka panjang di browser (ADR-007 D-3a).** `personal_access_tokens` **tidak dibuat** — Sanctum dipakai untuk sesi, bukan PAT; tidak ada bearer token di `localStorage` maupun memori aplikasi. Kredensial server-to-server (webhook gateway, worker internal) memakai **tanda tangan/HMAC** per driver + replay window, atau jaringan internal — tidak pernah cookie sesi. `s2s` tetap kategori terpisah di spec (`security: [{ s2sSignature: [] }]`), bukan varian customer/admin.
 
-**Login web hybrid (login DAN registrasi).** Email+password, Google (driver bawaan `laravel/socialite`), dan X (`socialiteproviders/twitter`, OAuth 2.0 — driver `twitter` bawaan Socialite memakai OAuth 1.0a yang sudah ditinggalkan X, jadi tidak dipakai). Identitas sosial disimpan di `user_identities` (`provider`, `provider_user_id`, unik per provider). **Penggabungan akun hanya lewat email terverifikasi**, bukan email mentah dari provider — kalau tidak, siapa pun yang mendaftar di provider dengan email korban bisa mengambil alih akun. OTP (`otp_challenges`) melayani purpose `login | reset_password | verify_phone`; daftar sesi/perangkat (`user_sessions`) bisa dilihat dan dicabut sendiri (§2.2 S).
+**Login web hybrid (login DAN registrasi).** Email+password, Google (driver bawaan `laravel/socialite`), dan X (driver Socialite **`x`**, `socialiteproviders/twitter` OAuth 2.0; bukan driver bawaan `twitter` OAuth 1.0a). Identitas sosial disimpan di `user_identities` (`provider`, `provider_user_id`, unik per provider). **Penggabungan akun hanya lewat email terverifikasi**, bukan email mentah dari provider — kalau tidak, siapa pun yang mendaftar di provider dengan email korban bisa mengambil alih akun. Enum penyimpanan OTP adalah `login | reset_password | verify_phone | verify_email`, tetapi API saat ini hanya melayani channel email untuk `login` dan `verify_email`; kombinasi lain 422, reset kata sandi lewat dua endpoint reset terpisah. Daftar sesi/perangkat (`user_sessions`) bisa dilihat dan dicabut sendiri (§2.2 S).
 
 **Gerbang admin (ADR-007 D-4a, ADR-012 D-1/D-4).** Login admin memakai email dan kata sandi. Operator harus aktif. Alur 2FA menerbitkan challenge ber-TTL pendek dan membuka sesi setelah TOTP atau recovery code sekali pakai terverifikasi. Recovery code disimpan dengan hash Argon2id. Khusus `APP_ENV=local`, `ELZARA_LOCAL_ADMIN_PASSWORD_ONLY_EMAIL` dapat mengizinkan satu email operator membuka sesi setelah verifikasi kata sandi. Pengaturan ini diperiksa lagi pada setiap validasi sesi tersebut. Staging dan production mewajibkan 2FA.
 
@@ -362,10 +381,11 @@ Blueprint §7 menawarkan dua jalur ("OAuth2/OIDC atau server-side session/BFF se
 |---|---|
 | Tanpa sesi / cookie kedaluwarsa / tidak valid (guard mana pun) | `401 UNAUTHENTICATED`, problem `urn:elzara:problem:auth:unauthenticated` — bukan redirect HTML; klien mengulang login |
 | Sesi valid tetapi permission `<modul>.<aksi>` tidak dimiliki (dan bukan bypass `is_admin`) | `403 FORBIDDEN`, problem `urn:elzara:problem:authorization:forbidden` |
-| Admin: `is_operator = false`, status bukan `active`, atau 2FA belum terkonfirmasi | `403 FORBIDDEN` — ditolak sebelum query apa pun dijalankan |
+| Login admin dengan kata sandi benar tetapi `is_operator = false`, status bukan `active`, atau faktor belum terkonfirmasi (di luar pengecualian local) | `403 FORBIDDEN` setelah pemeriksaan kredensial; kata sandi salah/email tidak dikenal → 401 |
+| Verifikasi faktor/challenge tidak sah, atau sesi admin yang operator/status/faktornya tidak lagi valid | `401 UNAUTHENTICATED`; sesi yang tidak lagi sah ditutup |
 | Resource privat milik orang lain, bila enumerasi itu sendiri risiko | `404`, bukan `403` (kuotasi privat, §4.3) |
 
-**Wujud di spec.** `openapi.yaml` memuat `securitySchemes` `webSession` + `adminSession` (apiKey in cookie, nama cookie persis di tabel atas) dan `s2sSignature` (penanda HMAC, bukan bearer), parameter `X-XSRF-TOKEN` wajib pada mutasi, `security` per operasi (`public` = `[]` eksplisit), `x-elzara-auth` sebagai penanda kategori, dan `x-elzara-permission` pada aksi modul admin. Pemeriksaan dan logout sesi sendiri cukup dengan sesi operator yang valid. Rute tanpa sesi (`public`) hanya: katalog, batch terbuka, ulasan terpublikasi, lookup kode klaim (rate-limited), health, endpoint auth kelompok S, dan webhook s2s (bertanda tangan). Larangan lama "belum boleh ada securitySchemes" dicabut oleh Doc 11 §4.4 I; G2 (§1.2) sudah diamandemen sesuai keputusan ini.
+**Wujud di spec.** `openapi.yaml` memuat tepat tiga skema pada `components.securitySchemes`: `webSession` + `adminSession` (apiKey in cookie, nama cookie persis di tabel atas) dan `s2sSignature` (apiKey in header `X-Provider-Signature`, penanda HMAC, bukan bearer). Parameter `X-XSRF-TOKEN` wajib pada mutasi sesi; `security` per operasi (`public` = `[]` eksplisit), `x-elzara-auth` sebagai penanda kategori, dan `x-elzara-permission` pada aksi modul admin. Pemeriksaan dan logout sesi admin sendiri cukup dengan sesi operator yang valid. Endpoint login/registrasi/OTP/reset/redirect/callback serta CSRF tidak mensyaratkan login; logout dan `/me/sessions` tetap memakai sesi guard masing-masing. Webhook memakai `s2sSignature`, bukan auth publik tanpa kontrol. Larangan lama "belum boleh ada securitySchemes" dicabut oleh Doc 11 §4.4 I; G2 (§1.2) sudah diamandemen sesuai keputusan ini.
 
 **Yang masih terbuka, jujur (ADR-007 D-6a).** (1) Tanda tangan threat model atas kontrol cookie/CSRF/2FA/pemisahan guard tetap kewajiban sebelum kode auth Sprint 1 ditulis (`docs/threat-model.md`) — keputusan mekanisme tidak menggantikan review ancaman. (2) Q-2 menyempit menjadi "apakah klien punya IdP/SSO sendiri"; kalau ya, provider OIDC ditambahkan pada jalur login yang sama, bukan mengganti mekanisme sesi. (3) Pemindahan admin ke subdomain terpisah membuka kembali keputusan ini.
 
@@ -524,7 +544,7 @@ Ini jembatan Doc 01 §12 (error taxonomy) dan Doc 01 §6 (konkurensi) ke level A
 | — validasi form | 422 | `VALIDATION_FAILED` | `…:validation:failed` | tidak | per-field |
 | — tanpa identitas | 401 | `UNAUTHENTICATED` | `…:auth:unauthenticated` | setelah login | cookie sesi tidak ada/kedaluwarsa/tidak valid (guard `web` atau `admin` sesuai rute); klien mengulang login — mekanisme sudah diputuskan (§3.1), bukan redirect HTML |
 | — CSRF tidak valid | 419 | `CSRF_TOKEN_MISMATCH` | `…:auth:csrf-mismatch` | **ya**, setelah `csrf-cookie` | panggil `GET /sanctum/csrf-cookie`, baca ulang `XSRF-TOKEN`, ulangi mutasi dengan `X-XSRF-TOKEN` baru (§3.1) |
-| — permission tidak cukup | 403 | `FORBIDDEN` | `…:authorization:forbidden` | tidak | sesi valid tetapi permission `<modul>.<aksi>` tidak dimiliki dan bukan bypass `is_admin`; khusus admin juga 403 bila `is_operator = false`, status bukan `active`, atau 2FA belum terkonfirmasi (§3.1). 403 **bukan** 404 untuk resource privat milik orang lain, kecuali enumerasi itu sendiri adalah risiko (kuotasi privat → 404) |
+| — permission tidak cukup | 403 | `FORBIDDEN` | `…:authorization:forbidden` | tidak | sesi valid tetapi permission `<modul>.<aksi>` tidak dimiliki dan bukan bypass `is_admin`; penolakan kelayakan saat login admin 403, tetapi invalidasi sesi/faktor berikutnya 401 (§3.1). 403 **bukan** 404 untuk resource privat milik orang lain, kecuali enumerasi itu sendiri adalah risiko (kuotasi privat → 404) |
 | — tidak ditemukan | 404 | `NOT_FOUND` | `…:not-found:resource` | tidak | — |
 | — melewati batas | 429 | `RATE_LIMITED` | `…:rate-limit:exceeded` | **ya** setelah `Retry-After` | hormati header (§3.5) |
 | — kegagalan kita | 500 | `INTERNAL` | `…:server:internal` | ya | body **tidak pernah** berisi stack trace, SQL, atau PII |
