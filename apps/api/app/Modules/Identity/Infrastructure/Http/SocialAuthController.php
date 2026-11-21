@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Identity\Infrastructure\Http;
 
+use App\Modules\Identity\Application\SocialAccountResolver;
+use App\Modules\Identity\Application\WebSession;
 use App\Platform\Http\StrictValidation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
