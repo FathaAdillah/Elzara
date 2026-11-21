@@ -13,6 +13,21 @@ use Tests\TestCase;
 
 final class OpenApiRouteParityTest extends TestCase
 {
+    public function test_public_catalog_routes_match_contract_operations_and_rate_policy(): void
+    {
+        $spec = Yaml::parseFile(base_path('../../packages/api-contracts/openapi.yaml'));
+        foreach (['/products' => 'listProducts', '/products/{slug}' => 'getProduct', '/categories' => 'listCategories'] as $path => $operation) {
+            $this->assertSame($operation, $spec['paths'][$path]['get']['operationId']);
+            $route = Route::getRoutes()->match(Request::create('/api/v1'.str_replace('{slug}', 'gundam', $path), 'GET'));
+            $this->assertContains('rate:public', $route->gatherMiddleware());
+            $this->assertSame([], $spec['paths'][$path]['get']['security']);
+            foreach ([422 => 'Problem', 429 => 'RateLimited'] as $status => $response) {
+                $this->assertSame('#/components/responses/'.$response, $spec['paths'][$path]['get']['responses'][$status]['$ref']);
+            }
+        }
+        $this->assertSame('#/components/responses/Problem', $spec['paths']['/products/{slug}']['get']['responses'][404]['$ref']);
+    }
+
     public function test_flag_routes_methods_permissions_and_checkout_disabled_contract(): void
     {
         $spec = Yaml::parseFile(base_path('../../packages/api-contracts/openapi.yaml'));
