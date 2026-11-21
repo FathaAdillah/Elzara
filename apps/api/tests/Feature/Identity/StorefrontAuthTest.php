@@ -251,6 +251,23 @@ final class StorefrontAuthTest extends TestCase
         $this->send($owner, 'GET', '/api/v1/me/sessions')->assertOk()->assertJsonCount(1, 'data');
     }
 
+    public function test_reset_or_staff_accounts_keep_their_password_when_email_is_verified_later(): void
+    {
+        $email = $this->account();
+        $this->sendFresh('POST', '/api/v1/auth/password/reset-request', ['email' => $email])->assertOk();
+        $this->sendFresh('POST', '/api/v1/auth/password/reset-confirm', ['token' => $this->mailedSecret('reset_password_link'), 'password' => 'brand new secret'])->assertOk();
+        $this->assertNotNull(DB::table('users')->where('email', $email)->value('email_verified_at'));
+
+        $operator = $this->account(operator: true);
+        $staffSession = $this->signedIn($operator);
+        $this->sendFresh('POST', '/api/v1/auth/otp/request', ['email' => $operator, 'channel' => 'email', 'purpose' => 'login'])->assertOk();
+        $this->sendFresh('POST', '/api/v1/auth/otp/verify', ['email' => $operator, 'purpose' => 'login', 'code' => $this->mailedSecret('login')])->assertOk();
+
+        $this->assertNotNull(DB::table('users')->where('email', $operator)->value('password_hash'));
+        $this->send($staffSession, 'GET', '/api/v1/me/sessions')->assertOk();
+        $this->sendFresh('POST', '/api/v1/auth/login', ['email' => $operator, 'password' => self::PASSWORD])->assertOk();
+    }
+
     public function test_registrant_verifying_in_their_own_session_keeps_password_and_session(): void
     {
         $email = strtolower((string) Str::ulid()).'@example.test';

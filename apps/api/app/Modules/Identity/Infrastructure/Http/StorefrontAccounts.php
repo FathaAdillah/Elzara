@@ -57,11 +57,12 @@ final class StorefrontAccounts
         });
     }
 
-    // Kata sandi baru mencabut seluruh sesi akun, termasuk sesi di perangkat lain.
+    // Kata sandi baru mencabut seluruh sesi akun, termasuk sesi di perangkat lain. Token reset
+    // dikirim lewat email, jadi memakainya juga membuktikan kepemilikan kotak surat.
     public function resetPassword(User $user, string $password): void
     {
         DB::transaction(function () use ($user, $password): void {
-            $user->forceFill(['password_hash' => Hash::make($password)])->save();
+            $user->forceFill(['password_hash' => Hash::make($password), 'email_verified_at' => $user->email_verified_at ?? now()])->save();
             $this->revokeSessions($user);
         });
     }

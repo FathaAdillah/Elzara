@@ -118,9 +118,13 @@ final class StorefrontAuthController
         abort_unless($user !== null && $this->secrets->consumeOtp($user, $data['purpose'], $data['code']), 401, 'Kode tidak valid atau kedaluwarsa.');
 
         // Kode email membuktikan kepemilikan kotak surat. Bila bukti itu datang dari luar sesi
-        // pendaftar, kata sandi dan sesi yang dibuat sebelum verifikasi dicabut.
+        // pendaftar mandiri, kata sandi dan sesi yang dibuat sebelum verifikasi dicabut. Akun staf
+        // dibuat admin, bukan oleh pendaftar tak terverifikasi, jadi tidak dicabut.
         if ($user->email_verified_at === null) {
-            $this->accounts->markEmailVerified($user, revokeExisting: ! $user->is($this->sessions->user($request)));
+            $this->accounts->markEmailVerified(
+                $user,
+                revokeExisting: ! $user->is_operator && ! $user->is($this->sessions->user($request)),
+            );
         }
         if ($data['purpose'] === 'login') {
             $this->sessions->open($request, $user);
