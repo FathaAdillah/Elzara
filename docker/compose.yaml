@@ -108,7 +108,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${WORKER_MEMORY_LIMIT:?WORKER_MEMORY_LIMIT wajib diisi (mis. 512M)}
+          memory: ${WORKER_MEMORY_LIMIT:?WORKER_MEMORY_LIMIT wajib diisi (mis. 1G)}
           cpus: "1.00"
     depends_on:
       api: { condition: service_healthy }
