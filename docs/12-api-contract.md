@@ -302,7 +302,7 @@ Lima operasi pengelolaan akses operator juga sudah ada di OpenAPI dan daftar rut
 | POST | `/admin/users/{user}/roles` | `user.update` | ya |
 | DELETE | `/admin/users/{user}/roles/{role}` | `user.update` | ya |
 
-**Selisih kontrak masih terbuka:** callback sosial menolak penautan email provider yang belum terverifikasi dengan HTTP **409**, tanpa membuat identitas baru (`AuthSecurityGatesTest::test_unverified_provider_email_returns_http_conflict_without_linking`); respons 409 belum didaftarkan pada operasi callback di OpenAPI. Perlu perubahan spec dan regenerasi klien tersendiri; drift nol hanya membuktikan klien sama dengan spec, bukan bahwa semua respons runtime sudah tercakup.
+Callback sosial menolak penautan email provider yang belum terverifikasi dengan HTTP **409 Problem Details**, tanpa membuat identitas baru (`AuthSecurityGatesTest::test_unverified_provider_email_returns_http_conflict_without_linking`). Operasi callback di OpenAPI dan klien hasil generate memuat respons 409 melalui komponen `Problem`; `OpenApiRouteParityTest` menjaga deklarasi itu. Drift nol tetap hanya membuktikan klien sama dengan spec, bukan cakupan seluruh respons runtime aplikasi.
 
 ### 2.3 Ringkasan jumlah
 
