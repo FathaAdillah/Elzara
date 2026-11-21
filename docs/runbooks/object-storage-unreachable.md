@@ -77,6 +77,11 @@ Lifecycle exports menghapus objek aktif setelah 7 hari, versi noncurrent setelah
 7 hari noncurrent, dan delete marker tanpa versi tersisa.
 GET privat berlaku 120 detik, PUT 600 detik. Jangan merekam query signature di log.
 
+Semua PUT menargetkan `incoming/` privat. Finalize menyalin versi yang telah
+divalidasi ke `published/`, menyimpan key/VersionId salinan dan menghapus versi
+staging setelah commit. Hanya `product-media/published/*` boleh GET anonim;
+pastikan kebijakan lama `product-media/*` diganti saat menjalankan init ulang.
+
 Rilis MinIO source-build tidak mendukung bucket-CORS API. Compose menetapkan
 `MINIO_API_CORS_ALLOW_ORIGIN` ke `ELZARA_EDGE_URL` dan `ELZARA_ADMIN_ORIGIN`, tanpa
 wildcard. `docker/minio/cors/bucket-cors.json` adalah template untuk provider yang

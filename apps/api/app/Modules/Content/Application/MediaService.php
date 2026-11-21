@@ -31,7 +31,7 @@ final class MediaService
         $extension = match ($mime) {
             'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', default => 'pdf',
         };
-        $key = $uuid.'.'.$extension;
+        $key = 'incoming/'.$uuid.'.'.$extension;
         $url = $this->presigner->put($bucket, $key, $mime);
         $media = Media::query()->create([
             'uuid' => $uuid, 'model_type' => 'admin-upload', 'model_id' => $actor,
@@ -73,9 +73,33 @@ final class MediaService
                 throw new RuntimeException('Object storage versioning is required.');
             }
             $this->validator->validate($bytes, $media->mime);
+            $stagingKey = $media->path;
+            $publishedKey = 'published/'.basename($stagingKey);
+            try {
+                $copy = $this->presigner->client()->copyObject([
+                    'Bucket' => $media->disk, 'Key' => $publishedKey,
+                    'CopySource' => $media->disk.'/'.str_replace('%2F', '/', rawurlencode($stagingKey)).'?versionId='.rawurlencode($version),
+                    'MetadataDirective' => 'REPLACE', 'ContentType' => $media->mime,
+                ]);
+            } catch (AwsException) {
+                throw new RuntimeException('Object storage unavailable.');
+            }
+            $publishedVersion = $copy['VersionId'];
+            if (! is_string($publishedVersion) || $publishedVersion === '' || $publishedVersion === 'null') {
+                throw new RuntimeException('Object storage versioning is required.');
+            }
+            $bucket = $media->disk;
+            DB::afterCommit(function () use ($bucket, $stagingKey, $version): void {
+                try {
+                    $this->presigner->client()->deleteObject(['Bucket' => $bucket, 'Key' => $stagingKey, 'VersionId' => $version]);
+                } catch (AwsException) {
+                    report(new RuntimeException('Staging object cleanup failed.'));
+                }
+            });
             $dimensions = str_starts_with($media->mime, 'image/') ? @getimagesizefromstring($bytes) : false;
             $media->forceFill([
-                'size_bytes' => strlen($bytes), 'sha256' => hash('sha256', $bytes), 'object_version' => $version,
+                'path' => $publishedKey,
+                'size_bytes' => strlen($bytes), 'sha256' => hash('sha256', $bytes), 'object_version' => $publishedVersion,
                 'width' => $dimensions === false ? null : $dimensions[0], 'height' => $dimensions === false ? null : $dimensions[1],
                 'is_moderated' => in_array($media->kind, ['proof', 'attachment'], true), 'moderation_status' => 'pending',
             ])->save();

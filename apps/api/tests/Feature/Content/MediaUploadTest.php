@@ -49,7 +49,7 @@ final class MediaUploadTest extends TestCase
         $bytes = '%PDF-1.7 live upload';
         $upload = $this->presign();
         $this->assertSame('storage.localhost', parse_url($upload['upload_url'], PHP_URL_HOST));
-        $this->assertMatchesRegularExpression('#^/request-attachments/[0-9a-f-]{36}\.pdf$#', parse_url($upload['upload_url'], PHP_URL_PATH));
+        $this->assertMatchesRegularExpression('#^/request-attachments/incoming/[0-9a-f-]{36}\.pdf$#', parse_url($upload['upload_url'], PHP_URL_PATH));
         $this->assertStringContainsString('X-Amz-Expires=600', $upload['upload_url']);
         $this->assertStringNotContainsString('minio:9000', $upload['upload_url']);
         $this->uploadObject($upload, $bytes);
@@ -74,16 +74,47 @@ final class MediaUploadTest extends TestCase
     #[DataProvider('invalidObjects')]
     public function test_finalize_rejects_invalid_objects(string $bytes): void
     {
-        $upload = $this->presign();
-        if (strlen($bytes) > config('media.max_bytes')) {
-            app(BrowserPresigner::class)->client()->putObject(['Bucket' => 'request-attachments', 'Key' => $upload['object_key'], 'Body' => $bytes]);
-        } else {
-            $this->uploadObject($upload, $bytes);
+        foreach (['request-attachments', 'product-media'] as $bucket) {
+            $upload = $this->request('/api/v1/admin/media/presign', ['bucket' => $bucket] + $this->payload())->assertOk()->json();
+            if (strlen($bytes) > config('media.max_bytes')) {
+                app(BrowserPresigner::class)->client()->putObject(['Bucket' => $bucket, 'Key' => $upload['object_key'], 'Body' => $bytes]);
+            } else {
+                $this->uploadObject($upload, $bytes);
+            }
+            $this->request('/api/v1/admin/media/'.$upload['media_id'].'/finalize')->assertStatus(422)->assertJsonPath('code', 'MEDIA_VALIDATION_FAILED');
+            $this->assertNull(Media::query()->findOrFail($upload['media_id'])->sha256);
+            $this->assertSame(0, DB::table('outbox_events')->where('event_name', 'MediaValidated')->where('aggregate_id', $upload['media_id'])->count());
+            $this->request('/api/v1/admin/media/'.$upload['media_id'].'/sign')->assertStatus(422);
+            $this->assertSame(403, $this->browser()->get(strtok($upload['upload_url'], '?'))->getStatusCode());
+            if ($bucket === 'product-media') {
+                $this->assertSame(404, $this->browser()->get(config('filesystems.s3.presign_endpoint').'/product-media/published/'.basename($upload['object_key']))->getStatusCode());
+            }
         }
-        $this->request('/api/v1/admin/media/'.$upload['media_id'].'/finalize')->assertStatus(422)->assertJsonPath('code', 'MEDIA_VALIDATION_FAILED');
-        $this->assertNull(Media::query()->findOrFail($upload['media_id'])->sha256);
-        $this->assertSame(0, DB::table('outbox_events')->where('event_name', 'MediaValidated')->where('aggregate_id', $upload['media_id'])->count());
-        $this->request('/api/v1/admin/media/'.$upload['media_id'].'/sign')->assertStatus(422);
+    }
+
+    public function test_public_media_is_private_until_validated_and_old_put_cannot_replace_published_bytes(): void
+    {
+        $upload = $this->request('/api/v1/admin/media/presign', ['bucket' => 'product-media'] + $this->payload())->assertOk()->json();
+        $this->uploadObject($upload, '%PDF-1.7 approved bytes');
+        $stagingUrl = strtok($upload['upload_url'], '?');
+        $this->assertSame(403, $this->browser()->get($stagingUrl)->getStatusCode());
+        $path = '/api/v1/admin/media/'.$upload['media_id'];
+        $this->request($path.'/finalize')->assertOk();
+        $media = Media::query()->findOrFail($upload['media_id']);
+        $this->assertStringStartsWith('published/', $media->path);
+        try {
+            app(BrowserPresigner::class)->client()->headObject(['Bucket' => 'product-media', 'Key' => $upload['object_key']]);
+            $this->fail('Validated staging version must be deleted after commit.');
+        } catch (AwsException $exception) {
+            $this->assertSame(404, $exception->getStatusCode());
+        }
+        $publicUrl = config('filesystems.s3.presign_endpoint').'/product-media/'.$media->path;
+        $this->assertSame('%PDF-1.7 approved bytes', (string) $this->browser()->get($publicUrl)->getBody());
+        $signed = $this->request($path.'/sign')->assertOk()->json('download_url');
+        $this->uploadObject($upload, '<script>unvalidated replacement</script>');
+        $this->assertSame(403, $this->browser()->get($stagingUrl)->getStatusCode());
+        $this->assertSame('%PDF-1.7 approved bytes', (string) $this->browser()->get($publicUrl)->getBody());
+        $this->assertSame('%PDF-1.7 approved bytes', (string) $this->browser()->get($signed)->getBody());
     }
 
     public static function invalidObjects(): array
@@ -167,7 +198,7 @@ final class MediaUploadTest extends TestCase
         sort($actual);
         $this->assertSame($expected, $actual);
         foreach ($expected as $bucket) {
-            $key = (string) Str::uuid().'.pdf';
+            $key = 'published/'.Str::uuid().'.pdf';
             $root->putObject(['Bucket' => $bucket, 'Key' => $key, 'Body' => '%PDF-1.7 inventory']);
             $url = config('filesystems.s3.presign_endpoint').'/'.$bucket.'/'.$key;
             $this->assertSame($bucket === 'product-media' ? 200 : 403, $this->browser()->get($url)->getStatusCode(), $bucket);

@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Reserve an owned media upload and sign a public PUT URL
-         * @description Active admin operator session and CSRF required; storefront auth and granular media RBAC are not implemented yet. Only the creating operator may finalize or download. PUT directly to upload_url with the declared Content-Type within 600 seconds. Public endpoint has no path prefix. Objects remain pending moderation after validation.
+         * @description Active admin operator session and CSRF required; storefront auth and granular media RBAC are not implemented yet. Only the creating operator may finalize or download. PUT directly to the private incoming/ staging key in upload_url with the declared Content-Type within 600 seconds. Public endpoint has no path prefix. Objects remain pending moderation after validation.
          */
         post: operations["adminMediaPresign"];
         delete?: never;
@@ -35,7 +35,7 @@ export interface paths {
         put?: never;
         /**
          * Validate an owned upload and persist its immutable object version
-         * @description Active admin operator session and CSRF required. Within 30 minutes of reservation, checks bytes, MIME and actual size synchronously. Transactionally records metadata and MediaValidated outbox event on the media queue. A missing, empty, mismatched or oversize object returns MEDIA_VALIDATION_FAILED. Unknown or unowned media returns 404. Repeated successful finalization does not emit another event.
+         * @description Active admin operator session and CSRF required. Within 30 minutes of reservation, checks staging bytes, MIME and actual size synchronously, copies that exact version to a published/ key never targeted by a presigned PUT, then deletes the staged version after commit. Only product-media/published/ is anonymously readable. Transactionally records metadata and MediaValidated outbox event on the media queue. A missing, empty, mismatched or oversize object returns MEDIA_VALIDATION_FAILED. Unknown or unowned media returns 404. Repeated successful finalization does not emit another event.
          */
         post: operations["adminMediaFinalize"];
         delete?: never;

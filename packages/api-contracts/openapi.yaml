@@ -35,7 +35,7 @@ paths:
       operationId: adminMediaPresign
       tags: [Content]
       summary: Reserve an owned media upload and sign a public PUT URL
-      description: "Active admin operator session and CSRF required; storefront auth and granular media RBAC are not implemented yet. Only the creating operator may finalize or download. PUT directly to upload_url with the declared Content-Type within 600 seconds. Public endpoint has no path prefix. Objects remain pending moderation after validation."
+      description: "Active admin operator session and CSRF required; storefront auth and granular media RBAC are not implemented yet. Only the creating operator may finalize or download. PUT directly to the private incoming/ staging key in upload_url with the declared Content-Type within 600 seconds. Public endpoint has no path prefix. Objects remain pending moderation after validation."
       x-elzara-auth: admin
       security: [{ adminSession: [] }]
       parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
@@ -69,7 +69,7 @@ paths:
       operationId: adminMediaFinalize
       tags: [Content]
       summary: Validate an owned upload and persist its immutable object version
-      description: "Active admin operator session and CSRF required. Within 30 minutes of reservation, checks bytes, MIME and actual size synchronously. Transactionally records metadata and MediaValidated outbox event on the media queue. A missing, empty, mismatched or oversize object returns MEDIA_VALIDATION_FAILED. Unknown or unowned media returns 404. Repeated successful finalization does not emit another event."
+      description: "Active admin operator session and CSRF required. Within 30 minutes of reservation, checks staging bytes, MIME and actual size synchronously, copies that exact version to a published/ key never targeted by a presigned PUT, then deletes the staged version after commit. Only product-media/published/ is anonymously readable. Transactionally records metadata and MediaValidated outbox event on the media queue. A missing, empty, mismatched or oversize object returns MEDIA_VALIDATION_FAILED. Unknown or unowned media returns 404. Repeated successful finalization does not emit another event."
       x-elzara-auth: admin
       security: [{ adminSession: [] }]
       parameters:
@@ -1180,7 +1180,7 @@ components:
       required: [upload_url, object_key, media_id, expires_at]
       properties:
         upload_url: { type: string, format: uri, description: "Signed against MINIO_PUBLIC_ENDPOINT (default https://storage.localhost), never the internal Docker hostname. PUT with the declared Content-Type. TTL 600 seconds." }
-        object_key: { type: string, pattern: "^[0-9a-f-]{36}\\.(jpg|png|webp|pdf)$" }
+        object_key: { type: string, pattern: "^incoming/[0-9a-f-]{36}\\.(jpg|png|webp|pdf)$" }
         media_id: { type: integer, format: int64 }
         expires_at: { type: string, format: date-time }
     ProblemDetails:

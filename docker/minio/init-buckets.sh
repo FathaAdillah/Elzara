@@ -52,7 +52,7 @@ docker run --rm \
       ${MC} anonymous set private "local/${b}"
       ${MC} version enable "local/${b}"
     done
-    # Satu-satunya bucket yang boleh dibaca anonim; sisanya hanya lewat presigned URL.
+    # Hanya published/* boleh dibaca anonim; incoming/* selalu privat.
     ${MC} anonymous set-json /minio/policies/product-media-public.json local/product-media
     if ! ${MC} ilm rule ls --json local/exports | grep -Eq "\"(days|Days)\"[[:space:]]*:[[:space:]]*7([,}])"; then
       ${MC} ilm rule add --expire-days 7 local/exports
