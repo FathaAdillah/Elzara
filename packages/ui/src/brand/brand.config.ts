@@ -2,6 +2,9 @@
 // Teks/legal/kontak yang dinamis tetap milik Laravel API (/api/v1 brand+nav+content); paket ini hanya
 // menjamin tipenya sama di kedua app, sehingga override tidak pernah diletakkan di salah satu app (Doc 04 §11).
 
+export const brandThemes = ["playful", "clean-premium", "bold-kpop", "brand"] as const;
+export type BrandTheme = (typeof brandThemes)[number];
+
 export interface BrandConfig {
   name: string;
   tagline: string;
@@ -13,7 +16,7 @@ export interface BrandConfig {
   locale: "id";
   currency: "IDR";
   tz: "Asia/Jakarta";
-  theme: "playful" | "clean-premium" | "bold-kpop";
+  theme: BrandTheme;
   seo: { defaultOg: string; siteName: string };
 }
 
@@ -28,7 +31,14 @@ export const brand: BrandConfig = {
   locale: "id",
   currency: "IDR",
   tz: "Asia/Jakarta",
-  // Preset yang diimpor globals.css kedua app hari ini; diganti lewat BRAND_THEME saat build (Doc 04 §4).
-  theme: "playful",
+  theme: "brand",
   seo: { defaultOg: "", siteName: "Elzara" },
 };
+
+export function resolveBrandTheme(value: string | undefined, fallback: BrandTheme | "admin" = brand.theme) {
+  if (!value) return fallback;
+  const theme = brandThemes.find((theme) => theme === value);
+  if (theme) return theme;
+  if (value === "admin" && fallback === "admin") return value;
+  throw new Error(`BRAND_THEME tidak dikenal: ${value}. Pilih ${[...brandThemes, ...(fallback === "admin" ? ["admin"] : [])].join(", ")}.`);
+}

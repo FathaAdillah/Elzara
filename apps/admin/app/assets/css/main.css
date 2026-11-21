@@ -1,61 +1,39 @@
 @import "@fontsource-variable/geist";
 @import "tailwindcss";
 @import "@nuxt/ui";
+@import "@elzara/ui/tokens.css";
+@import "@elzara/ui/tokens/presets/admin.tokens.css";
+@config "@elzara/ui/tailwind.preset";
 
 @theme static {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --color-elzara-50: #f4f5fc;
-  --color-elzara-100: #e7eaf8;
-  --color-elzara-200: #c0c9ee;
-  --color-elzara-300: #a2aadb;
-  --color-elzara-400: #898ac4;
-  --color-elzara-500: #6769a8;
-  --color-elzara-600: #51538e;
-  --color-elzara-700: #414375;
-  --color-elzara-800: #323459;
-  --color-elzara-900: #202344;
-  --color-elzara-950: #15172e;
 }
 
-:root {
-  --ui-radius: 0.25rem;
+:root[data-brand-theme] {
+  --ui-primary: var(--color-brand-text);
+  --ui-bg: var(--color-surface);
+  --ui-bg-muted: var(--color-surface-muted);
+  --ui-bg-elevated: var(--admin-elevated, var(--color-surface-muted));
+  --ui-border: var(--admin-divider, var(--color-divider));
+  --ui-text: var(--color-ink);
+  --ui-text-highlighted: var(--color-ink);
+  --ui-text-muted: var(--color-ink-muted);
+  --ui-text-inverted: var(--color-surface);
+  --ui-chart-1: var(--color-brand-text);
 }
 
-:root:not(.dark) {
-  --ui-bg: #ffffff;
-  --ui-bg-muted: var(--color-elzara-50);
-  --ui-bg-elevated: var(--color-elzara-50);
-  --ui-border: #e4e7f1;
-  --ui-text: var(--color-elzara-900);
-  --ui-text-highlighted: var(--color-elzara-900);
-  --ui-text-muted: #555a76;
-  --admin-sidebar: var(--color-elzara-200);
-  --admin-selected: var(--color-elzara-300);
-  --admin-tint: var(--color-elzara-100);
-  --admin-ink: var(--color-elzara-700);
-  --admin-focus: var(--color-elzara-700);
-  --ui-chart-1: var(--color-elzara-500);
-}
-
-.dark {
-  --ui-bg: #15172e;
-  --ui-bg-muted: #202344;
-  --ui-bg-elevated: #262949;
-  --ui-border: #383c60;
-  --ui-text: #e7eaf8;
-  --ui-text-highlighted: #f4f5fc;
-  --ui-text-muted: #b6bbd7;
-  --admin-sidebar: #1b1d37;
-  --admin-selected: var(--color-elzara-700);
-  --admin-tint: var(--color-elzara-800);
-  --admin-ink: var(--color-elzara-200);
-  --admin-focus: var(--color-elzara-200);
-  --ui-chart-1: var(--color-elzara-300);
+:root[data-brand-theme]:not([data-brand-theme="admin"]) {
+  --admin-sidebar: var(--color-surface-muted);
+  --admin-selected: var(--color-brand-ink);
+  --admin-tint: var(--color-surface);
+  --admin-ink: var(--color-brand-text);
+  --admin-brand-panel-start: var(--color-surface-muted);
+  --admin-brand-panel-middle: var(--color-surface-muted);
+  --admin-brand-panel-end: var(--color-brand-ink);
+  --admin-brand-panel-text: var(--color-ink);
+  --admin-brand-panel-mark: var(--color-surface);
 }
 
 body { background: var(--ui-bg); color: var(--ui-text); }
 
-:focus-visible {
-  outline: 2px solid var(--admin-focus);
-  outline-offset: 2px;
-}
+:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }

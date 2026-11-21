@@ -26,7 +26,7 @@ export default async function PreorderBatchPage({
   const { batch } = await params;
 
   return (
-    <main id="konten" className="mx-auto flex max-w-content flex-col gap-2 p-6">
+    <main id="konten" tabIndex={-1} className="mx-auto flex max-w-content flex-col gap-2 p-6">
       <h1 className="text-2xl font-semibold text-ink">Pre-order</h1>
       <p className="max-w-prose text-sm text-ink-muted">
         Identifier batch dari URL: <code>{batch}</code>. Isi batch (periode, kuota,

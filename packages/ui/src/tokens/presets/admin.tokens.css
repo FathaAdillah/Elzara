@@ -1,0 +1,74 @@
+@theme static {
+  --color-elzara-50: #f4f5fc;
+  --color-elzara-100: #e7eaf8;
+  --color-elzara-200: #c0c9ee;
+  --color-elzara-300: #a2aadb;
+  --color-elzara-400: #898ac4;
+  --color-elzara-500: #6769a8;
+  --color-elzara-600: #51538e;
+  --color-elzara-700: #414375;
+  --color-elzara-800: #323459;
+  --color-elzara-900: #202344;
+  --color-elzara-950: #15172e;
+}
+
+:root[data-brand-theme="admin"] {
+  --neutral-0: #ffffff;
+  --neutral-50: var(--color-elzara-50);
+  --neutral-500: #555a76;
+  --neutral-900: var(--color-elzara-900);
+  --brand-600: var(--color-elzara-500);
+  --brand-50: var(--color-elzara-50);
+  --brand-contrast: var(--color-elzara-700);
+  --brand-foreground: #ffffff;
+  --coral-500: var(--color-elzara-200);
+  --radius-3: 16px;
+  --admin-sidebar: var(--color-elzara-200);
+  --admin-selected: var(--color-elzara-300);
+  --admin-tint: var(--color-elzara-100);
+  --admin-ink: var(--color-elzara-700);
+  --admin-divider: #e4e7f1;
+  --admin-elevated: var(--color-elzara-50);
+  --admin-brand-panel-start: var(--color-elzara-100);
+  --admin-brand-panel-middle: var(--color-elzara-200);
+  --admin-brand-panel-end: var(--color-elzara-300);
+  --admin-brand-panel-text: var(--color-elzara-900);
+  --admin-brand-panel-mark: #ffffff;
+}
+
+:root.dark[data-brand-theme="admin"] {
+  --neutral-0: var(--color-elzara-950);
+  --neutral-50: var(--color-elzara-900);
+  --neutral-500: #b6bbd7;
+  --neutral-900: var(--color-elzara-100);
+  --brand-600: var(--color-elzara-300);
+  --brand-50: var(--color-elzara-800);
+  --brand-contrast: var(--color-elzara-200);
+  --brand-foreground: var(--color-elzara-950);
+  --coral-500: var(--color-elzara-700);
+  --accent-foreground: var(--neutral-900);
+  --admin-sidebar: #1b1d37;
+  --admin-selected: var(--color-elzara-700);
+  --admin-tint: var(--color-elzara-800);
+  --admin-ink: var(--color-elzara-200);
+  --admin-divider: #383c60;
+  --admin-elevated: #262949;
+}
+
+:root.dark[data-brand-theme="playful"],
+:root.dark[data-brand-theme="brand"],
+:root.dark[data-brand-theme="clean-premium"] {
+  --neutral-0: #17141a;
+  --neutral-50: #252129;
+  --neutral-500: #bcb3be;
+  --neutral-900: #f5f1f6;
+  --brand-50: #302934;
+  --brand-contrast: #f4a5c4;
+  --coral-500: #663754;
+  --accent-foreground: var(--neutral-900);
+}
+
+:root.dark[data-brand-theme="clean-premium"] {
+  --brand-contrast: #e0b980;
+  --coral-500: #584424;
+}

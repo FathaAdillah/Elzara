@@ -58,7 +58,7 @@ const metrics = computed(() => [
           <UIcon name="i-lucide-chart-no-axes-column" class="size-5 text-(--admin-ink)" />
           Ringkasan operasional
         </h2>
-        <div class="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 xl:grid-cols-4 xl:gap-4">
+        <div class="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 xl:grid-cols-4 xl:gap-gutter">
           <UCard v-for="metric in metrics" :key="metric.name" class="rounded-xl border-s-2 border-elzara-300" :ui="{ body: 'min-h-28 p-4 sm:p-5' }">
             <dl>
               <dt class="flex items-start justify-between gap-2 text-sm text-muted">

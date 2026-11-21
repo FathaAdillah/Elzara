@@ -1,9 +1,11 @@
 # syntax=docker/dockerfile:1
 FROM node:22 AS build
-ENV NUXT_TELEMETRY_DISABLED=1
+ARG NUXT_PUBLIC_BRAND_THEME=admin
+ENV NUXT_TELEMETRY_DISABLED=1 NUXT_PUBLIC_BRAND_THEME=${NUXT_PUBLIC_BRAND_THEME}
 WORKDIR /app/apps/admin
 COPY apps/admin/package.json apps/admin/package-lock.json apps/admin/.npmrc ./
 COPY packages/api-contracts /app/packages/api-contracts
+COPY packages/ui /app/packages/ui
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY apps/admin/ ./
 RUN npm run typecheck && npm run build

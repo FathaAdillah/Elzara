@@ -1,20 +1,4 @@
-/* Desain token tiga lapis dimiliki `packages/ui` (Doc 04 §2) — bukan app ini. Tidak ada
- * hex, tidak ada `tailwind.config` lokal, tidak ada nilai warna di komponen: utilitas
- * yang dipakai app hanyalah Lapis 2/3 yang dipetakan paket ke CSS custom property
- * (Doc 04 §2.1, §5 lint rule, §12). Berkas ini identik dengan apps/admin — menyalin token
- * ke dalam satu app adalah cara tercepat membuat dua app bertema tanpa ada yang sadar
- * (Doc 04 §11).
- *
- * Urutan gabung mengikuti kontrak paket (lihat kepala `packages/ui/src/tokens/semantic.css`):
- * primitives -> slots -> semantic -> preset; preset hanya menimpa Lapis 1 sehingga tidak
- * ada komponen yang perlu ikut berubah.
- *
- * PRESET: `BRAND_THEME` diselesaikan pada saat build di `packages/ui` (Task 0.8).
- * Sampai skrip gabung token itu mendarat, preset default `playful` diimpor di sini dan
- * ini SATU-SATUNYA baris yang boleh berubah kalau brand diganti — override tema yang
- * diletakkan di tempat lain akan membuat app yang satu tertinggal (Doc 04 §11 butir 1). */
-@import "@elzara/ui/tokens/semantic.css";
-@import "@elzara/ui/tokens/presets/playful.tokens.css";
 @import "tailwindcss";
-@source "../node_modules/@elzara/ui/src";
+@import "@elzara/ui/tokens.css";
+@source "../node_modules/@elzara/ui/src/components";
 @config "@elzara/ui/tailwind.preset";

@@ -1,9 +1,9 @@
-# Dokumen 04 — Frontend Tailwind & Strategi Tema "Tinggal Replace" (dua aplikasi Next.js)
+# Dokumen 04 — Frontend Tailwind & Strategi Tema "Tinggal Replace"
 
 Tanggal: 2026-11-16 · Direvisi: 2026-11-17 mengikuti Blueprint.
 **Rujukan induk:** SNOWEGO_MICROSERVICES_BLUEPRINT.md v1.0 — keputusan mengikuti Blueprint (ADR-003 K-1); resolusi konflik di Doc 11.
 
-Stack: **dua aplikasi Next.js + TypeScript yang di-deploy mandiri** — `web` (storefront publik) dan `admin` (panel internal) — memakai **Tailwind CSS v4** (CSS-first `@theme`) dan memakan **TypeScript client hasil generate** dari `packages/api-contracts` (Blueprint §2.1/§3.1/§7; resolusi B-1/B-2 di Doc 11 §1). Bukan lagi satu aplikasi Inertia untuk storefront + admin.
+Stack: **dua aplikasi TypeScript yang di-deploy mandiri** — storefront `web` (Next.js/React) dan panel `admin` (Nuxt/Vue dengan Nuxt UI) — memakai **Tailwind CSS v4** (CSS-first `@theme`) dan memakan **TypeScript client hasil generate** dari `packages/api-contracts` (Blueprint §2.1/§3.1/§7; resolusi B-1/B-2 di Doc 11 §1). Bukan lagi satu aplikasi Inertia untuk storefront + admin.
 
 Prinsip yang **tidak berubah**: **komponen tidak tahu brand**. Brand = data (token + config + copy), bukan kode komponen. Ini tetap memungkinkan klien A → klien B hanya dengan mengganti token + config, tanpa menyentuh logika UI. Blueprint mengubah **cara pengiriman (delivery)**, bukan **desain token** — sistem token tiga lapis, config brand setara, tiga preset, inventaris komponen + slot branding, aturan aksesibilitas, dan checklist ganti brand semuanya dipertahankan di bawah. Yang berubah adalah: dari satu app Inertia menjadi dua app Next, dan dari props Inertia menjadi API client hasil generate + server components.
 
@@ -101,7 +101,7 @@ Tailwind v4 CSS-first: komponen memakai utilitas semantik (`bg-brand`, `text-ink
 }
 ```
 
-**Build tema per app.** `packages/ui` mengekspor stylesheet token **tanpa preset terpilih**; setiap app memilih preset pada saat build lewat `BRAND_THEME` (mis. `NEXT_PUBLIC_BRAND_THEME=clean-premium`), yang mengimpor `presets/{theme}.tokens.css` lebih dulu lalu meng-override `semantic.css`. Storefront dan admin biasanya satu brand, tapi mekanismenya per app sehingga sebuah brand bisa punya tema admin berbeda kalau diminta — dan **sebaliknya, inilah titik rawan ganti brand**: kalau override diletakkan di dalam app, app lain tidak ikut berubah (§9, §11).
+**Build tema per app.** Kedua app mengimpor `@elzara/ui/tokens.css` dan memilih preset pada elemen `html` lewat `data-brand-theme`. Set `BRAND_THEME` saat menjalankan build, atau gunakan build arg `NEXT_PUBLIC_BRAND_THEME` (storefront) dan `NUXT_PUBLIC_BRAND_THEME` (admin) di Docker. Storefront memakai `brand` secara default; admin memakai lavender `admin` (terang/gelap). Untuk satu preset kustom di keduanya, pilih `brand` di kedua build dan ubah hanya `packages/ui/src/tokens/presets/brand.tokens.css`. Penggantian tema tidak memerlukan perubahan komponen.
 
 **Mirror untuk chart/canvas.** `next/image` dan ApexCharts/canvas tidak selalu bisa membaca CSS var saat render server; karena itu ada mirror TypeScript murni di `packages/ui`.
 
@@ -123,7 +123,7 @@ export interface BrandConfig {
   links: { terms: string; privacy: string; howToPo: string };
   social: Record<string, string>;
   locale: 'id'; currency: 'IDR'; tz: 'Asia/Jakarta';
-  theme: 'playful' | 'clean-premium' | 'bold-kpop';   // preset token yang di-resolve
+  theme: 'playful' | 'clean-premium' | 'bold-kpop' | 'brand';  // preset storefront
   seo: { defaultOg: string; siteName: string };
 }
 ```
@@ -148,6 +148,8 @@ Storefront mengambilnya lewat **server component** (initial props, lalu di-hydra
 Cara ganti: set `BRAND_THEME` saat build → `packages/ui` me-resolve `presets/{theme}.tokens.css`; atau override per-brand dengan menaruh `brand.tokens.css` hasil klon preset di `packages/ui`. Tidak ada komponen yang perlu diubah. **Karena sekarang dua app, override HARUS diletakkan di `packages/ui` (sumber bersama), bukan di salah satu app** — lihat §11.
 
 ## 5. Inventaris komponen + slot branding
+
+Sprint 0.8: Button, Input, Card, Badge, Modal, ToastViewport, dan Grid adalah primitif React di `@elzara/ui`. Admin memakai komponen Nuxt UI dan grid Tailwind dengan token yang sama, tanpa memuat primitif React. Jalankan `npm ci && npm run typecheck && npm test` di `packages/ui` untuk memeriksa kontras token dan perilaku aksesibilitas primitif.
 
 Primitif `ui/` (13, di `packages/ui`, bebas brand): Button (5 varian × 3 ukuran) · Input/Textarea/Select/Checkbox/Radio · Card · Badge · Modal/Drawer · Tabs · Toast · Skeleton · EmptyState · Pagination · Stepper.
 Komponen `shop/` (22, di `web`): SiteHeader · MegaNav · SearchBar+FacetPanel · ProductCard · ProductGrid · VariantPicker (bertingkat) · ModeBadge (RTS/PO/Quote) · PoCountdown (server-time) · PriceBlock (IDR) · Gallery (+zoom) · WishlistButton · CartDrawer · CartLine · CartGroupByFulfillment · ShippingMethodPicker · AddressForm · PaymentMethodPicker · OrderSummary · CheckoutStepper · OrderTimeline · TrackingCard · QuoteOfferTable · ReviewList/Form · NotificationPref · Footer · ContentBlockRenderer (banner/hero/grid dari modul Content).

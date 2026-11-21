@@ -1,4 +1,12 @@
 import { brand } from "@/config/brand";
+import { Card, Grid } from "@elzara/ui";
+import Link from "next/link";
+
+const destinations = [
+  { href: "/catalog", label: "Katalog" },
+  { href: "/cart", label: "Keranjang" },
+  { href: "/account", label: "Akun" },
+];
 
 /**
  * Beranda storefront. Sengaja TIDAK ada produk/banner contoh: hero, banner, dan
@@ -13,17 +21,24 @@ import { brand } from "@/config/brand";
  */
 export default function HomePage() {
   return (
-    <main id="konten" className="mx-auto flex max-w-content flex-col gap-3 p-6">
+    <main id="konten" tabIndex={-1} className="mx-auto flex max-w-content flex-col gap-3 p-6">
       <h1 className="text-3xl font-semibold text-ink">{brand.name}</h1>
       <p className="max-w-prose text-sm text-ink-muted">
         Kerangka Sprint 0 — belum ada blok konten. Beranda dibangun dari modul Content
         (halaman, blok ber-versi, nav, SEO) lewat klien ter-generate terhadap{" "}
         <code>/api/v1</code>, bukan dari data contoh yang ditulis di komponen.
       </p>
-      <p className="max-w-prose text-sm text-ink-muted">
-        Jelajah yang akan muncul di sini: <code>/catalog</code>, <code>/preorder/[batch]</code>,
-        <code> /cart</code>, <code>/checkout</code>, <code>/account</code>.
-      </p>
+      <nav aria-label="Jelajahi toko">
+        <Grid columns={{ sm: 3 }} gap="sm">
+          {destinations.map(({ href, label }) => (
+            <Card key={href} padding="none">
+              <Link href={href} className="flex min-h-touch items-center rounded-card px-4 font-medium text-brand-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring">
+                {label}
+              </Link>
+            </Card>
+          ))}
+        </Grid>
+      </nav>
     </main>
   );
 }

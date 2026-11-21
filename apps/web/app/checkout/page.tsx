@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export default function CheckoutPage() {
   return (
-    <main id="konten" className="mx-auto flex max-w-content flex-col gap-2 p-6">
+    <main id="konten" tabIndex={-1} className="mx-auto flex max-w-content flex-col gap-2 p-6">
       <h1 className="text-2xl font-semibold text-ink">Checkout</h1>
       <p className="max-w-prose text-sm text-ink-muted">
         Kerangka Sprint 0: tidak ada stepper, tarif, atau ringkasan biaya contoh.
