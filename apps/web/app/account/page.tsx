@@ -7,9 +7,8 @@ export const dynamic = "force-dynamic";
  * Kontrak sisi customer yang sudah dinormakan (Doc 12 §2.2 kelompok B & C):
  * `GET /me/orders`, `GET /me/orders/{id}`, `GET /me/orders/{id}/tracking`,
  * `GET/POST/PATCH/DELETE /me/addresses`, `GET /me/returns`, `GET /me/quotations/{id}`
- * — semuanya identitas terautentikasi. Cara identitas itu dibawa (cookie sesi HttpOnly
- * lewat BFF vs token short-lived) adalah ADR-007 yang masih `Proposed` (Doc 12 §3.1):
- * halaman ini sengaja tidak membuat form login maupun menyimpan kredensial apa pun.
+ * — semuanya identitas terautentikasi lewat cookie sesi Sanctum `elzara_web_session`
+ * (ADR-007 amandemen, Doc 12 §3.1). Form masuk/daftar ada di `/account/login`.
  */
 export default function AccountPage() {
   return (
@@ -21,6 +20,9 @@ export default function AccountPage() {
         dan setiap respons error wajib menampilkan <code>X-Request-Id</code> agar
         laporan customer-support bisa diselesaikan tanpa membuka log (Doc 12 §3.2).
       </p>
+      <a href="/account/login" className="text-sm text-ink underline">
+        Masuk atau daftar
+      </a>
     </main>
   );
 }

@@ -450,7 +450,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Minta OTP (otp_challenges, modul Identity) untuk purpose login | reset_password | verify_phone. Respons identik ada/tidaknya akun (anti-enumeration); kode hanya dikirim bila akun ada. Rate limit ketat di edge dan API. */
+        /** @description Minta OTP (otp_challenges, modul Identity) untuk purpose login | reset_password | verify_phone | verify_email. Saat ini hanya login dan verify_email lewat channel email yang dilayani; kombinasi lain -> 422 (reset kata sandi memakai /auth/password/reset-request, OTP telepon menunggu gateway). Respons identik ada/tidaknya akun (anti-enumeration); kode hanya dikirim bila akun ada. Rate limit ketat di edge dan API. */
         post: operations["requestOtp"];
         delete?: never;
         options?: never;
@@ -467,7 +467,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Verifikasi kode OTP; percobaan dibatasi (otp_challenges.attempts) dan challenge sekali-pakai (consumed_at). purpose=login membuka sesi web; purpose lain menandai challenge terverifikasi untuk langkah berikutnya. Kode salah/kedaluwarsa -> 401. */
+        /** @description Verifikasi kode OTP; percobaan dibatasi (otp_challenges.attempts) dan challenge sekali-pakai (consumed_at). purpose=login membuka sesi web; purpose=verify_email mengisi users.email_verified_at (syarat penautan akun sosial); purpose lain menandai challenge terverifikasi untuk langkah berikutnya. Kode salah/kedaluwarsa -> 401. */
         post: operations["verifyOtp"];
         delete?: never;
         options?: never;
@@ -482,7 +482,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Redirect OAuth untuk login DAN registrasi: google (driver bawaan laravel/socialite) atau x (socialiteproviders/twitter, OAuth 2.0; driver twitter bawaan Socialite adalah OAuth 1.0a yang sudah ditinggalkan X dan tidak dipakai). State OAuth diterbitkan di sini dan wajib divalidasi di callback. */
+        /** @description Redirect OAuth untuk login DAN registrasi: google atau x (keduanya driver OAuth 2.0 bawaan laravel/socialite; X memakai PKCE). State OAuth diterbitkan di sini dan wajib divalidasi di callback. Tanpa intent=link, callback selalu membuka sesi untuk akun milik identitas sosial itu (sesi lain di browser ditutup), tidak pernah menautkan ke akun yang sedang terbuka. */
         get: operations["redirectSocialLogin"];
         put?: never;
         post?: never;
@@ -1857,6 +1857,7 @@ export interface operations {
                     name: string;
                     /** Format: email */
                     email: string;
+                    /** @description Maksimal 72 byte UTF-8 (batas bcrypt); lebih panjang ditolak 422. */
                     password: string;
                     /**
                      * @default id
@@ -1965,7 +1966,7 @@ export interface operations {
                     /** @enum {string} */
                     channel: "email" | "whatsapp" | "sms";
                     /** @enum {string} */
-                    purpose: "login" | "reset_password" | "verify_phone";
+                    purpose: "login" | "reset_password" | "verify_phone" | "verify_email";
                 };
             };
         };
@@ -2004,7 +2005,7 @@ export interface operations {
                     /** Format: email */
                     email: string;
                     /** @enum {string} */
-                    purpose: "login" | "reset_password" | "verify_phone";
+                    purpose: "login" | "reset_password" | "verify_phone" | "verify_email";
                     code: string;
                 };
             };
@@ -2022,7 +2023,7 @@ export interface operations {
                         /** @constant */
                         verified: true;
                         /** @enum {string} */
-                        purpose: "login" | "reset_password" | "verify_phone";
+                        purpose: "login" | "reset_password" | "verify_phone" | "verify_email";
                     };
                 };
             };
@@ -2033,7 +2034,10 @@ export interface operations {
     };
     redirectSocialLogin: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description link = tautkan identitas ke akun yang sedang masuk */
+                intent?: "link";
+            };
             header?: never;
             path: {
                 provider: "google" | "x";
@@ -2192,6 +2196,7 @@ export interface operations {
             content: {
                 "application/json": {
                     token: string;
+                    /** @description Maksimal 72 byte UTF-8 (batas bcrypt); lebih panjang ditolak 422. */
                     password: string;
                 };
             };

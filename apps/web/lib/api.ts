@@ -14,10 +14,8 @@ import type { paths } from "@elzara/api-client";
  *     dilihat browser, dan request yang mencoba `http://api:9000` dari browser akan
  *     gagal tanpa pesan yang jelas bagi pengguna)
  *
- * Arah ADR-007 (masih `Proposed`, menunggu threat model / Q-2): katalog publik GET boleh
- * langsung ke API/CDN; cart, checkout, dan area akun cenderung lewat BFF (Doc 01 §16,
- * ADR-007 D-1). Yang berubah karenanya hanyalah TEMPAT klien ini dipanggil (Doc 12
- * §1.3 / ADR-007 D-3: kontrak tidak boleh bercabang) — bukan klien-nya.
+ * Sesi storefront memakai cookie Sanctum same-origin (ADR-007 amandemen, Doc 12 §3.1);
+ * helper CSRF dan URL login sosial ada di `lib/session.ts`.
  * Secret tidak pernah masuk `NEXT_PUBLIC_*` (Doc 01 §9.3, ADR-007 D-4).
  */
 const PUBLIC_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
