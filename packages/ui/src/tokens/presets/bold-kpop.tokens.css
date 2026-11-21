@@ -1,7 +1,9 @@
 /* Preset `bold-kpop` - fanbase, high-energy, dark-first: token surface/ink dibalik (Doc 04 §5.2). */
-:root {
+:root[data-brand-theme="bold-kpop"] {
   color-scheme: dark;
   --brand-600: #7b2bf9;
+  --brand-contrast: #c4a6ff;
+  --brand-foreground: #ffffff;
   --brand-50: #1b1425;
   --coral-500: #00e5a0;
   --neutral-0: #0b0b12;

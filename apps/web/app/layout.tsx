@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { brand } from "@/config/brand";
+import { brand, resolveBrandTheme } from "@/config/brand";
+import { SkipLink } from "./skip-link";
 import "./globals.css";
 
 /**
@@ -25,13 +26,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={brand.locale}>
+    <html lang={brand.locale} data-brand-theme={resolveBrandTheme(process.env.NEXT_PUBLIC_BRAND_THEME)}>
       {/* Skip-link "ke konten" adalah bagian gerbang aksesibilitas tiap sprint UI
           (Doc 04 §5.2) — bukan hiasan, dan tidak memakai warna lokal. */}
       <body className="bg-surface text-ink antialiased">
-        <a href="#konten" className="sr-only focus:not-sr-only focus:text-brand">
-          Ke konten
-        </a>
+        <SkipLink />
         {children}
       </body>
     </html>

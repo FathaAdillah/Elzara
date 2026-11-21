@@ -8,20 +8,32 @@
     ],
     "exports": {
         ".": "./src/index.ts",
+        "./brand": "./src/brand/brand.config.ts",
         "./tailwind.preset": "./src/tailwind.preset.ts",
+        "./tokens.css": "./src/tokens/index.css",
         "./tokens/primitives.css": "./src/tokens/primitives.css",
         "./tokens/slots.css": "./src/tokens/slots.css",
         "./tokens/semantic.css": "./src/tokens/semantic.css",
         "./tokens/presets/*": "./src/tokens/presets/*"
     },
     "scripts": {
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run"
     },
     "devDependencies": {
         "typescript": "^5.7.3",
-        "@types/react": "^19.0.0"
+        "@types/react": "^19.0.0",
+        "@testing-library/react": "^16.3.0",
+        "jsdom": "^26.1.0",
+        "postcss": "^8.5.6",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "vitest": "^3.2.7"
     },
     "peerDependencies": {
         "react": "^19.0.0"
+    },
+    "peerDependenciesMeta": {
+        "react": { "optional": true }
     }
 }

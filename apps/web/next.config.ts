@@ -38,6 +38,7 @@ const mediaOrigins: RemotePattern[] = [
 const nextConfig: NextConfig = {
   output: "standalone",
   transpilePackages: ["@elzara/ui"],
+  env: { NEXT_PUBLIC_BRAND_THEME: process.env.BRAND_THEME ?? process.env.NEXT_PUBLIC_BRAND_THEME ?? "" },
   poweredByHeader: false,
   images: { remotePatterns: mediaOrigins },
 };

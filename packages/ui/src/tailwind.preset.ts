@@ -8,6 +8,7 @@ export const uiPreset = {
         "button-lg": "var(--button-height-lg)",
       },
       minHeight: { touch: "var(--touch-target-min)" },
+      minWidth: { touch: "var(--touch-target-min)" },
       fontSize: {
         xs: "var(--text-xs)",
         sm: "var(--text-sm)",
@@ -22,6 +23,7 @@ export const uiPreset = {
       boxShadow: { card: "var(--shadow-card)" },
       spacing: {
         gutter: "var(--grid-gutter)",
+        "gutter-lg": "var(--grid-gutter-lg)",
         1: "var(--space-1)",
         2: "var(--space-2)",
         3: "var(--space-3)",

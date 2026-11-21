@@ -6,6 +6,8 @@ namespace App\Modules\Identity\Infrastructure\Http;
 
 use App\Modules\Identity\Infrastructure\Models\User;
 use App\Modules\Identity\Infrastructure\Security\StaffTwoFactor;
+use App\Platform\Http\StrictValidation;
+use App\Platform\Http\WireTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -27,7 +29,7 @@ final class AdminAuthController
     public function login(Request $request): JsonResponse
     {
         /** @var array{email: string, password: string} $data */
-        $data = $request->validate([
+        $data = StrictValidation::validate($request, [
             'email' => 'required|string|email|max:254',
             'password' => 'required|string|max:128',
         ]);
@@ -70,14 +72,14 @@ final class AdminAuthController
         return response()->json([
             'two_factor_required' => true,
             'challenge_id' => $challenge,
-            'expires_at' => $expires->toISOString(),
+            'expires_at' => WireTime::format($expires),
         ])->header('Cache-Control', 'no-store');
     }
 
     public function verify(Request $request): JsonResponse
     {
         /** @var array{challenge_id: string, code: string} $data */
-        $data = $request->validate([
+        $data = StrictValidation::validate($request, [
             'challenge_id' => 'required|string|max:128',
             'code' => 'required|string|min:6|max:12',
         ]);
@@ -126,7 +128,8 @@ final class AdminAuthController
                 'user_id' => $user->public_id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'email_verified_at' => $user->email_verified_at?->toISOString(),
+                'email_verified_at' => $user->email_verified_at === null ? null : WireTime::format($user->email_verified_at),
+                'timezone' => $user->timezone,
             ],
         ] + $loginState)->header('Cache-Control', 'no-store');
     }

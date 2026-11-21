@@ -18,6 +18,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $password_hash
  * @property bool $is_operator
  * @property string $status
+ * @property string $timezone
  */
 final class User extends Authenticatable
 {

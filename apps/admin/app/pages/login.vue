@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { FormError } from '@nuxt/ui'
+import { brand } from '@elzara/ui/brand'
 import type { AdminLogin, Challenge } from '~/utils/admin-auth'
 import type { AdminSession } from '#shared/types/admin-session'
 
-useSeoMeta({ title: 'Masuk', description: 'Masuk ke ruang kerja internal Elzara.' })
+useSeoMeta({ title: 'Masuk', description: `Masuk ke ruang kerja internal ${brand.name}.` })
 
 const credentials = reactive({ email: '', password: '' })
 const verification = reactive({ code: '' })
@@ -88,17 +89,17 @@ async function submitVerification() {
 
 <template>
   <main class="grid min-h-dvh grid-cols-1 grid-rows-[auto_1fr] lg:grid-cols-[46%_minmax(0,1fr)] lg:grid-rows-1">
-    <section class="login-brand relative isolate flex min-w-0 flex-col overflow-hidden px-7 py-7 lg:min-h-dvh lg:px-[10%] lg:py-11" aria-label="Elzara Admin">
-      <NuxtLink to="/login" class="relative z-10 inline-flex w-fit items-center gap-3 rounded-xl bg-white px-4 py-2.5 text-elzara-900 shadow-sm">
+    <section class="login-brand relative isolate flex min-w-0 flex-col overflow-hidden px-7 py-7 lg:min-h-dvh lg:px-[10%] lg:py-11" :aria-label="`${brand.name} Admin`">
+      <NuxtLink to="/login" class="relative z-10 inline-flex w-fit items-center gap-3 rounded-xl bg-(--admin-brand-panel-mark) px-4 py-2.5 text-(--admin-brand-panel-text) shadow-sm">
         <img src="/brand/elzara-mark.png" alt="" width="32" height="32" fetchpriority="high" class="size-8 shrink-0">
-        <span class="text-xl font-semibold tracking-tight">Elzara<span class="ml-1.5 text-sm font-medium text-elzara-700">Admin</span></span>
+        <span class="text-xl font-semibold tracking-tight">{{ brand.name }}<span class="ml-1.5 text-sm font-medium">Admin</span></span>
       </NuxtLink>
 
       <div class="relative z-10 my-auto hidden max-w-md py-12 lg:block">
-        <h2 class="text-balance text-4xl font-bold leading-tight tracking-tight text-elzara-900">
-          Ruang kerja operasional Elzara
+        <h2 class="text-balance text-4xl font-bold leading-tight tracking-tight">
+          Ruang kerja operasional {{ brand.name }}
         </h2>
-        <p class="mt-4 max-w-sm text-base leading-relaxed text-elzara-800">
+        <p class="mt-4 max-w-sm text-base leading-relaxed">
           Kelola pesanan, katalog, dan stok dari satu panel internal.
         </p>
       </div>
@@ -108,7 +109,7 @@ async function submitVerification() {
 
     <section class="flex min-w-0 items-center justify-center bg-muted/55 px-5 py-10 sm:px-10 lg:py-16">
       <div class="w-full max-w-md">
-        <UCard class="rounded-2xl shadow-xl shadow-elzara-950/5" :ui="{ body: 'p-6 sm:p-10' }">
+        <UCard :ui="{ body: 'p-6 sm:p-10' }">
           <header class="mb-8">
             <h1 class="text-2xl font-bold tracking-tight text-highlighted">
               {{ challenge ? 'Verifikasi dua langkah' : 'Masuk' }}
@@ -125,7 +126,7 @@ async function submitVerification() {
               <UInput v-model="credentials.email" type="email" autocomplete="username" icon="i-lucide-mail" placeholder="nama@elzara.com" size="xl" class="w-full" maxlength="254" :disabled="sending" required />
             </UFormField>
             <UFormField label="Kata sandi" name="password" required>
-              <UInput v-model="credentials.password" :type="revealPassword ? 'text' : 'password'" autocomplete="current-password" icon="i-lucide-lock" placeholder="Masukkan kata sandi" size="xl" class="w-full" maxlength="128" :disabled="sending" required>
+              <UInput v-model="credentials.password" :type="revealPassword ? 'text' : 'password'" autocomplete="current-password" icon="i-lucide-lock" placeholder="Masukkan kata sandi" size="xl" class="w-full" maxlength="128" :disabled="sending" :ui="{ base: 'min-h-12 pe-14', trailing: 'pe-1' }" required>
                 <template #trailing>
                   <UButton
                     type="button" variant="ghost" color="neutral" size="xs"
@@ -162,8 +163,11 @@ async function submitVerification() {
 </template>
 
 <style scoped>
-.login-brand { background: linear-gradient(150deg, #e7eaf8 8%, #c0c9ee 55%, #a2aadb 100%); }
+.login-brand {
+  background: linear-gradient(150deg, var(--admin-brand-panel-start) 8%, var(--admin-brand-panel-middle) 55%, var(--admin-brand-panel-end) 100%);
+  color: var(--admin-brand-panel-text);
+}
 .brand-orbit { position: absolute; border-radius: 50%; pointer-events: none; }
-.orbit-one { width: 28rem; height: 28rem; right: -14rem; bottom: -13rem; border: 3rem solid #ffffff36; }
-.orbit-two { width: 20rem; height: 20rem; right: -6rem; bottom: -13rem; background: #898ac450; }
+.orbit-one { width: 28rem; height: 28rem; right: -14rem; bottom: -13rem; border: 3rem solid color-mix(in srgb, var(--color-white) 21%, transparent); }
+.orbit-two { width: 20rem; height: 20rem; right: -6rem; bottom: -13rem; background: color-mix(in srgb, var(--color-brand) 25%, transparent); }
 </style>

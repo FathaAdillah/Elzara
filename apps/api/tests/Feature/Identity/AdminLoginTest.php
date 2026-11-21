@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Identity;
 
+use App\Modules\Identity\Infrastructure\Models\User;
+use App\Modules\Identity\Infrastructure\Security\StaffTwoFactor;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -34,6 +37,21 @@ final class AdminLoginTest extends TestCase
 
     private const LOGOUT = '/api/v1/admin/auth/logout';
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Cache::flush();
+    }
+
+    public function test_auth_inputs_reject_unknown_fields_before_credentials(): void
+    {
+        $cookies = $this->csrf([], login: true);
+        $this->request('POST', self::LOGIN, $cookies, ['email' => 'nobody@example.test', 'password' => 'password', 'role' => 'admin'])
+            ->assertUnprocessable()->assertJsonPath('errors.0.pointer', '/role')->assertJsonPath('errors.0.code', 'unknown_field');
+        $this->request('POST', self::VERIFY.'?extra=1', $cookies, ['challenge_id' => 'invalid', 'code' => '123456'])
+            ->assertUnprocessable()->assertJsonPath('errors.0.pointer', '/extra')->assertJsonPath('errors.0.code', 'unknown_field');
+    }
+
     public function test_login_enforces_csrf_password_and_operator_status(): void
     {
         $operator = $this->operator();
@@ -53,6 +71,7 @@ final class AdminLoginTest extends TestCase
     public function test_pending_challenge_becomes_verified_admin_session_and_logout_revokes_it(): void
     {
         $operator = $this->operator();
+        DB::table('users')->where('email', $operator)->update(['timezone' => 'Asia/Makassar', 'email_verified_at' => '2026-11-17 04:12:33+00']);
         [$challenge, $cookies] = $this->challenge($operator);
         $this->request('GET', self::SESSION, $cookies)->assertUnauthorized();
         $code = TOTP::createFromSecret(self::SECRET)->at(now()->getTimestamp());
@@ -61,7 +80,9 @@ final class AdminLoginTest extends TestCase
         $wrongCode = $code === '000000' ? '999999' : '000000';
         $this->request('POST', self::VERIFY, $cookies, ['challenge_id' => $challenge, 'code' => $wrongCode])->assertUnauthorized();
         $response = $this->request('POST', self::VERIFY, $cookies, ['challenge_id' => $challenge, 'code' => $code])
-            ->assertOk()->assertJsonPath('authenticated', true)->assertJsonPath('user.email', $operator);
+            ->assertOk()->assertJsonPath('authenticated', true)->assertJsonPath('user.email', $operator)
+            ->assertJsonPath('user.timezone', 'Asia/Makassar')->assertJsonPath('user.email_verified_at', '2026-11-17T04:12:33.000Z')
+            ->assertHeader('X-Displayed-Timezone', 'Asia/Makassar');
         $admin = $this->cookieJar($response);
         $this->assertArrayHasKey(self::SESSION_COOKIE, $admin);
         $this->request('GET', self::SESSION, $admin)->assertOk()->assertJsonPath('user.email', $operator);
@@ -72,7 +93,7 @@ final class AdminLoginTest extends TestCase
 
         $admin = $this->csrf($admin);
         $this->request('POST', self::LOGOUT, $admin, [], false)->assertStatus(419);
-        $this->request('POST', self::LOGOUT, $admin)->assertNoContent();
+        $this->request('POST', self::LOGOUT, $admin)->assertNoContent()->assertHeader('X-Displayed-Timezone', 'Asia/Makassar');
         $this->request('GET', self::SESSION, $admin)->assertUnauthorized();
         $this->assertTrue(DB::table('user_sessions')->whereNotNull('revoked_at')->exists());
     }
@@ -118,6 +139,91 @@ final class AdminLoginTest extends TestCase
         $this->assertTrue(DB::table('user_sessions')->whereNotNull('revoked_at')->exists());
     }
 
+    public function test_enrollment_stores_ten_argon2id_recovery_hashes(): void
+    {
+        $email = $this->operator(withFactor: false);
+        $user = User::query()->where('email', $email)->firstOrFail();
+        $otp = TOTP::createFromSecret(self::SECRET);
+        $codes = app(StaffTwoFactor::class)->enroll($user, $otp, $otp->at(now()->getTimestamp()));
+
+        $this->assertNotNull($codes);
+        $this->assertCount(10, $codes);
+        $hashes = $this->recoveryHashes($email);
+        $this->assertCount(10, $hashes);
+        foreach ($codes as $index => $code) {
+            $this->assertSame('argon2id', password_get_info($hashes[$index])['algoName']);
+            $this->assertTrue(password_verify($code, $hashes[$index]));
+            $this->assertNotContains(hash('sha256', $code), $hashes);
+        }
+    }
+
+    public function test_migrated_legacy_recovery_code_completes_login_only_once(): void
+    {
+        $operator = $this->operator();
+        $modern = password_hash('112233AABBCC', PASSWORD_ARGON2ID);
+        $this->setRecoveryHashes($operator, [hash('sha256', self::RECOVERY), $modern]);
+        $empty = $this->operator();
+        $this->setRecoveryHashes($empty, []);
+
+        $migration = require app_path('Modules/Identity/Infrastructure/Database/Migrations/0075_Identity_wrap_legacy_recovery_hashes.php');
+        $migration->up();
+
+        $hashes = $this->recoveryHashes($operator);
+        $this->assertCount(2, $hashes);
+        $this->assertStringStartsWith('legacy-sha256$', $hashes[0]);
+        $wrapped = substr($hashes[0], strlen('legacy-sha256$'));
+        $this->assertSame('argon2id', password_get_info($wrapped)['algoName']);
+        $this->assertTrue(password_verify(hash('sha256', self::RECOVERY), $wrapped));
+        $this->assertSame($modern, $hashes[1]);
+        $this->assertSame([], $this->recoveryHashes($empty));
+        $migration->up();
+        $this->assertSame($hashes, $this->recoveryHashes($operator));
+
+        [$challenge, $cookies] = $this->challenge($operator);
+        $this->request('POST', self::VERIFY, $cookies, [
+            'challenge_id' => $challenge, 'code' => strtolower(self::RECOVERY),
+        ])->assertOk()->assertJsonPath('authenticated', true);
+        $this->assertSame([$modern], $this->recoveryHashes($operator));
+
+        [$challenge, $cookies] = $this->challenge($operator);
+        $this->request('POST', self::VERIFY, $cookies, [
+            'challenge_id' => $challenge, 'code' => self::RECOVERY,
+        ])->assertUnauthorized();
+    }
+
+    public function test_bare_sha256_and_non_argon2id_wrappers_are_rejected(): void
+    {
+        $operator = $this->operator();
+        $hashes = [
+            hash('sha256', self::RECOVERY),
+            'legacy-sha256$'.password_hash(hash('sha256', self::RECOVERY), PASSWORD_BCRYPT, ['cost' => 4]),
+        ];
+        $this->setRecoveryHashes($operator, $hashes);
+        [$challenge, $cookies] = $this->challenge($operator);
+        $this->request('POST', self::VERIFY, $cookies, [
+            'challenge_id' => $challenge, 'code' => self::RECOVERY,
+        ])->assertUnauthorized();
+        $this->assertSame($hashes, $this->recoveryHashes($operator));
+    }
+
+    private function recoveryHashes(string $email): array
+    {
+        $factor = DB::table('staff_2fa_secrets')
+            ->where('user_id', DB::table('users')->where('email', $email)->value('id'))
+            ->selectRaw('to_json(recovery_hashes) AS recovery')->first();
+
+        return json_decode($factor->recovery, true, 8, JSON_THROW_ON_ERROR);
+    }
+
+    private function setRecoveryHashes(string $email, array $hashes): void
+    {
+        $placeholders = implode(', ', array_fill(0, count($hashes), '?'));
+        DB::update(
+            "UPDATE staff_2fa_secrets SET recovery_hashes = ARRAY[{$placeholders}]::text[] WHERE user_id = ?",
+            [...$hashes, DB::table('users')->where('email', $email)->value('id')],
+        );
+    }
+
     public function test_password_only_setting_has_no_effect_in_staging_or_production(): void
     {
         $operator = $this->operator();
@@ -161,6 +267,7 @@ final class AdminLoginTest extends TestCase
             ->assertOk()->assertJsonPath('two_factor_required', true)
             ->assertJsonStructure(['challenge_id', 'expires_at'])
             ->assertCookieMissing(self::SESSION_COOKIE);
+        $this->assertMatchesRegularExpression('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\z/', $response->json('expires_at'));
         $cookies = array_replace($cookies, $this->cookieJar($response));
         $this->assertArrayHasKey(self::CHALLENGE_COOKIE, $cookies);
 

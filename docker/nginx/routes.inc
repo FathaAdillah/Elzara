@@ -22,6 +22,9 @@
         access_log /var/log/nginx/webhooks.log;
     }
 
+    location /api/v1/internal/ { return 404; }
+    location = /api/v1/internal { return 404; }
+
     location /api/ {
         limit_req zone=api burst=50 nodelay;
         fastcgi_pass api_fpm;

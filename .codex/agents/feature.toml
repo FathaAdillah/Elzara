@@ -57,7 +57,7 @@ Trigger: controller menyatakan migration-db selesai dan menugaskan Task 6-10 pla
    `config/session.php` cookie default `elzara_web_session`; middleware grup admin
    menukar nama cookie ke `elzara_admin_session` sebelum `StartSession`.
 2. Login admin: email+password, gerbang `is_operator = true` + `status = active`,
-   2FA TOTP wajib (`staff_2fa_secrets`, 10 recovery code ter-hash sha256 di
+   2FA TOTP wajib (`staff_2fa_secrets`, 10 recovery code ter-hash Argon2id di
    `recovery_hashes text[]`, satu kali pakai). Tanpa jalur sosial ke admin.
 3. Login/registrasi storefront hybrid: email+password, Google (driver bawaan
    `laravel/socialite`), X (`socialiteproviders/twitter` OAuth 2.0). Linking akun

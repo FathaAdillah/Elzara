@@ -1,6 +1,8 @@
 /* Preset `clean-premium` - minim, barang kolektibel, grid padat, shadow sangat tipis. */
-:root {
+:root[data-brand-theme="clean-premium"] {
   --brand-600: #1f2430;
+  --brand-contrast: #1f2430;
+  --brand-foreground: #ffffff;
   --brand-50: #f4f5f7;
   --coral-500: #b08d57;
   --neutral-0: #ffffff;
