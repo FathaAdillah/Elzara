@@ -17,6 +17,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
  * @property string|null $password_hash
  * @property bool $is_operator
  * @property string $status
+ * @property string $timezone
  */
 final class User extends Authenticatable
 {

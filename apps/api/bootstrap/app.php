@@ -6,8 +6,11 @@ use App\Modules\Identity\Infrastructure\Console\CreateAdminOperator;
 use App\Modules\Identity\Infrastructure\Console\EnrollAdminTwoFactor;
 use App\Modules\Identity\Infrastructure\Http\SelectAdminSession;
 use App\Platform\Http\ApiProblemRenderer;
+use App\Platform\Http\ApiResponseHeaders;
 use App\Platform\Http\AttachRequestId;
 use App\Platform\Http\IdempotencyGuard;
+use App\Platform\Http\InternalAccess;
+use App\Platform\Http\RateLimit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -23,10 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([CreateAdminOperator::class, EnrollAdminTwoFactor::class])
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prepend([AttachRequestId::class, SelectAdminSession::class]);
+        $middleware->prepend([AttachRequestId::class, SelectAdminSession::class, ApiResponseHeaders::class]);
 
         $middleware->statefulApi();
-        $middleware->alias(['idempotency' => IdempotencyGuard::class]);
+        $middleware->alias(['idempotency' => IdempotencyGuard::class, 'internal' => InternalAccess::class, 'rate' => RateLimit::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(
