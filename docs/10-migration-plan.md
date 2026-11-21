@@ -218,6 +218,25 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 
 ---
 
+### 4.4 Alokasi basename Sprint 1 — P1.01
+
+Band Catalog tetap `0200–0399`; urutan berikut mendahulukan target FK. Pivot `product_collections` dan `variant_option_values` memakai PK komposit sesuai Doc 09 §3, bukan PK identity tambahan.
+
+| Nomor | Basename | Isi | Level |
+|---|---|---|---|
+| 0200 | `0200_Catalog_create_categories_table.php` | categories | L1 |
+| 0201 | `0201_Catalog_create_brands_table.php` | brands | L1 |
+| 0202 | `0202_Catalog_create_collections_table.php` | collections | L1 |
+| 0203 | `0203_Catalog_create_products_table.php` | products | L2 |
+| 0204 | `0204_Catalog_create_product_collections_table.php` | product_collections | L3 |
+| 0205 | `0205_Catalog_create_product_options_table.php` | product_options | L3 |
+| 0206 | `0206_Catalog_create_product_option_values_table.php` | product_option_values | L4 |
+| 0207 | `0207_Catalog_create_product_variants_table.php` | product_variants | L3 |
+| 0208 | `0208_Catalog_create_variant_option_values_table.php` | variant_option_values | L5 |
+| 0209 | `0209_Catalog_create_product_media_table.php` | product_media | L4 |
+| 0210 | `0210_Catalog_create_price_lists_table.php` | price_lists | L0 |
+| 0211 | `0211_Catalog_create_price_list_entries_table.php` | price_list_entries | L4 |
+
 ## 5. Aturan anti-tabrakan (bagian yang menjawab "usahakan tidak saling bertabrakan")
 
 ### 5.1 Kepemilikan
