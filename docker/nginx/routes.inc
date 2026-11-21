@@ -44,6 +44,17 @@
         fastcgi_param HTTPS $edge_https if_not_empty;
     }
 
+    # Build assets and icons must not consume the per-page rate limit.
+    # No add_header here: inherit the security headers from the server.
+    location ~ ^/(?:_nuxt/|_next/static/|favicon\.(?:ico|png|svg)$|brand/elzara-mark\.png$) {
+        proxy_pass http://$frontend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $edge_scheme;
+        proxy_read_timeout 60s;
+    }
+
     location / {
         limit_req zone=web burst=100 nodelay;
         limit_req zone=admin burst=30 nodelay;

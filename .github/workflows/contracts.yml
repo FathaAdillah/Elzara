@@ -33,6 +33,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  nginx:
+    name: Edge nginx rate limits
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/test-nginx-ratelimits.py
+
   openapi:
     name: Kontrak OpenAPI 3.1
     runs-on: ubuntu-latest
