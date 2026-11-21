@@ -10,7 +10,7 @@ SCRIPT_HOST_DIR="$(cd "${SCRIPT_DIR}" && (pwd -W 2>/dev/null || pwd))"
 export MSYS_NO_PATHCONV=1
 
 # Dev: kredensial dibaca dari docker/.env bila belum ada di environment shell.
-if [ -f "${ROOT}/docker/.env" ]; then
+if [ "${ELZARA_SKIP_DOTENV:-0}" != 1 ] && [ -f "${ROOT}/docker/.env" ]; then
   set -a
   . "${ROOT}/docker/.env"
   set +a
@@ -44,6 +44,8 @@ docker run --rm \
   -e MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}" \
   -e ELZARA_S3_ACCESS_KEY="${ELZARA_S3_ACCESS_KEY}" \
   -e ELZARA_S3_SECRET_KEY="${ELZARA_S3_SECRET_KEY}" \
+  -e ELZARA_BACKUP_READER_ACCESS_KEY="${ELZARA_BACKUP_READER_ACCESS_KEY:-}" \
+  -e ELZARA_BACKUP_READER_SECRET_KEY="${ELZARA_BACKUP_READER_SECRET_KEY:-}" \
   "${MC_IMAGE}" -euc '
     MC="mc --config-dir /tmp/mc"
     ${MC} alias set local "${MINIO_ENDPOINT}" "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" >/dev/null
@@ -71,6 +73,14 @@ docker run --rm \
       --policy /minio/policies/elzara-app.json >/dev/null 2>&1 \
       || ${MC} admin user svcacct edit local "${ELZARA_S3_ACCESS_KEY}" \
         --secret-key "${ELZARA_S3_SECRET_KEY}" --policy /minio/policies/elzara-app.json
+    # Service account baca-saja untuk service object-backup (profil backup); exports tidak ikut (TTL 7 hari).
+    if [ -n "${ELZARA_BACKUP_READER_ACCESS_KEY}" ]; then
+      ${MC} admin user svcacct add local "${MINIO_ROOT_USER}" \
+        --access-key "${ELZARA_BACKUP_READER_ACCESS_KEY}" --secret-key "${ELZARA_BACKUP_READER_SECRET_KEY}" \
+        --policy /minio/policies/elzara-backup-reader.json >/dev/null 2>&1 \
+        || ${MC} admin user svcacct edit local "${ELZARA_BACKUP_READER_ACCESS_KEY}" \
+          --secret-key "${ELZARA_BACKUP_READER_SECRET_KEY}" --policy /minio/policies/elzara-backup-reader.json
+    fi
     count=$(${MC} ls local --json | grep -c folder || true)
     [ "${count}" -eq 6 ] || { echo "bucket = ${count}, harus tepat 6 (Doc 01 §9.2)"; exit 1; }
   '
