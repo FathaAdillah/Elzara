@@ -25,7 +25,11 @@ final class MediaUploadTest extends TestCase
 {
     use DatabaseTransactions;
 
+    private static int $clientSequence = 0;
+
     private array $cookies = [];
+
+    private string $clientIp;
 
     protected function setUp(): void
     {
@@ -45,6 +49,7 @@ final class MediaUploadTest extends TestCase
             'filesystems.disks.product-media.key' => 'elzara-app',
             'filesystems.disks.product-media.secret' => 'elzara-test-secret',
         ]);
+        $this->clientIp = '2001:db8::'.dechex(++self::$clientSequence);
         $this->login();
     }
 
@@ -381,7 +386,7 @@ final class MediaUploadTest extends TestCase
 
     private function request(string $path, array $payload = [], ?string $key = null, string $method = 'POST'): TestResponse
     {
-        $headers = ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json', 'HTTP_HOST' => 'localhost', 'HTTP_ORIGIN' => 'https://localhost', 'HTTPS' => 'on'];
+        $headers = ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json', 'HTTP_HOST' => 'localhost', 'HTTP_ORIGIN' => 'https://localhost', 'HTTPS' => 'on', 'REMOTE_ADDR' => $this->clientIp];
         if (isset($this->cookies['XSRF-TOKEN'])) {
             $headers['HTTP_X_XSRF_TOKEN'] = $this->cookies['XSRF-TOKEN'];
         }
