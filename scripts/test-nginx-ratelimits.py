@@ -59,7 +59,8 @@ def main():
                   'php:8.4-fpm-alpine')
             edge = start('edge', '-p', '127.0.0.1::8080',
                          '-e', 'ELZARA_ADMIN_HOST=admin.localhost', '-e', 'ELZARA_EDGE_URL=http://web.localhost',
-                         '-e', 'NGINX_ENVSUBST_FILTER=^ELZARA_(ADMIN_HOST|EDGE_URL)$',
+                         '-e', 'MINIO_PUBLIC_ENDPOINT=http://storage.localhost',
+                         '-e', 'NGINX_ENVSUBST_FILTER=^(ELZARA_(ADMIN_HOST|EDGE_URL)|MINIO_PUBLIC_ENDPOINT)$',
                          '-v', f'{root}/nginx:/etc/nginx/elzara:ro',
                          '-v', f'{root}/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro',
                          '-v', f'{root}/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro',
@@ -110,8 +111,10 @@ def main():
             for path, expected in (('/_nuxt/chunk.js', 200), ('/_nuxt/missing.js', 404)):
                 status, headers = request(path, 'admin.localhost')
                 ok = status == expected and all(headers.get(key) == value for key, value in {
-                    'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN',
+                    'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
                     'Referrer-Policy': 'strict-origin-when-cross-origin',
+                    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self), browsing-topics=()',
+                    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://storage.localhost; font-src 'self'; connect-src 'self' http://storage.localhost; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
                 }.items())
                 print(f'{"PASS" if ok else "FAIL"} security headers: {path} ({status})', flush=True)
                 if not ok:
