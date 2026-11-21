@@ -637,7 +637,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Grant an admin permission directly; target must be an operator. Self-change and escalation are forbidden. */
+        /** @description Grant an admin permission directly; target must be an operator. Non-bypass actors need global access to the permission. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access. Other authorization denials use FORBIDDEN. */
         post: operations["adminUserPermissionGrant"];
         delete?: never;
         options?: never;
@@ -655,7 +655,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** @description Revoke a direct permission. Send the required reason in the JSON request body. */
+        /** @description Revoke a direct permission. Send the required reason in the JSON request body. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access. */
         delete: operations["adminUserPermissionRevoke"];
         options?: never;
         head?: never;
@@ -671,7 +671,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Assign an admin role and optionally add a batch, category or warehouse scope. Omitted scope means global. */
+        /** @description Assign an admin role and optionally add a batch, category or warehouse scope. Omitted scope means global. Non-bypass actors must hold every permission globally for a global assignment, or globally/within the requested scope for a scoped assignment. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access. */
         post: operations["adminUserRoleAssign"];
         delete?: never;
         options?: never;
@@ -689,7 +689,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** @description Revoke a role and all its scopes. Send the required reason in the JSON request body. */
+        /** @description Revoke a role and all its scopes. Send the required reason in the JSON request body. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access. */
         delete: operations["adminUserRoleRevoke"];
         options?: never;
         head?: never;

@@ -1242,7 +1242,7 @@ paths:
       x-elzara-auth: admin
       x-elzara-permission: user.update
       security: [{ adminSession: [] }]
-      description: "Grant an admin permission directly; target must be an operator. Self-change and escalation are forbidden."
+      description: "Grant an admin permission directly; target must be an operator. Non-bypass actors need global access to the permission. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access. Other authorization denials use FORBIDDEN."
       parameters:
         - { $ref: "#/components/parameters/AccessUser" }
         - { $ref: "#/components/parameters/AccessIdempotencyKey" }
@@ -1269,7 +1269,7 @@ paths:
       x-elzara-auth: admin
       x-elzara-permission: user.update
       security: [{ adminSession: [] }]
-      description: "Revoke a direct permission. Send the required reason in the JSON request body."
+      description: "Revoke a direct permission. Send the required reason in the JSON request body. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access."
       parameters:
         - { $ref: "#/components/parameters/AccessUser" }
         - name: permission
@@ -1300,7 +1300,7 @@ paths:
       x-elzara-auth: admin
       x-elzara-permission: user.update
       security: [{ adminSession: [] }]
-      description: "Assign an admin role and optionally add a batch, category or warehouse scope. Omitted scope means global."
+      description: "Assign an admin role and optionally add a batch, category or warehouse scope. Omitted scope means global. Non-bypass actors must hold every permission globally for a global assignment, or globally/within the requested scope for a scoped assignment. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access."
       parameters:
         - { $ref: "#/components/parameters/AccessUser" }
         - { $ref: "#/components/parameters/AccessIdempotencyKey" }
@@ -1327,7 +1327,7 @@ paths:
       x-elzara-auth: admin
       x-elzara-permission: user.update
       security: [{ adminSession: [] }]
-      description: "Revoke a role and all its scopes. Send the required reason in the JSON request body."
+      description: "Revoke a role and all its scopes. Send the required reason in the JSON request body. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access."
       parameters:
         - { $ref: "#/components/parameters/AccessUser" }
         - name: role

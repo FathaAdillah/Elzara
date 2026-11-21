@@ -41,3 +41,10 @@ test('API errors clearly distinguish forbidden, missing, expired, invalid and un
   assert.match(adminApiError({ statusCode: 403 }), /403.*Tidak ada akses/)
   assert.equal(adminApiError(undefined), 'Permintaan gagal. Silakan coba lagi.')
 })
+
+test('self-access change denials are distinct from insufficient permissions', () => {
+  const data = { code: 'RBAC_SELF_ACCESS_CHANGE' }
+  assert.equal(adminApiError({ statusCode: 403, data }), "Operators can't change their own access")
+  assert.match(adminApiError({ statusCode: 403, data: { code: 'FORBIDDEN' } }), /403.*Tidak ada akses/)
+  assert.notEqual(adminApiError({ statusCode: 500, data }), "Operators can't change their own access")
+})

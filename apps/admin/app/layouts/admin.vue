@@ -18,14 +18,16 @@ const activeHash = ref('')
 const openGroups = ref<string[]>([])
 const selectedSection = computed(() => preview.value ? sections.find(section => `#${section.id}` === activeHash.value) : undefined)
 const activeLink = 'font-semibold before:bg-(--admin-selected) text-highlighted'
+const routeNavigation = computed(() => adminRouteNavigation(route.path))
 
 const navigation = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: home.value, exact: true, exactHash: true,
-    ui: { link: selectedSection.value ? undefined : activeLink },
+    active: routeNavigation.value.section === 'dashboard' && !selectedSection.value,
+    ui: { link: routeNavigation.value.section === 'dashboard' && !selectedSection.value ? activeLink : undefined },
   },
-  ...(!preview.value && can('user.view') ? [{ label: 'Akses staf', icon: 'i-lucide-users', to: '/staff' }] : []),
-  ...(!preview.value && can('setting.view') ? [{ label: 'Feature flags', icon: 'i-lucide-settings', to: '/settings/feature-flags' }] : []),
+  ...(!preview.value && can('user.view') ? [{ label: 'Akses staf', icon: 'i-lucide-users', to: '/staff', active: routeNavigation.value.section === 'staff' }] : []),
+  ...(!preview.value && can('setting.view') ? [{ label: 'Feature flags', icon: 'i-lucide-settings', to: '/settings/feature-flags', active: routeNavigation.value.section === 'feature-flags' }] : []),
   ...(preview.value ? [{
     value: 'operasional', label: 'Operasional', icon: 'i-lucide-package-check',
     active: Boolean(selectedSection.value),
@@ -39,7 +41,7 @@ const navigation = computed<NavigationMenuItem[]>(() => [
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => selectedSection.value
   ? [{ label: 'Operasional' }, { label: selectedSection.value.label }]
-  : [{ label: 'Dashboard' }])
+  : routeNavigation.value.breadcrumbs)
 
 onMounted(() => {
   watch(() => route.hash, async (hash, previousHash) => {

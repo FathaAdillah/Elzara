@@ -10,6 +10,8 @@ use App\Modules\Identity\Application\Queries\UserAccess;
 use App\Modules\Identity\Infrastructure\Models\Permission;
 use App\Modules\Identity\Infrastructure\Models\Role;
 use App\Modules\Identity\Infrastructure\Models\User;
+use App\Platform\Http\ApiProblem;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
@@ -23,7 +25,11 @@ final class ChangeUserAccess
         if (trim($command->reason) === '') {
             throw ValidationException::withMessages(['reason' => 'A reason is required.']);
         }
-        abort_if($command->actor->id === $command->target->id, 403);
+        if ($command->actor->id === $command->target->id) {
+            throw new HttpResponseException(ApiProblem::make('authorization', 'self-access-change', 'Akses ditolak', 403, 'RBAC_SELF_ACCESS_CHANGE',
+                detail: "Operators can't change their own access")
+                ->forRequest(request(), $command->requestId)->toResponse());
+        }
         DB::transaction(function () use ($command, $operation): void {
             $target = User::query()->lockForUpdate()->findOrFail($command->target->id);
             if (! $target->is_operator) {

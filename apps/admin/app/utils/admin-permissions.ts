@@ -11,7 +11,9 @@ export function validAdminReason(reason: string, minimum = 1): boolean {
 }
 
 export function adminApiError(error: unknown): string {
-  const status = (error as { statusCode?: number } | null)?.statusCode
+  const response = error as { statusCode?: number, data?: { code?: string } } | null
+  const status = response?.statusCode
+  if (status === 403 && response?.data?.code === 'RBAC_SELF_ACCESS_CHANGE') return "Operators can't change their own access"
   if (status === 403) return '403 — Tidak ada akses. Izin Anda tidak mencukupi atau telah dicabut.'
   if (status === 404) return 'Data tidak ditemukan. Periksa ID publik staf.'
   if (status === 401 || status === 419) return 'Sesi kedaluwarsa. Muat ulang atau masuk kembali.'

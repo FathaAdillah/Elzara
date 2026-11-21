@@ -160,7 +160,10 @@ final class StaffRbacTest extends TestCase
         $body = ['permission' => 'setting.view', 'reason' => 'Support access'];
         $this->send('POST', $this->path($target).'/permissions', $body)->assertForbidden();
         $actor->givePermissionTo('user.update');
-        $this->send('POST', $this->path($actor).'/permissions', $body)->assertForbidden();
+        $this->send('POST', $this->path($actor).'/permissions', $body)->assertForbidden()
+            ->assertJsonPath('code', 'RBAC_SELF_ACCESS_CHANGE')
+            ->assertJsonPath('detail', "Operators can't change their own access")
+            ->assertJsonPath('request_id', 'rbac-test-request');
         $this->send('POST', $this->path($target).'/permissions', $body)->assertForbidden();
         $this->send('POST', $this->path($target).'/roles', ['role' => 'finance', 'reason' => 'Finance access'])->assertForbidden();
         $actor->givePermissionTo('setting.view');
