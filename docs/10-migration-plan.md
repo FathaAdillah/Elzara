@@ -237,6 +237,18 @@ Band Catalog tetap `0200–0399`; urutan berikut mendahulukan target FK. Pivot `
 | 0210 | `0210_Catalog_create_price_lists_table.php` | price_lists | L0 |
 | 0211 | `0211_Catalog_create_price_list_entries_table.php` | price_list_entries | L4 |
 
+### 4.5 Alokasi Inventory yang dimajukan — P1.01
+
+Tiga tabel stok dimajukan untuk P1.01; band Sprint 3 tetap `0600–0799` sesuai §4.1. Target FK `product_variants` L3 sudah dibuat pada `0207`, sebelum agregat dan ledger L4. `stock_reservations` menunggu `order_items`; transfer dan stocktake tidak termasuk langkah ini.
+
+| Nomor | Basename | Isi | Level |
+|---|---|---|---|
+| 0600 | `0600_Inventory_create_warehouses_table.php` | warehouses | L0 |
+| 0601 | `0601_Inventory_create_stock_items_table.php` | stock_items | L4 |
+| 0602 | `0602_Inventory_create_stock_movements_table.php` | stock_movements | L4 |
+
+Ledger tidak memiliki `updated_at`. Migrasi Audit `0049` belum memiliki guard basis data; `0602` menegakkan S-6 melalui trigger penolak UPDATE/DELETE (SQLSTATE 23514), dengan fungsi khusus yang dihapus saat rollback.
+
 ## 5. Aturan anti-tabrakan (bagian yang menjawab "usahakan tidak saling bertabrakan")
 
 ### 5.1 Kepemilikan
