@@ -69,7 +69,7 @@ groups:
         labels: { severity: page }
         annotations: { summary: "Koneksi Postgres > 80% max_connections" }
       - alert: ElzaraWalArchiveFailing
-        expr: increase(elzara_pg_wal_archive_failures_total[15m]) > 0 or elzara_pg_wal_last_archived_age_seconds > 900
+        expr: increase(elzara_pg_wal_archive_failures_total[15m]) > 0 or (elzara_pg_wal_last_archived_age_seconds > 900 and elzara_pg_wal_pending_segments != 0)
         for: 5m
         labels: { severity: page }
         annotations: { summary: "Arsip WAL off-node gagal/terlambat: RPO melebihi target; ikuti runbook backup-restore-drill" }

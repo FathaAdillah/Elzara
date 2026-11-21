@@ -147,6 +147,13 @@ final class MetricsExporter
         $this->family('elzara_pg_wal_archive_failures_total', 'counter', 'Kegagalan archive_command (WAL tertahan di node).');
         $this->sample('elzara_pg_wal_archive_failures_total', 'elzara_pg_wal_archive_failures_total', [], self::field($archiver, 'failed_count', 0));
         $this->gauge('elzara_pg_wal_last_archived_age_seconds', 'Umur arsip WAL terakhir; -1 bila belum pernah (RPO efektif).', [], self::field($archiver, 'last_archived_age', -1));
+        try {
+            // Segmen .ready = WAL selesai ditulis tetapi belum diarsipkan; database idle tidak menambah segmen baru.
+            $pending = self::field(DB::selectOne("SELECT count(*) AS ready FROM pg_ls_archive_statusdir() WHERE name LIKE '%.ready'"), 'ready', -1);
+        } catch (Throwable) {
+            $pending = -1;
+        }
+        $this->gauge('elzara_pg_wal_pending_segments', 'Segmen WAL menunggu archive_command; -1 bila tidak terbaca (butuh pg_monitor).', [], $pending);
     }
 
     private function redis(): void
