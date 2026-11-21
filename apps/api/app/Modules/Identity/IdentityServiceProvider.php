@@ -10,6 +10,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 final class IdentityServiceProvider extends ServiceProvider
 {
@@ -31,7 +32,11 @@ final class IdentityServiceProvider extends ServiceProvider
                 return true;
             }
 
-            return $user->checkPermissionTo($ability, 'admin') ?: null;
+            try {
+                return $user->hasPermissionTo($ability, 'admin') ?: null;
+            } catch (PermissionDoesNotExist) {
+                return null;
+            }
         });
     }
 }

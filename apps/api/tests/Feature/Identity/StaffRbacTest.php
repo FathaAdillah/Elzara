@@ -41,6 +41,16 @@ final class StaffRbacTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_unknown_permissions_fall_through_to_policy_abilities(): void
+    {
+        $operator = $this->operator();
+        Auth::shouldUse('admin');
+        Auth::guard('admin')->setUser($operator);
+        $this->assertFalse(Gate::forUser($operator)->allows('some-policy-ability'));
+        Gate::define('some-policy-ability', fn (User $user): bool => $user->id === $operator->id);
+        $this->assertTrue(Gate::forUser($operator)->allows('some-policy-ability'));
+    }
+
     public function test_seeder_is_a_zero_write_second_run_and_bundles_match_config(): void
     {
         $writes = [];
