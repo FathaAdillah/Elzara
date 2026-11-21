@@ -133,7 +133,7 @@ Rujukan terperinci: [plan Sprint 0](2026-11-17-sprint-0-fondasi.md), Task 1-20. 
 - [ ] **K1.3** Catat keputusan controller mengenai perubahan konstanta gate H, bila diperlukan. Gate H saat ini cocok. Riwayat perubahan konstanta eksternal belum terverifikasi.
 - [x] **K1.4** Tutup gerbang skema dan A-H. Pemeriksa skema lulus. Setelah penyesuaian redaksi Doc 11 dan perluasan runbook, audit_sweep3 mencetak verdict LULUS untuk A-H.
 
-- [ ] **K1.5** Rekonsiliasi algoritme recovery code dengan controller. Doc 09 menetapkan Argon2id, sementara Task 7 dan agen feature menetapkan SHA-256.
+- [x] **K1.5** Rekonsiliasi algoritme recovery code dengan controller. Argon2id ditetapkan; legacy SHA-256 dibungkus migrasi.
 
 ### K2 | Matriks admin dan kontrak auth
 
