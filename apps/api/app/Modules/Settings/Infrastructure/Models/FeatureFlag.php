@@ -7,6 +7,7 @@ namespace App\Modules\Settings\Infrastructure\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property int $id
  * @property string $code
  * @property bool $default_enabled
  * @property bool $requires_restart

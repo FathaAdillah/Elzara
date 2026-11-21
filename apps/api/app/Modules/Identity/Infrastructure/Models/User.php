@@ -7,6 +7,7 @@ namespace App\Modules\Identity\Infrastructure\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -20,7 +21,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
  */
 final class User extends Authenticatable
 {
+    use HasRoles;
     use SoftDeletes;
+
+    protected string $guard_name = 'admin';
 
     protected $table = 'users';
 

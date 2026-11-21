@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Content\Application\I18n;
 
+use App\Modules\Content\Contracts\LocalizedText;
 use Illuminate\Translation\Translator;
 
-final class LocalizationResolver
+final class LocalizationResolver implements LocalizedText
 {
     public const SUPPORTED = ['id', 'en'];
 
