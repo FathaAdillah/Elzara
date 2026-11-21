@@ -213,7 +213,7 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 - Bentuk tabel paket mengikuti keputusan proyek dan ditulis di bawah modul yang memiliki tabel (bagian 5.7). Kolom morph tetap memakai `model_type` dan `model_id` sesuai Doc 11 bagian 4.4 B.
 - Migrasi maju `0054` menambah kolom nullable tanpa backfill atau penulisan ulang data lama. `0050` tetap beku. Perubahan ini hanya berlaku pada `activity_log`; jejak aksi sensitif tetap berada di `audit_logs`.
 - Migrasi maju `0080` memperluas `idempotency_keys` di PostgreSQL untuk menyimpan respons HTTP asli (Doc 09 §17, Doc 12 §3.4). Ketiga kolom snapshot nullable dan harus terisi bersama bila ada snapshot. Baris dengan `response_ref` lama tanpa snapshot tetap sah; `0080` tidak merekonstruksi respons lama. Guard mencegah eksekusi ulang atas reservasi aktif tanpa snapshot.
-- `0077` disediakan untuk `settings`. Pembuatan berkas tertunda sampai pemilik memutuskan konflik `settings.updated_by`. Doc 09 bagian 15 menetapkan FK ke `users(id)` dengan `NOT NULL`, sedangkan plan Sprint 0 Task 11 dan seeder Task 15 mengasumsikan nilai `NULL` saat bootstrap. Selaraskan keputusan skema dan cara seeding sebelum menambah migrasi.
+- `0077` disediakan untuk `settings`. Keputusan pemilik: `settings.updated_by` adalah FK bigint nullable ke `users(id)`; `NULL` berarti system, termasuk saat bootstrap (Doc 09 §15).
 - Untuk basis data yang sudah berisi data, gunakan urutan expand, backfill, validasi, dan contract di bagian 6.2. Alokasi dan berkas di atas adalah baseline baru. Rollout atas basis data lama belum diverifikasi.
 
 ---
