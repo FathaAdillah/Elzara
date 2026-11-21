@@ -15,32 +15,50 @@ final class DemoAccountSeeder extends Seeder
 
     public const CUSTOMER_EMAIL = 'demo.customer@elzara.test';
 
+    private ?string $password = null;
+
     public function run(): void
     {
-        $password = (string) env('DEMO_PASSWORD', '');
-        if ($password === '') {
-            $password = Str::password(20);
-            $this->command?->warn("DEMO_PASSWORD kosong; password demo sekali pakai: {$password}");
-        }
+        DemoEnvironment::assertNotProduction();
 
-        $operator = $this->account(self::OPERATOR_EMAIL, 'Demo Operator', $password, true);
-        if (! $operator->hasRole('superadmin')) {
+        $operator = $this->account(self::OPERATOR_EMAIL, 'Demo Operator', true);
+        if ($operator->wasRecentlyCreated) {
             $operator->assignRole('superadmin');
         }
 
-        $customer = $this->account(self::CUSTOMER_EMAIL, 'Demo Customer', $password, false);
+        $customer = $this->account(self::CUSTOMER_EMAIL, 'Demo Customer', false);
         CustomerProfile::query()->firstOrCreate(['user_id' => $customer->id], ['display_name' => 'Demo Customer', 'gender' => 'undisclosed']);
     }
 
-    private function account(string $email, string $name, string $password, bool $operator): User
+    /** Existing demo accounts keep their password and roles, so reseeding never undoes an operator's changes. */
+    private function account(string $email, string $name, bool $operator): User
     {
-        return User::query()->firstOrCreate(['email' => $email], [
+        $existing = User::query()->where('email', $email)->first();
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        return User::query()->create([
+            'email' => $email,
             'public_id' => (string) Str::ulid(),
             'name' => $name,
             'email_verified_at' => now(),
-            'password_hash' => password_hash($password, PASSWORD_ARGON2ID),
+            'password_hash' => password_hash($this->password(), PASSWORD_ARGON2ID),
             'is_operator' => $operator,
             'status' => 'active',
         ]);
+    }
+
+    private function password(): string
+    {
+        if ($this->password === null) {
+            $this->password = (string) env('DEMO_PASSWORD', '');
+            if ($this->password === '') {
+                $this->password = Str::password(20);
+                $this->command?->warn("DEMO_PASSWORD kosong; password akun demo baru: {$this->password}");
+            }
+        }
+
+        return $this->password;
     }
 }

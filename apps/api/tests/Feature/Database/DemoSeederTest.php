@@ -28,6 +28,36 @@ final class DemoSeederTest extends TestCase
         (new DemoSeeder)->run();
     }
 
+    public function test_child_demo_seeders_refuse_to_run_in_production(): void
+    {
+        $this->app['env'] = 'production';
+
+        foreach ([DemoAccountSeeder::class, DemoMediaSeeder::class] as $seeder) {
+            try {
+                (new $seeder)->run();
+                $this->fail("{$seeder} ran in production");
+            } catch (RuntimeException $e) {
+                $this->assertSame('DemoSeeder tidak boleh berjalan di environment production', $e->getMessage());
+            }
+        }
+        $this->assertDatabaseMissing('users', ['email' => DemoAccountSeeder::OPERATOR_EMAIL]);
+    }
+
+    public function test_reseeding_keeps_revoked_roles_and_existing_passwords(): void
+    {
+        Storage::fake(DemoMediaSeeder::DISK);
+        $this->seed(DemoSeeder::class);
+        $operator = User::query()->where('email', DemoAccountSeeder::OPERATOR_EMAIL)->firstOrFail();
+        $operator->removeRole('superadmin');
+        $hash = $operator->password_hash;
+
+        $this->seed(DemoSeeder::class);
+
+        $operator->refresh();
+        $this->assertFalse($operator->hasRole('superadmin'));
+        $this->assertSame($hash, $operator->password_hash);
+    }
+
     public function test_database_seeder_never_calls_demo_seeder(): void
     {
         $this->assertStringNotContainsString('DemoSeeder', (string) file_get_contents(database_path('seeders/DatabaseSeeder.php')));

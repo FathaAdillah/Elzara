@@ -18,6 +18,8 @@ final class DemoMediaSeeder extends Seeder
 
     public function run(): void
     {
+        DemoEnvironment::assertNotProduction();
+
         /** @var list<array{slug: string, name: string, amount_minor: int, file: string}> $manifest */
         $manifest = require __DIR__.'/catalog-manifest.php';
         $disk = Storage::disk(self::DISK);
