@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Platform;
 
+use App\Platform\Infrastructure\Database\EnumCheckConstraint;
 use App\Platform\StateMachine\Axis;
 use App\Platform\StateMachine\InvalidTransition;
 use App\Platform\StateMachine\StateMachineRunner;
@@ -24,6 +25,7 @@ final class FulfillmentLaneTransitionTest extends TestCase
             fulfillment_status varchar(32) NOT NULL,
             updated_at timestamp NOT NULL
         )');
+        (new EnumCheckConstraint(DB::connection()))->addAxis(self::TABLE, Axis::Fulfillment);
         DB::table(self::TABLE)->insert([
             ['id' => 1, 'fulfillment_lane' => 'marketplace_purchase', 'fulfillment_status' => 'unprocessed', 'updated_at' => now()],
             ['id' => 2, 'fulfillment_lane' => 'rts', 'fulfillment_status' => 'unprocessed', 'updated_at' => now()],

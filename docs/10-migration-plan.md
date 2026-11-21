@@ -278,6 +278,8 @@ File B tidak ada. Tapi kalau sebaliknya (menghapus nilai), wajib: migrate data d
 
 ### 6.1 Resep khusus: mengubah CHECK empat sumbu status `orders` (B-3 / Doc 11 §8.3)
 
+Baseline `04xx_Orders_create_orders_table.php` wajib memanggil `App\Platform\Infrastructure\Database\EnumCheckConstraint::addAxis()` untuk setiap `Axis::cases()` (instance menerima koneksi PostgreSQL); helper mengambil nilai dari enum dan memvalidasi baris yang ada, dengan bukti PostgreSQL di `EnumCheckConstraintTest`. Helper bukan pengganti tahapan expand/backfill/contract untuk data legacy di bawah ini; `addAxis()` yang diulang tidak memperbarui CHECK lama, dan `down()` dapat memakai `dropAxis()` bila tabel tetap dipertahankan.
+
 **Kenapa tidak bisa "cuma edit".** CHECK di Postgres tidak bisa dimodifikasi — hanya `DROP` + `ADD` (M-11), dan `ADD CONSTRAINT … CHECK` **memindai seluruh tabel** untuk memvalidasi baris lama. `orders` adalah tabel terpanas kita, jadi urutan di bawah ini dibuat supaya (a) tidak ada momen di mana baris sah jadi tidak sah, dan (b) tidak ada satu statement pun yang menahan tabel lebih dari sesaat.
 
 **Dua jalur, pilih sesuai kondisi environment:**
