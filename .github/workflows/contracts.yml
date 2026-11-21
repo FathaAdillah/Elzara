@@ -1,5 +1,5 @@
 # Pipeline bersama untuk kontrak + infra (ADR-010 K-2): apa yang harus hijau kalau packages/ atau docker/ berubah.
-# Job docs hanya manual karena lima pemeriksa Doc 11 §8.8 memang hidup di luar repo, bukan deliverable yang bisa di-fetch CI.
+# Job docs hanya manual karena enam pemeriksa Doc 11 §8.8 memang hidup di luar repo, bukan deliverable yang bisa di-fetch CI.
 
 name: contracts
 
@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       auditors_dir:
-        description: Direktori lima pemeriksa Doc 11 §8.8 di workstation (mis. C:/temp) - tidak ada di repo
+        description: Direktori enam pemeriksa Doc 11 §8.8 di workstation (mis. C:/temp) - tidak ada di repo
         required: false
         default: ""
 
@@ -47,6 +47,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Parser YAML untuk gerbang inventaris auth
+        run: python3 -m pip install PyYAML==6.0.3
       - name: Spektral lint (aturan elzara-* ikut jalan)
         run: |
           docker run --rm -v "${GITHUB_WORKSPACE}/packages/api-contracts:/w" -w /w \
@@ -81,9 +86,58 @@ jobs:
           /admin/shipments
           BLUEPRINT_PATHS
           exit "$status"
-      - name: Pastikan skema keamanan tersedia sesuai ADR-007
+      - name: Pastikan seluruh jalur autentikasi tersedia
         run: |
-          grep -Fxq '  securitySchemes:' packages/api-contracts/openapi.yaml
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import yaml
+
+          spec = yaml.safe_load(Path(os.environ.get('OPENAPI_FILE', 'packages/api-contracts/openapi.yaml')).read_text())
+          paths = spec.get('paths', {})
+          if not isinstance(paths, dict):
+              raise SystemExit('paths harus berupa mapping YAML')
+          required = {
+              '/auth/register',
+              '/auth/login',
+              '/auth/logout',
+              '/auth/otp/request',
+              '/auth/otp/verify',
+              '/auth/social/{provider}/redirect',
+              '/auth/social/{provider}/callback',
+              '/auth/password/reset-request',
+              '/auth/password/reset-confirm',
+              '/admin/auth/login',
+              '/admin/auth/2fa/verify',
+              '/admin/auth/session',
+              '/admin/auth/logout',
+              '/sanctum/csrf-cookie',
+          }
+          missing = required - paths.keys()
+          if missing:
+              raise SystemExit('Jalur auth hilang: ' + ', '.join(sorted(missing)))
+          print(f'Inventaris auth lengkap: {len(required)} jalur wajib tersedia')
+          PY
+      - name: Pastikan skema keamanan sesuai ADR-007
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import yaml
+
+          spec = yaml.safe_load(Path(os.environ.get('OPENAPI_FILE', 'packages/api-contracts/openapi.yaml')).read_text())
+          schemes = spec.get('components', {}).get('securitySchemes', {})
+          if not isinstance(schemes, dict):
+              raise SystemExit('components.securitySchemes harus berupa mapping YAML')
+          expected = {'webSession', 'adminSession', 's2sSignature'}
+          missing = expected - schemes.keys()
+          unexpected = schemes.keys() - expected
+          if missing or unexpected:
+              raise SystemExit(f'Skema keamanan tidak sesuai: hilang={sorted(missing)}, tambahan={sorted(unexpected)}')
+          if any(not isinstance(scheme, dict) or not scheme for scheme in schemes.values()):
+              raise SystemExit('Setiap skema keamanan wajib memiliki definisi mapping YAML')
+          print('Skema keamanan sesuai: ' + ', '.join(sorted(expected)))
+          PY
       - name: Uang selalu integer minor-unit, mata uang const IDR (Doc 01 §6.1)
         run: |
           grep -A2 'amount_minor:' packages/api-contracts/openapi.yaml | grep -q 'type: integer'
@@ -139,7 +193,7 @@ jobs:
       SMTP_HOST: smtp.example.com
       SMTP_PORT: "587"
       HORIZON_PREFIX: elzara-ci
-      WORKER_MEMORY_LIMIT: 512M
+      WORKER_MEMORY_LIMIT: 1G
       NEXT_PUBLIC_API_BASE_URL: /api/v1
       NEXT_PUBLIC_BRAND_THEME: brand
       TLS_CERT_DIR: ./nginx/certs
@@ -230,8 +284,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
-      # Lima pemeriksa Doc 11 §8.8 (verify_schema.py, audit_sweep3.py, audit_blueprint_coverage.py,
-      # scan_unicode.py, list_dead_cites.py) tidak di-commit ke repo dan membaca docs/ dari path yang
+      # Enam pemeriksa Doc 11 §8.8 (verify_schema.py, audit_sweep3.py, audit_blueprint_coverage.py,
+      # check_layout.py, scan_unicode.py, list_dead_cites.py) tidak di-commit ke repo dan membaca docs/ dari path yang
       # ditanam di dalamnya, termasuk berkas Blueprint di luar repo. Karena itu gerbang ini dijalankan
       # dari workstation, bukan dari runner; mengirimnya ke CI berarti membuat gerbang palsu.
       - name: Jalankan pemeriksa
