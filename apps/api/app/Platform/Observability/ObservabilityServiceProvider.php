@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use League\Flysystem\FilesystemException;
+use Throwable;
 
 final class ObservabilityServiceProvider extends ServiceProvider
 {
@@ -48,10 +49,16 @@ final class ObservabilityServiceProvider extends ServiceProvider
         Event::listen(JobFailed::class, fn (JobFailed $event) => $this->finished($event->job->getQueue(), 'failed'));
     }
 
-    /** Dipanggil dari bootstrap/app.php withExceptions: hitung error MinIO/S3 tanpa menelan laporannya. */
-    public static function reportStorageError(FilesystemException|AwsException $e): void
+    /** Dipanggil dari bootstrap/app.php withExceptions: hitung error MinIO/S3 (juga yang dibungkus) tanpa menelan laporannya. */
+    public static function reportStorageError(Throwable $e): void
     {
-        Metrics::increment('elzara_storage_errors_total', ['exception' => class_basename($e)]);
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause instanceof FilesystemException || $cause instanceof AwsException) {
+                Metrics::increment('elzara_storage_errors_total', ['exception' => class_basename($cause)]);
+
+                return;
+            }
+        }
     }
 
     private function finished(string $queue, string $outcome): void

@@ -63,7 +63,7 @@ final class MediaService
                 if (in_array($exception->getStatusCode(), [404, 416], true) || $exception->getAwsErrorCode() === 'NoSuchKey') {
                     throw new MediaValidationFailed('media.object_missing');
                 }
-                throw new RuntimeException('Object storage unavailable.');
+                throw new RuntimeException('Object storage unavailable.', 0, $exception);
             }
             $body = $object['Body'];
             if (! $body instanceof StreamInterface) {
@@ -83,8 +83,8 @@ final class MediaService
                     'CopySource' => $media->disk.'/'.str_replace('%2F', '/', rawurlencode($stagingKey)).'?versionId='.rawurlencode($version),
                     'MetadataDirective' => 'REPLACE', 'ContentType' => $media->mime,
                 ]);
-            } catch (AwsException) {
-                throw new RuntimeException('Object storage unavailable.');
+            } catch (AwsException $exception) {
+                throw new RuntimeException('Object storage unavailable.', 0, $exception);
             }
             $publishedVersion = $copy['VersionId'];
             if (! is_string($publishedVersion) || $publishedVersion === '' || $publishedVersion === 'null') {
@@ -106,16 +106,16 @@ final class MediaService
             } catch (Throwable $exception) {
                 try {
                     $this->presigner->client()->deleteObject(['Bucket' => $bucket, 'Key' => $publishedKey, 'VersionId' => $publishedVersion]);
-                } catch (AwsException) {
-                    report(new RuntimeException('Published copy cleanup failed.'));
+                } catch (AwsException $cleanup) {
+                    report(new RuntimeException('Published copy cleanup failed.', 0, $cleanup));
                 }
                 throw $exception;
             }
             DB::afterCommit(function () use ($bucket, $stagingKey, $version): void {
                 try {
                     $this->presigner->client()->deleteObject(['Bucket' => $bucket, 'Key' => $stagingKey, 'VersionId' => $version]);
-                } catch (AwsException) {
-                    report(new RuntimeException('Staging object cleanup failed.'));
+                } catch (AwsException $cleanup) {
+                    report(new RuntimeException('Staging object cleanup failed.', 0, $cleanup));
                 }
             });
 
