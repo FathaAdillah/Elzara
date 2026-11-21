@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Identity;
 
+use App\Modules\Identity\Infrastructure\Models\User;
+use App\Modules\Identity\Infrastructure\Security\StaffTwoFactor;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -116,6 +118,91 @@ final class AdminLoginTest extends TestCase
         config(['auth.local_admin_password_only_email' => null]);
         $this->request('GET', self::SESSION, $admin)->assertUnauthorized();
         $this->assertTrue(DB::table('user_sessions')->whereNotNull('revoked_at')->exists());
+    }
+
+    public function test_enrollment_stores_ten_argon2id_recovery_hashes(): void
+    {
+        $email = $this->operator(withFactor: false);
+        $user = User::query()->where('email', $email)->firstOrFail();
+        $otp = TOTP::createFromSecret(self::SECRET);
+        $codes = app(StaffTwoFactor::class)->enroll($user, $otp, $otp->at(now()->getTimestamp()));
+
+        $this->assertNotNull($codes);
+        $this->assertCount(10, $codes);
+        $hashes = $this->recoveryHashes($email);
+        $this->assertCount(10, $hashes);
+        foreach ($codes as $index => $code) {
+            $this->assertSame('argon2id', password_get_info($hashes[$index])['algoName']);
+            $this->assertTrue(password_verify($code, $hashes[$index]));
+            $this->assertNotContains(hash('sha256', $code), $hashes);
+        }
+    }
+
+    public function test_migrated_legacy_recovery_code_completes_login_only_once(): void
+    {
+        $operator = $this->operator();
+        $modern = password_hash('112233AABBCC', PASSWORD_ARGON2ID);
+        $this->setRecoveryHashes($operator, [hash('sha256', self::RECOVERY), $modern]);
+        $empty = $this->operator();
+        $this->setRecoveryHashes($empty, []);
+
+        $migration = require app_path('Modules/Identity/Infrastructure/Database/Migrations/0075_Identity_wrap_legacy_recovery_hashes.php');
+        $migration->up();
+
+        $hashes = $this->recoveryHashes($operator);
+        $this->assertCount(2, $hashes);
+        $this->assertStringStartsWith('legacy-sha256$', $hashes[0]);
+        $wrapped = substr($hashes[0], strlen('legacy-sha256$'));
+        $this->assertSame('argon2id', password_get_info($wrapped)['algoName']);
+        $this->assertTrue(password_verify(hash('sha256', self::RECOVERY), $wrapped));
+        $this->assertSame($modern, $hashes[1]);
+        $this->assertSame([], $this->recoveryHashes($empty));
+        $migration->up();
+        $this->assertSame($hashes, $this->recoveryHashes($operator));
+
+        [$challenge, $cookies] = $this->challenge($operator);
+        $this->request('POST', self::VERIFY, $cookies, [
+            'challenge_id' => $challenge, 'code' => strtolower(self::RECOVERY),
+        ])->assertOk()->assertJsonPath('authenticated', true);
+        $this->assertSame([$modern], $this->recoveryHashes($operator));
+
+        [$challenge, $cookies] = $this->challenge($operator);
+        $this->request('POST', self::VERIFY, $cookies, [
+            'challenge_id' => $challenge, 'code' => self::RECOVERY,
+        ])->assertUnauthorized();
+    }
+
+    public function test_bare_sha256_and_non_argon2id_wrappers_are_rejected(): void
+    {
+        $operator = $this->operator();
+        $hashes = [
+            hash('sha256', self::RECOVERY),
+            'legacy-sha256$'.password_hash(hash('sha256', self::RECOVERY), PASSWORD_BCRYPT, ['cost' => 4]),
+        ];
+        $this->setRecoveryHashes($operator, $hashes);
+        [$challenge, $cookies] = $this->challenge($operator);
+        $this->request('POST', self::VERIFY, $cookies, [
+            'challenge_id' => $challenge, 'code' => self::RECOVERY,
+        ])->assertUnauthorized();
+        $this->assertSame($hashes, $this->recoveryHashes($operator));
+    }
+
+    private function recoveryHashes(string $email): array
+    {
+        $factor = DB::table('staff_2fa_secrets')
+            ->where('user_id', DB::table('users')->where('email', $email)->value('id'))
+            ->selectRaw('to_json(recovery_hashes) AS recovery')->first();
+
+        return json_decode($factor->recovery, true, 8, JSON_THROW_ON_ERROR);
+    }
+
+    private function setRecoveryHashes(string $email, array $hashes): void
+    {
+        $placeholders = implode(', ', array_fill(0, count($hashes), '?'));
+        DB::update(
+            "UPDATE staff_2fa_secrets SET recovery_hashes = ARRAY[{$placeholders}]::text[] WHERE user_id = ?",
+            [...$hashes, DB::table('users')->where('email', $email)->value('id')],
+        );
     }
 
     public function test_password_only_setting_has_no_effect_in_staging_or_production(): void

@@ -885,11 +885,11 @@ Command `LoginOperator::handle(string $email, string $password)`:
 `EnrolSecondFactor`: hanya untuk user operator terautentikasi parsial; buat secret
 via TotpGateway, simpan `secret_encrypted = Crypt::encryptString($secret)`, bangkitkan
 **10** recovery code acak (10 karakter alfanumerik), simpan
-`recovery_hashes = array_map(fn ($c) => hash('sha256', $c), $codes)` ke kolom `text[]`;
+`recovery_hashes = array_map(fn ($c) => password_hash($c, PASSWORD_ARGON2ID), $codes)` ke kolom `text[]`;
 kembalikan kode plaintext **sekali** di response (tidak disimpan di mana pun).
 `ConfirmSecondFactor`: verifikasi satu kode TOTP, isi `confirmed_at`.
 `VerifySecondFactor`: terima `code` (TOTP) atau `recovery_code`; recovery valid bila
-hash sha256-nya ada di `recovery_hashes`, lalu **hapus hash itu** (satu kali pakai);
+hash Argon2id-nya cocok melalui `password_verify` di `recovery_hashes`, lalu **hapus hash itu** (satu kali pakai);
 setelah valid: `Auth::guard('admin')->login($user)`, `session()->regenerate()`,
 hapus `admin.2fa.pending_user_id`, tulis `last_login_at`. Tanpa 2FA terkonfirmasi,
 guard admin tidak pernah menerima sesi.
@@ -1176,7 +1176,7 @@ Test wajib (metode nyata, bukan placeholder):
 
 `OperatorFlagsMapperTest`: peta `staff` (lama) -> `is_operator=true`, `customer`
 (lama) -> `false`, dan `is_admin=false` untuk **semua** kasus (murni, tanpa DB).
-`RecoveryCodeTest`: 10 kode dihasilkan, hash sha256 cocok, satu kode hanya bisa
+`RecoveryCodeTest`: 10 kode dihasilkan, hash Argon2id cocok, satu kode hanya bisa
 dipakai sekali. `PermissionNamingTest`: setiap nama permission cocok regex
 `/^[a-z]+\.[a-z_]+$/`, prefix hanya dari daftar kanonik Doc 11 §4.4 B, aksi khusus
 hanya empat yang terdaftar. `BackfillCommandTest`: command idempoten (dua kali jalan
