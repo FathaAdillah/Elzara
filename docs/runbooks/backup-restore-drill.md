@@ -5,6 +5,8 @@
 **Rujukan:** Doc 10 §9 (backup/rollback/pemulihan), §5.4 (freeze window), §10 C6 (drift check vs `docs/schema.snapshot.sql`), M-13 · Blueprint §13 (PITR/WAL, object backup, recovery drills, RPO/RTO), §11 (backup & restore tests, monitoring disk), §14.1 (single node = SPOF), §15 (runbook wajib "database failover"), §19 (DoD: backup/restore diuji) · Doc 11 **B-12**, **B-15**, §2 (aturan M-1…M-13 tidak diubah) · Doc 01 §11 (job backup scheduler → tujuan off-node; Doc 11 §8.7) · `docs/threat-model.md` T-28, T-33
 
 > **Mekanisme backup (P0.18):** image `docker/postgres/Dockerfile` (Postgres 16 alpine + WAL-G dipin) mengarsip setiap segmen WAL lewat `archive_command` (`wal-archive.sh`, gagal tertutup bila tujuan/kunci kosong) dan service `backup` (profil compose `backup`) membuat base backup harian + retensi `WALG_RETAIN_FULL`. Tujuan = bucket S3-compatible **di provider lain** dengan kredensial `BACKUP_S3_*` khusus backup (bukan MinIO aplikasi, Doc 11 §8.6); isi dienkripsi libsodium dengan `WALG_LIBSODIUM_KEY` sebelum keluar node, dan kunci itu wajib disimpan juga di luar node.
+>
+> **Mekanisme backup objek (P0.18):** service `object-backup` (profil `backup`, image `rclone/rclone` dipin, skrip `docker/object-backup/object-backup.sh`) menyinkronkan lima bucket — `product-media`, `request-attachments`, `invoice-documents`, `shipment-documents`, `audit-archives` — setiap `OBJECT_BACKUP_INTERVAL_SECONDS` ke provider `BACKUP_S3_*` yang sama di bawah `OBJECT_BACKUP_S3_PATH`. `exports` (TTL 7 hari, bisa dibuat ulang) dan `incoming/` (staging belum tervalidasi) tidak ikut. Sumber dibaca dengan service account baca-saja `ELZARA_BACKUP_READER_*` (policy `elzara-backup-reader.json`, dibuat `init-buckets.sh`), tidak pernah root/aplikasi. Isi **dan nama** objek dienkripsi rclone crypt (`OBJECT_BACKUP_CRYPT_PASSWORD` + `_SALT`, simpan di luar node seperti kunci WAL-G). Layout tujuan: `current/<bucket>/` = cermin terakhir; objek yang dihapus/ditimpa di sumber dipindah ke `deleted/<stamp UTC>/<bucket>/` dan dipangkas setelah `OBJECT_BACKUP_RETAIN_DAYS`. Hanya versi terkini yang disalin; riwayat versi MinIO tidak dipulihkan. Baris `media` ikut backup Postgres; setelah restore, `content:media:relink-versions` menautkan ulang `media.object_version` ke VersionId baru bila sha256 cocok.
 > Drill PITR terisolasi: `scripts/backup-pitr-drill.sh` (hasil di register §5). Perintah yang masih bertanda **`# belum diverifikasi di lingkungan ini`** belum dijalankan terhadap staging Dokploy.
 
 ---
@@ -16,7 +18,7 @@
 | job backup terakhir sukses? umur backup tertua yang masih tahan-lengkap? | log scheduler + listing bucket `backups` | backup > **26 jam** ⇒ SEV-1 (RPO harian); > **2× interval** ⇒ SEV-2 |
 | dump bisa **dibaca** | `pg_restore --list` atas file yang baru dibuat (Doc 10 §9 langkah 1: "verifikasi bisa dibaca") | gagal ⇒ SEV-1, dump dianggap tidak ada |
 | `pre-<release>.dump` ada untuk setiap rilis yang membawa migrasi | changelog rilis + bucket | tidak ada ⇒ rilis berikutnya ditahan (Doc 10 §9) |
-| object backup (bucket + `media`) ikut tersalin | job object backup (Blueprint §13, §11) | tidak berjalan 7 hari ⇒ SEV-2 |
+| object backup (bucket + `media`) ikut tersalin | healthcheck service `object-backup` (unhealthy bila sync sukses terakhir > 3× interval) + log `object_backup.succeeded`/`object_backup.failed` (Blueprint §13, §11) | unhealthy / tidak sukses 7 hari ⇒ SEV-2 |
 | kapasitas disk volume `pgdata`/minio/backup | monitoring disk (Blueprint §11) | > 80% ⇒ SEV-2; > 90% ⇒ SEV-1 (satu node, B-15) |
 | WAL/PITR archive berjalan | alert `ElzaraWalArchiveFailing` (`elzara_pg_wal_archive_failures_total`, `elzara_pg_wal_last_archived_age_seconds`, `infrastructure/monitoring/prometheus/alerts.yml`) | gagal atau arsip terakhir > 15 menit ⇒ SEV-2 (WAL menumpuk di disk lokal, RPO memburuk) |
 | base backup harian sukses | healthcheck service `backup` (unhealthy bila base backup terakhir > 26 jam) + log JSON `backup.succeeded`/`backup.failed` | unhealthy ⇒ SEV-2 |
@@ -75,7 +77,7 @@ Aturan keras:
 | 6 | Invariant kebenaran | query dari `oversell.md` §3.2 (agregat vs ledger, agregat vs reservasi) dan `stock-discrepancy.md` §3.2 | 0 baris selisih | — |
 | 7 | Hitung baris kunci vs sumber | `SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC LIMIT 30;` | sebanding dengan produksi (selisih wajar ≤ 1 siklus backup) | — |
 | 8 | Hidupkan aplikasi pada dump itu | `docker compose ... run --rm app php artisan migrate --force` (harus "Nothing to migrate") lalu smoke: login, cari, checkout ke driver `manual`, satu transisi order (Doc 10 §9 langkah 4) | smoke hijau; `migrate --force` tidak menjalankan apa pun | 0:45–1:15 |
-| 9 | Objek & media | mount bucket salinan ke MinIO drill; buka 1 objek `product-media` + 1 `request-attachments` lewat signed URL | 200/OK dengan konten benar; bucket privat **tidak** bisa dibaca tanpa tanda tangan | — |
+| 9 | Objek & media | provisioning MinIO drill dengan `init-buckets.sh`, lalu `docker compose --profile backup run --rm -e RESTORE_S3_ENDPOINT=<minio drill> -e RESTORE_S3_ACCESS_KEY=… -e RESTORE_S3_SECRET_KEY=… object-backup restore`; `php artisan content:media:relink-versions` di container api; buka 1 objek `product-media` + 1 `request-attachments` lewat signed URL. Objek yang terhapus: `object-backup list deleted` lalu salin dari `deleted/<stamp>/` | restore mencetak `objects>0` (kunci salah ⇒ 0 dan exit ≠ 0); relink `missing=0 mismatched=0 failed=0`; 200/OK dengan konten benar; bucket privat **tidak** bisa dibaca tanpa tanda tangan | — |
 | 10 | Ukur & tutup | hentikan stopwakt; tulis angka nyata ke register §5 | RTO/RPO terukur = isi baru §2 | 1:15– |
 
 `[ verifikasi ]` **drill hanya dinyatakan lulus bila** ada: (a) smoke test aplikasi hijau di atas dump itu, (b) drift check C6 bersih, (c) invariant bersih, (d) dua angka nyata (RTO, dan umur data yang hilang = RPO efektif). "Restore selesai" tanpa (a)–(d) = gagal.
@@ -121,6 +123,7 @@ Kalau salinan backup diketahui berpindah tangan atau hilang: perlakukan sebagai 
    | Tanggal | Lingkungan | Pengukur | Hasil |
    |---|---|---|---|
    | 2026-11-21 | lokal terisolasi (`scripts/backup-pitr-drill.sh`: primary image produksi + migrasi Laravel asli → MinIO terpisah sebagai stand-in off-node → restore PITR ke cluster scratch) | Devin (P0.18) | PASS — rincian di bawah |
+   | 2026-11-22 | lokal terisolasi (`scripts/backup-object-drill.sh`: MinIO sumber via `init-buckets.sh` → `object-backup.sh` ke MinIO terpisah sebagai stand-in off-node → restore ke MinIO baru) | Devin (P0.18) | PASS — rincian di bawah |
 
    Hasil drill 2026-11-21 (keluaran skrip apa adanya):
 
@@ -140,7 +143,23 @@ Kalau salinan backup diketahui berpindah tangan atau hilang: perlakukan sebagai 
    | Tabel public pulih | 29 |
    | RTO terukur (fetch + replay WAL + promote) | 3s |
 
-   Belum tercakup drill ini dan wajib di drill staging: tujuan off-node sungguhan di provider lain, volume data nyata (RTO 3 detik di sini hanya mengukur mekanisme), smoke aplikasi + drift C6 + invariant §3.4 butir 5–8, dan restore objek/media (§3.4 butir 9; replikasi bucket MinIO off-node belum diotomasi).
+   Hasil drill objek 2026-11-22 (keluaran skrip apa adanya):
+
+   | Item | Hasil |
+   |---|---|
+   | Status | PASS |
+   | Tujuan | MinIO terpisah, kredensial khusus backup, rclone 1.71.2 crypt (isi + nama) |
+   | Cakupan | 5 bucket; `incoming/` dan `exports` tidak tersalin |
+   | Objek off-node | 5 (berkas/path memuat isi atau nama objek plaintext: 0) |
+   | Objek terhapus di sumber | dipindah ke `deleted/<stamp>/`, dipangkas setelah retensi |
+   | Kunci salah | restore gagal (exit ≠ 0), 0 objek tertulis |
+   | Durasi backup / restore | 1s / 1s |
+   | Objek pulih | 5, sha256 sama dengan sumber (versi terkini) |
+   | Akses pasca-restore | `product-media/published` anonim 200; privat tanpa tanda tangan 403; privat signed URL 200 |
+
+   Relink `media.object_version` diuji di `tests/Feature/Content/MediaBackupTest.php` (MinIO nyata di CI), bukan di drill ini.
+
+   Belum tercakup drill ini dan wajib di drill staging: tujuan off-node sungguhan di provider lain, volume data nyata (RTO 3 detik di sini hanya mengukur mekanisme), smoke aplikasi + drift C6 + invariant §3.4 butir 5–8, dan restore objek/media dari bucket off-node staging bersama restore Postgres yang sama (§3.4 butir 9, termasuk relink).
 4. Tiket/ADR & isu yang biasanya lahir dari drill:
    - enkripsi at-rest + **pemegang kunci** terpisah dari VPS (T-28);
    - retensi & penghancuran salinan (Blueprint §13; kebutuhan hak hapus — `data-breach.md` §3.7);

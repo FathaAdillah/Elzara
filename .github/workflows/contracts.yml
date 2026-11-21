@@ -208,6 +208,16 @@ jobs:
             (.services.elasticsearch.ports // [] | length == 0) and
             .services.elasticsearch.environment["xpack.license.self_generated.type"] == "basic"
           '
+      - name: object-backup membaca MinIO lewat backend dan keluar hanya lewat backup-egress
+        run: |
+          docker compose -f docker/compose.yaml -f docker/profiles/production.yaml --profile backup config --format json | jq -e '
+            (.services["object-backup"].networks | keys | sort == ["backend", "backup-egress"]) and
+            (.services["object-backup"].ports // [] | length == 0)
+          '
+          jq -e '[.Statement[] | select(.Effect == "Allow") | .Action[]] | all(. == "s3:ListBucket" or . == "s3:GetBucketLocation" or . == "s3:GetObject")' docker/minio/policies/elzara-backup-reader.json
+          if jq -e '.. | strings | select(test("exports"))' docker/minio/policies/elzara-backup-reader.json >/dev/null; then
+            echo "exports tidak termasuk object backup"; exit 1
+          fi
       - name: Tepat enam bucket, tanpa bucket backup di node (Doc 01 §9.2, Doc 11 §8.7)
         run: |
           grep -q 'product-media request-attachments invoice-documents shipment-documents exports audit-archives' docker/minio/init-buckets.sh
