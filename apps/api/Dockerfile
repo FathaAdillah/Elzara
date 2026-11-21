@@ -34,6 +34,7 @@ COPY apps/api/app ./app
 COPY apps/api/bootstrap ./bootstrap
 COPY apps/api/config ./config
 COPY apps/api/database ./database
+COPY apps/api/lang ./lang
 COPY apps/api/public ./public
 COPY apps/api/routes ./routes
 COPY apps/api/artisan ./
