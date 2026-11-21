@@ -39,6 +39,8 @@ final class LocalizationResolverTest extends TestCase
 
     public function test_plural_cache_expiry_and_explicit_invalidation(): void
     {
+        // Redis uses server time, not Carbon's test clock.
+        Cache::setDefaultDriver('array');
         $resolver = app(LocalizationResolver::class);
         $row = LocalizedString::create(['key' => 'items', 'group_name' => 'shop', 'locale' => 'id', 'value' => 'Other']);
         LocalizedString::create(['key' => 'items', 'group_name' => 'shop', 'locale' => 'id', 'plural_variant' => 1, 'value' => 'One']);
