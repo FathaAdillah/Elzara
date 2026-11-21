@@ -32,6 +32,7 @@
     # Presigned URL yang dilihat browser (MINIO_PUBLIC_ENDPOINT) diarahkan ke MinIO, origin sama
     # dengan storefront sehingga tidak perlu CORS lintas origin untuk upload (ADR-008 K-7).
     location /storage/ {
+        include /etc/nginx/elzara/security.inc;
         proxy_hide_header Content-Security-Policy;
         proxy_pass http://minio_s3/;
         proxy_set_header Host $http_host;

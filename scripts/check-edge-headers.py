@@ -85,8 +85,8 @@ def main():
     parser.add_argument('--media-origin', help='Assert configured media origin in frontend img/connect policies')
     args = parser.parse_args()
     for host in (args.web_host, args.admin_host):
-        for path in ('/', '/login', '/not-a-real-page', '/nginx-healthz', '/api/v1/health', '/api/v1/not-a-real-route', '/api/v1/admin/auth/session', '/sanctum/csrf-cookie'):
-            check(args.base_url, host, path, path.startswith(('/api/', '/sanctum/', '/nginx-healthz')), args.https_edge, args.media_origin)
+        for path in ('/', '/login', '/not-a-real-page', '/nginx-healthz', '/api/v1/health', '/api/v1/not-a-real-route', '/api/v1/admin/auth/session', '/sanctum/csrf-cookie', '/storage/product-media/not-a-real-object.png'):
+            check(args.base_url, host, path, path.startswith(('/api/', '/sanctum/', '/nginx-healthz', '/storage/')), args.https_edge, args.media_origin)
         path = '/login' if host == args.admin_host else '/'
         first, scripts = check(args.base_url, host, path, False, args.https_edge, args.media_origin)
         second, _ = check(args.base_url, host, path, False, args.https_edge, args.media_origin)

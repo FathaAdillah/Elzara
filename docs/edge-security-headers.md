@@ -31,6 +31,13 @@ Neither frontend allows `unsafe-inline` or `unsafe-eval` for scripts.
   edge-owned `default-src 'none'`; upstream CSP is hidden on API/storage routes.
   There is exactly one CSP header per response.
 
+The storage location re-includes the common security snippet alongside its local
+CSP hide directive: nginx does not inherit a parent's `proxy_hide_header` list
+when a location defines its own. This prevents MinIO's HSTS/nosniff headers from
+leaking through or duplicating edge-owned headers. The header script checks a
+403 missing-object response on `/storage/` for both hostnames, including no HSTS
+on HTTP and exactly one HSTS on HTTPS-mode listeners.
+
 Inline styles remain permitted for React style props, Nuxt UI and chart positioning.
 Fonts and scripts are self-hosted. Images allow self/data; admin permits blob
 previews too. Media images and upload connections allow the origin extracted from
