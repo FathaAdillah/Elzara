@@ -33,7 +33,7 @@ return new class extends Migration
         DB::statement("ALTER TABLE stock_movements ADD CONSTRAINT ck_stock_movements_component CHECK (component IN ('on_hand', 'reserved', 'damaged', 'quarantined', 'in_transit'))");
         DB::statement("ALTER TABLE stock_movements ADD CONSTRAINT ck_stock_movements_reason CHECK (reason IN ('goods_receipt', 'goods_receipt_reversal', 'sale_ship', 'sale_return', 'adjustment', 'damage', 'quarantine', 'transfer_in', 'transfer_out'))");
         DB::statement('CREATE INDEX idx_stock_movements_variant ON stock_movements (variant_id, occurred_at DESC)');
-        DB::statement("CREATE FUNCTION reject_stock_movements_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'stock_movements is append-only' USING ERRCODE = '23514'; END; $$");
+        DB::statement("CREATE OR REPLACE FUNCTION reject_stock_movements_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'stock_movements is append-only' USING ERRCODE = '23514'; END; $$");
         DB::statement('CREATE TRIGGER stock_movements_append_only BEFORE UPDATE OR DELETE ON stock_movements FOR EACH ROW EXECUTE FUNCTION reject_stock_movements_mutation()');
     }
 
