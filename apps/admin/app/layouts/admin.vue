@@ -6,6 +6,7 @@ import type { AdminSession } from '#shared/types/admin-session'
 const route = useRoute()
 const preview = computed(() => route.meta.adminPreview === true)
 const session = useState<AdminSession | null>('admin-session', () => null)
+const { can } = useAdminAccess()
 const operatorName = computed(() => preview.value ? 'Operator Demo' : session.value?.user.name || 'Operator')
 const home = computed(() => preview.value ? '/preview' : '/')
 const sections = [
@@ -23,6 +24,8 @@ const navigation = computed<NavigationMenuItem[]>(() => [
     label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: home.value, exact: true, exactHash: true,
     ui: { link: selectedSection.value ? undefined : activeLink },
   },
+  ...(!preview.value && can('user.view') ? [{ label: 'Akses staf', icon: 'i-lucide-users', to: '/staff' }] : []),
+  ...(!preview.value && can('setting.view') ? [{ label: 'Feature flags', icon: 'i-lucide-settings', to: '/settings/feature-flags' }] : []),
   ...(preview.value ? [{
     value: 'operasional', label: 'Operasional', icon: 'i-lucide-package-check',
     active: Boolean(selectedSection.value),
@@ -74,7 +77,7 @@ const accountMenu = computed<DropdownMenuItem[][]>(() => [
   [{ type: 'label', label: operatorName.value, avatar: { ...accountAvatar, size: 'sm' }, class: 'min-h-10 text-highlighted' }],
   [
     { label: 'Profil', icon: 'i-lucide-user-round', onSelect: () => { profileOpen.value = true } },
-    { label: 'Log Viewer', icon: 'i-lucide-file-text', onSelect: () => { logsOpen.value = true } },
+    ...(preview.value || can('audit.view') ? [{ label: 'Log Viewer', icon: 'i-lucide-file-text', onSelect: () => { logsOpen.value = true } }] : []),
   ],
   [{
     label: 'Keluar', icon: 'i-lucide-log-out', color: 'error', disabled: leaving.value,
