@@ -45,7 +45,7 @@ if ! mkdir "$build_lock"; then
 fi
 trap 'rmdir "$build_lock"' EXIT
 
-for service in api web admin minio; do
+for service in api web admin minio postgres; do
   check_free_space
   if timeout --kill-after=15s "$build_timeout" "${compose[@]}" --progress plain build "$service"; then
     continue
