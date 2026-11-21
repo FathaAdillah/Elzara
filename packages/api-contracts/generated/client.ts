@@ -64,6 +64,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Six public flags only; provider configuration is never exposed. */
+        get: operations["publicFeatureFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List all flags and overrides; requires setting.view. */
+        get: operations["adminFeatureFlagsList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Atomic audited update; UUID v4 key replays the original body, different payload returns 409. */
+        patch: operations["adminFeatureFlagsPatch"];
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -643,6 +678,37 @@ export interface components {
             /** Format: date-time */
             expires_at: string;
         };
+        FeatureFlagPublic: {
+            /** @enum {string} */
+            code: "checkout.enabled" | "drops.enabled" | "reviews.enabled" | "guest_checkout.enabled" | "loyalty.enabled" | "marketplace_purchase.enabled";
+            enabled: boolean;
+        };
+        FeatureFlagOverride: {
+            flag_code: string;
+            /** @enum {string} */
+            env: "local" | "staging" | "prod";
+            enabled: boolean;
+            rollout_percent: number;
+            /** Format: int64 */
+            updated_by: number;
+        };
+        FeatureFlagAdminList: {
+            data: {
+                /** Format: int64 */
+                id: number;
+                code: string;
+                description: string;
+                default_enabled: boolean;
+                requires_restart: boolean;
+                /** Format: int64 */
+                updated_by: number | null;
+                /** Format: date-time */
+                created_at?: string;
+                /** Format: date-time */
+                updated_at?: string;
+                overrides: components["schemas"]["FeatureFlagOverride"][];
+            }[];
+        };
         ProblemDetails: {
             /** @description Kategori tertutup Doc 12 §4.2. */
             type: string;
@@ -937,6 +1003,101 @@ export interface operations {
             422: components["responses"]["Problem"];
         };
     };
+    publicFeatureFlags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public flag decisions for the current environment */
+            200: {
+                headers: {
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FeatureFlagPublic"][];
+                    };
+                };
+            };
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    adminFeatureFlagsList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flags and environment overrides */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagAdminList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    adminFeatureFlagsPatch: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                    flags: {
+                        code: string;
+                        default_enabled: boolean;
+                        /** @enum {string} */
+                        env?: "local" | "staging" | "prod";
+                        enabled?: boolean;
+                        /** @default 100 */
+                        rollout_percent?: number;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Updated flags with overrides */
+            200: {
+                headers: {
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagAdminList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -1186,6 +1347,22 @@ export interface operations {
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
             429: components["responses"]["Problem"];
+            /** @description Checkout disabled; retryable CHECKOUT_DISABLED with localized explanation */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"] & {
+                        /** @constant */
+                        type?: "urn:elzara:problem:server:checkout-disabled";
+                        /** @constant */
+                        code?: "CHECKOUT_DISABLED";
+                        /** @constant */
+                        retryable?: true;
+                    };
+                };
+            };
         };
     };
     getMyOrder: {
