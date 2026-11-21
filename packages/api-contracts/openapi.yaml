@@ -28,7 +28,100 @@ tags:
   - { name: Sourcing }
   - { name: Procurement }
   - { name: Fulfillment }
+  - { name: Content }
 paths:
+  /admin/media/presign:
+    post:
+      operationId: adminMediaPresign
+      tags: [Content]
+      summary: Reserve an owned media upload and sign a public PUT URL
+      description: "Active admin operator session and CSRF required; storefront auth and granular media RBAC are not implemented yet. Only the creating operator may finalize or download. PUT directly to upload_url with the declared Content-Type within 600 seconds. Public endpoint has no path prefix. Objects remain pending moderation after validation."
+      x-elzara-auth: admin
+      security: [{ adminSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bucket, mime, kind, size_bytes]
+              properties:
+                bucket: { type: string, enum: [product-media, request-attachments, invoice-documents, shipment-documents] }
+                mime: { type: string, enum: [image/jpeg, image/png, image/webp, application/pdf] }
+                kind: { type: string, enum: [image, file, icon, label_pdf, proof, attachment] }
+                size_bytes: { type: integer, minimum: 1, maximum: 20971520 }
+      responses:
+        "200":
+          description: "Reserved upload; response and URL must not be cached. Replaying an expired reservation requires a new Idempotency-Key."
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaPresignResult" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+  /admin/media/{media_id}/finalize:
+    post:
+      operationId: adminMediaFinalize
+      tags: [Content]
+      summary: Validate an owned upload and persist its immutable object version
+      description: "Active admin operator session and CSRF required. Within 30 minutes of reservation, checks bytes, MIME and actual size synchronously. Transactionally records metadata and MediaValidated outbox event on the media queue. A missing, empty, mismatched or oversize object returns MEDIA_VALIDATION_FAILED. Unknown or unowned media returns 404. Repeated successful finalization does not emit another event."
+      x-elzara-auth: admin
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: media_id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "200":
+          description: Validated metadata; not yet approved moderation
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [media_id, sha256]
+                properties:
+                  media_id: { type: integer, format: int64 }
+                  sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+  /admin/media/{media_id}/sign:
+    post:
+      operationId: adminMediaSign
+      tags: [Content]
+      summary: Sign a private download for the validated object version
+      description: "Active admin operator session and CSRF required. Only the reserving operator may sign; validation is required first. URL expires in 120 seconds and pins the validated VersionId even if the upload URL is reused. Never cache or log these URLs. No idempotency replay because every response must contain a fresh short-lived signature."
+      x-elzara-auth: admin
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: media_id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "200":
+          description: Short-lived signed download
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [download_url, expires_at]
+                properties:
+                  download_url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
   /health:
     get:
       operationId: getHealth
@@ -1082,6 +1175,14 @@ components:
         application/problem+json:
           schema: { $ref: "#/components/schemas/ProblemDetails" }
   schemas:
+    MediaPresignResult:
+      type: object
+      required: [upload_url, object_key, media_id, expires_at]
+      properties:
+        upload_url: { type: string, format: uri, description: "Signed against MINIO_PUBLIC_ENDPOINT (default https://storage.localhost), never the internal Docker hostname. PUT with the declared Content-Type. TTL 600 seconds." }
+        object_key: { type: string, pattern: "^[0-9a-f-]{36}\\.(jpg|png|webp|pdf)$" }
+        media_id: { type: integer, format: int64 }
+        expires_at: { type: string, format: date-time }
     ProblemDetails:
       type: object
       required: [type, title, status, code, request_id, retryable]

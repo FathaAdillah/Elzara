@@ -22,6 +22,11 @@ docker compose --env-file docker/.env -f docker/compose.local.yaml ps -a
 ```
 
 Default storefront dan admin adalah `http://localhost` dan `http://admin.localhost`.
+Origin object storage lokal adalah `http://storage.localhost`; default API mandiri
+memakai `https://storage.localhost`. Gunakan hostname `storage.*` yang diarahkan ke
+edge (tambahkan routing host di Dokploy dan sertifikat TLS produksi untuk hostname
+ini). Jangan tambahkan prefix path: nginx mempertahankan URI dan `Host` untuk SigV4.
+MinIO mengizinkan CORS hanya dari `ELZARA_EDGE_URL` dan `ELZARA_ADMIN_ORIGIN`.
 Dashboard admin tersedia di `/` dan memverifikasi sesi pada
 `GET /api/v1/admin/auth/session` melalui origin admin. Pengunjung tanpa sesi
 diarahkan ke `/login`. `ADMIN_SESSION_PATH` menetapkan endpoint verifikasi.
@@ -94,9 +99,9 @@ sebelum `POST /api/v1/admin/auth/login` dan `POST /api/v1/admin/auth/2fa/verify`
 2. Isi **Environment** dari `docker/.env.production.example`. Atur `ELZARA_EDGE_URL`
    ke URL HTTPS storefront, `ELZARA_ADMIN_HOST` ke hostname dashboard tanpa skema atau
    path, `ELZARA_ADMIN_ORIGIN` ke URL HTTPS dashboard, serta `MINIO_PUBLIC_ENDPOINT`
-   ke URL `/storage` di origin storefront. Isi `SMTP_HOST`, `SMTP_PORT`, dan kredensial
+   ke origin khusus `https://storage.<domain>` tanpa prefix path. Isi `SMTP_HOST`, `SMTP_PORT`, dan kredensial
    provider SMTP produksi. Compose Dokploy tidak memuat Mailpit.
-3. Arahkan DNS kedua hostname ke Dokploy. Tambahkan keduanya di **Domains** dengan
+3. Arahkan DNS ketiga hostname (storefront, admin, storage) ke Dokploy. Tambahkan ketiganya di **Domains** dengan
    service `nginx`, port container `8080`, path `/`, dan HTTPS aktif. Traefik
    menangani sertifikat produksi. Basis Compose hanya membuka `8080` di jaringan container.
 4. Setelah gerbang rilis siap, gunakan versi Git yang sama untuk ketiga image.

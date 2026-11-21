@@ -6,11 +6,13 @@
     "license": "proprietary",
     "require": {
         "php": "^8.4",
+        "aws/aws-sdk-php": "^3.407",
         "dedoc/scramble": "^0.13",
         "laravel/framework": "^13.42",
         "laravel/horizon": "^5.51",
         "laravel/sanctum": "^4.5",
         "laravel/socialite": "^5.33",
+        "league/flysystem-aws-s3-v3": "^3.35",
         "maatwebsite/excel": "^4.0",
         "sentry/sentry-laravel": "^4.30",
         "socialiteproviders/twitter": "^4.1",

@@ -3,7 +3,7 @@
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload"],
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:GetObjectVersion", "s3:AbortMultipartUpload"],
       "Resource": [
         "arn:aws:s3:::product-media/*",
         "arn:aws:s3:::request-attachments/*",

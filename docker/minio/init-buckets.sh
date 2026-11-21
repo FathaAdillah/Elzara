@@ -27,8 +27,8 @@ fi
 
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://minio:9000}"
 COMPOSE_NETWORK="${COMPOSE_NETWORK:-elzara_backend}"
-# Tag mc dipasangkan dengan tag minio/minio di compose.yaml; keduanya diukur ulang saat onboarding node.
-MC_IMAGE="${MC_IMAGE:-minio/mc:RELEASE.2025-04-22T22-12-26Z}"
+# Image yang sama dengan service minio; mc dibangun dari source dalam Dockerfile.
+MC_IMAGE="${MC_IMAGE:-elzara/minio:dev}"
 AWS_CLI_IMAGE="${AWS_CLI_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.34.42}"
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-elzara-1}"
 BUCKETS="product-media request-attachments invoice-documents shipment-documents exports audit-archives"
@@ -50,22 +50,27 @@ docker run --rm \
     for b in product-media request-attachments invoice-documents shipment-documents exports audit-archives; do
       ${MC} mb --ignore-existing "local/${b}"
       ${MC} anonymous set private "local/${b}"
+      ${MC} version enable "local/${b}"
     done
     # Satu-satunya bucket yang boleh dibaca anonim; sisanya hanya lewat presigned URL.
-    ${MC} anonymous set download local/product-media
+    ${MC} anonymous set-json /minio/policies/product-media-public.json local/product-media
     if ! ${MC} ilm rule ls --json local/exports | grep -Eq "\"(days|Days)\"[[:space:]]*:[[:space:]]*7([,}])"; then
       ${MC} ilm rule add --expire-days 7 local/exports
+    fi
+    if ! ${MC} ilm export local/exports | grep -q NoncurrentVersionExpiration; then
+      ${MC} ilm rule add --noncurrent-expire-days 7 --expire-delete-marker local/exports
     fi
     ${MC} admin user svcacct add local "${MINIO_ROOT_USER}" \
       --access-key "${ELZARA_S3_ACCESS_KEY}" --secret-key "${ELZARA_S3_SECRET_KEY}" \
       --policy /minio/policies/elzara-app.json >/dev/null 2>&1 \
-      || ${MC} admin user svcacct ls local "${MINIO_ROOT_USER}" | grep -q "${ELZARA_S3_ACCESS_KEY}"
+      || ${MC} admin user svcacct edit local "${ELZARA_S3_ACCESS_KEY}" \
+        --secret-key "${ELZARA_S3_SECRET_KEY}" --policy /minio/policies/elzara-app.json
     count=$(${MC} ls local --json | grep -c folder || true)
     [ "${count}" -eq 6 ] || { echo "bucket = ${count}, harus tepat 6 (Doc 01 §9.2)"; exit 1; }
   '
 
-# Profil lokal mengatur daftar origin di server MinIO. Profil lain mengatur bucket melalui S3 API.
-if [ "${ELZARA_MINIO_SERVER_CORS:-0}" != 1 ]; then
+# Source-build MinIO memakai origin server dari compose; provider lain dapat memakai bucket-CORS.
+if [ "${ELZARA_MINIO_SERVER_CORS:-1}" != 1 ]; then
 docker run --rm \
   --entrypoint sh \
   --network "${COMPOSE_NETWORK}" \
