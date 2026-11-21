@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Content;
 
+use App\Modules\Content\Application\MediaService;
 use App\Modules\Content\Infrastructure\Models\Media;
 use App\Modules\Content\Infrastructure\Storage\BrowserPresigner;
+use App\Platform\Outbox\OutboxWriter;
 use Aws\Exception\AwsException;
 use Aws\S3\S3Client;
 use GuzzleHttp\Client;
@@ -15,6 +17,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -171,6 +174,40 @@ final class MediaUploadTest extends TestCase
         $this->login();
         foreach (['finalize', 'sign'] as $action) {
             $this->request('/api/v1/admin/media/'.$upload['media_id'].'/'.$action)->assertNotFound();
+        }
+    }
+
+    public function test_failed_outbox_persistence_removes_only_the_copied_version_and_preserves_staging_for_retry(): void
+    {
+        $root = new S3Client([
+            'version' => 'latest', 'region' => 'elzara-1', 'endpoint' => getenv('MINIO_TEST_ENDPOINT'), 'use_path_style_endpoint' => true,
+            'credentials' => ['key' => 'minioadmin', 'secret' => 'minioadmin'],
+        ]);
+        foreach ([false, true] as $existingVersion) {
+            $upload = $this->request('/api/v1/admin/media/presign', ['bucket' => 'product-media'] + $this->payload())->assertOk()->json();
+            $this->uploadObject($upload, '%PDF-1.7 persistence retry');
+            $publishedKey = 'published/'.basename($upload['object_key']);
+            $baseline = $existingVersion ? $root->putObject(['Bucket' => 'product-media', 'Key' => $publishedKey, 'Body' => '%PDF-1.7 prior version'])['VersionId'] : null;
+            app()->instance(OutboxWriter::class, new OutboxWriter('missing-outbox-connection'));
+            $path = '/api/v1/admin/media/'.$upload['media_id'].'/finalize';
+            $key = (string) Str::uuid();
+            try {
+                app(MediaService::class)->finalize(Media::query()->findOrFail($upload['media_id'])->model_id, $upload['media_id']);
+                $this->fail('Outbox persistence must fail after the copy.');
+            } catch (InvalidArgumentException $exception) {
+                $this->assertSame('Database connection [missing-outbox-connection] not configured.', $exception->getMessage());
+            }
+            $this->assertDatabaseHas('media', ['id' => $upload['media_id'], 'path' => $upload['object_key'], 'sha256' => null, 'object_version' => null]);
+            $this->assertSame(0, DB::table('outbox_events')->where('event_name', 'MediaValidated')->where('aggregate_id', $upload['media_id'])->count());
+            $versions = $root->listObjectVersions(['Bucket' => 'product-media', 'Prefix' => $publishedKey]);
+            $this->assertSame($existingVersion ? [$baseline] : [], array_column($versions['Versions'] ?? [], 'VersionId'));
+            $this->assertEmpty($versions['DeleteMarkers']);
+            $this->assertSame('%PDF-1.7 persistence retry', (string) $root->getObject(['Bucket' => 'product-media', 'Key' => $upload['object_key']])['Body']);
+            app()->instance(OutboxWriter::class, new OutboxWriter);
+            $this->request($path, [], $key)->assertOk();
+            $this->assertSame(1, DB::table('outbox_events')->where('event_name', 'MediaValidated')->where('aggregate_id', $upload['media_id'])->count());
+            $versions = $root->listObjectVersions(['Bucket' => 'product-media', 'Prefix' => $publishedKey]);
+            $this->assertCount($existingVersion ? 2 : 1, $versions['Versions']);
         }
     }
 

@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
+use Throwable;
 
 final class MediaService
 {
@@ -89,6 +90,26 @@ final class MediaService
                 throw new RuntimeException('Object storage versioning is required.');
             }
             $bucket = $media->disk;
+            try {
+                $dimensions = str_starts_with($media->mime, 'image/') ? @getimagesizefromstring($bytes) : false;
+                $media->forceFill([
+                    'path' => $publishedKey,
+                    'size_bytes' => strlen($bytes), 'sha256' => hash('sha256', $bytes), 'object_version' => $publishedVersion,
+                    'width' => $dimensions === false ? null : $dimensions[0], 'height' => $dimensions === false ? null : $dimensions[1],
+                    'is_moderated' => in_array($media->kind, ['proof', 'attachment'], true), 'moderation_status' => 'pending',
+                ])->save();
+                $this->outbox->record(new DomainEvent('MediaValidated', 'media', $media->id, [
+                    'media_id' => $media->id, 'model_type' => $media->model_type, 'model_id' => $media->model_id,
+                    'kind' => $media->kind, 'outcome' => 'validated', 'reason_code' => null,
+                ]));
+            } catch (Throwable $exception) {
+                try {
+                    $this->presigner->client()->deleteObject(['Bucket' => $bucket, 'Key' => $publishedKey, 'VersionId' => $publishedVersion]);
+                } catch (AwsException) {
+                    report(new RuntimeException('Published copy cleanup failed.'));
+                }
+                throw $exception;
+            }
             DB::afterCommit(function () use ($bucket, $stagingKey, $version): void {
                 try {
                     $this->presigner->client()->deleteObject(['Bucket' => $bucket, 'Key' => $stagingKey, 'VersionId' => $version]);
@@ -96,17 +117,6 @@ final class MediaService
                     report(new RuntimeException('Staging object cleanup failed.'));
                 }
             });
-            $dimensions = str_starts_with($media->mime, 'image/') ? @getimagesizefromstring($bytes) : false;
-            $media->forceFill([
-                'path' => $publishedKey,
-                'size_bytes' => strlen($bytes), 'sha256' => hash('sha256', $bytes), 'object_version' => $publishedVersion,
-                'width' => $dimensions === false ? null : $dimensions[0], 'height' => $dimensions === false ? null : $dimensions[1],
-                'is_moderated' => in_array($media->kind, ['proof', 'attachment'], true), 'moderation_status' => 'pending',
-            ])->save();
-            $this->outbox->record(new DomainEvent('MediaValidated', 'media', $media->id, [
-                'media_id' => $media->id, 'model_type' => $media->model_type, 'model_id' => $media->model_id,
-                'kind' => $media->kind, 'outcome' => 'validated', 'reason_code' => null,
-            ]));
 
             return ['media_id' => $media->id, 'sha256' => $media->sha256];
         });
