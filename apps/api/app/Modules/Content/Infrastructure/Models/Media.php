@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Content\Infrastructure\Models;
 
+use Database\Factories\MediaFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -21,7 +23,15 @@ use Illuminate\Support\Carbon;
  */
 final class Media extends Model
 {
+    /** @use HasFactory<MediaFactory> */
+    use HasFactory;
+
     protected $table = 'media';
 
     protected $guarded = [];
+
+    protected static function newFactory(): MediaFactory
+    {
+        return MediaFactory::new();
+    }
 }

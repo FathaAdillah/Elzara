@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Infrastructure\Models;
 
+use Database\Factories\FeatureFlagFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -14,6 +16,9 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class FeatureFlag extends Model
 {
+    /** @use HasFactory<FeatureFlagFactory> */
+    use HasFactory;
+
     protected $table = 'feature_flags';
 
     protected $guarded = [];
@@ -21,5 +26,10 @@ final class FeatureFlag extends Model
     protected function casts(): array
     {
         return ['default_enabled' => 'boolean', 'requires_restart' => 'boolean'];
+    }
+
+    protected static function newFactory(): FeatureFlagFactory
+    {
+        return FeatureFlagFactory::new();
     }
 }
