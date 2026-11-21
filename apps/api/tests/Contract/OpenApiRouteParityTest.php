@@ -13,6 +13,19 @@ use Tests\TestCase;
 
 final class OpenApiRouteParityTest extends TestCase
 {
+    public function test_social_callback_declares_conflicts_as_problem_details(): void
+    {
+        $spec = Yaml::parseFile(base_path('../../packages/api-contracts/openapi.yaml'));
+        $operation = $spec['paths']['/auth/social/{provider}/callback']['get'];
+        $route = Route::getRoutes()->match(Request::create('/api/v1/auth/social/google/callback', 'GET'));
+
+        $this->assertSame('handleSocialCallback', $operation['operationId']);
+        $this->assertSame('App\\Modules\\Identity\\Infrastructure\\Http\\SocialAuthController@callback', $route->getActionName());
+        $this->assertSame([], $operation['security']);
+        $this->assertSame('#/components/responses/Problem', $operation['responses'][409]['$ref']);
+        $this->assertArrayHasKey('application/problem+json', $spec['components']['responses']['Problem']['content']);
+    }
+
     public function test_flag_routes_methods_permissions_and_checkout_disabled_contract(): void
     {
         $spec = Yaml::parseFile(base_path('../../packages/api-contracts/openapi.yaml'));

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Identity\Infrastructure\Http;
 
+use App\Modules\Identity\Application\AdminSession;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Session\SessionManager;
@@ -15,9 +16,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class SelectAdminSession
 {
-    public const AUTH_COOKIE = 'elzara_admin_session';
+    public const AUTH_COOKIE = AdminSession::AUTH_COOKIE;
 
-    public const CHALLENGE_COOKIE = 'elzara_admin_challenge';
+    public const CHALLENGE_COOKIE = AdminSession::CHALLENGE_COOKIE;
 
     public function __construct(private readonly SessionManager $sessions) {}
 

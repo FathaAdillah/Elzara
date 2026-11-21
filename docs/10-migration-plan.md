@@ -179,7 +179,7 @@ Blueprint §17 memberi **Phase**, bukan Sprint; ini jembatan angkanya. Doc 11 §
 
 ### 4.3 Alokasi basename Sprint 0 untuk baseline baru
 
-Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasikan sub-band `0040–0069`. Identity memakai `0040–0048` dan memiliki reservasi `0051–0053`. Audit memakai `0049–0050` dan `0054`. Rentang `0055–0069` tetap dicadangkan. Tabel fondasi berikutnya memakai `0070+` supaya FK ke `users` sudah tersedia. Tabel berikut mencatat berkas yang ada di working tree.
+Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasikan sub-band `0040–0069`. Identity memakai `0040–0048` dan memiliki reservasi `0051–0053`. Audit memakai `0049–0050` dan `0054`. Rentang `0055–0069` tetap dicadangkan. Tabel fondasi berikutnya memakai `0070+` supaya FK ke `users` sudah tersedia. Tabel berikut mencatat **29 berkas aktual**, dicocokkan dengan `php artisan migrate:status` di container API pada **2026-11-22: 29 Ran, 0 Pending**. Ini bukti baseline lokal, bukan rollout legacy/staging/production.
 
 | Nomor | Basename | Isi | Level |
 |---|---|---|---|
@@ -204,16 +204,22 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 | 0073 | `0073_Identity_create_otp_challenges_table.php` | otp_challenges | L2 |
 | 0074 | `0074_Identity_create_user_sessions_table.php` | user_sessions | L2 |
 | 0075 | `0075_Content_create_localizations_table.php` | localizations | L2 |
+| 0075 | `0075_Identity_wrap_legacy_recovery_hashes.php` | bungkus hash recovery SHA-256 lama dengan Argon2id; idempoten | L2 |
 | 0076 | `0076_Settings_create_feature_flags_table.php` | feature_flags | L2 |
+| 0077 | `0077_Settings_create_settings_table.php` | settings; updated_by nullable, NULL = system | L2 |
 | 0078 | `0078_Settings_create_feature_flag_overrides_table.php` | feature_flag_overrides; setelah feature_flags | L3 |
 | 0079 | `0079_Platform_link_idempotency_keys_to_users.php` | FK idempotency_keys.actor_id ke users | L2 |
 | 0080 | `0080_Platform_add_idempotency_response_snapshot.php` | tambah status HTTP, body asli, dan JSONB allowlist header untuk replay idempotensi | L2 |
+| 0081 | `0081_Platform_add_outbox_correlation.php` | outbox_events.request_id/trace_id nullable | L2 |
+| 0084 | `0084_Content_add_media_object_version.php` | media.object_version nullable untuk versi objek MinIO | L0 |
 
 - `0010` mendahului `0042` untuk FK media. `0040/0041` mendahului pivot `0043–0045`. `0042` mendahului FK Identity, Audit, Content, Settings, dan FK reliability `0079`. Tes C3 di bagian 10 memverifikasi urutan berdasarkan FK.
 - Bentuk tabel paket mengikuti keputusan proyek dan ditulis di bawah modul yang memiliki tabel (bagian 5.7). Kolom morph tetap memakai `model_type` dan `model_id` sesuai Doc 11 bagian 4.4 B.
 - Migrasi maju `0054` menambah kolom nullable tanpa backfill atau penulisan ulang data lama. `0050` tetap beku. Perubahan ini hanya berlaku pada `activity_log`; jejak aksi sensitif tetap berada di `audit_logs`.
 - Migrasi maju `0080` memperluas `idempotency_keys` di PostgreSQL untuk menyimpan respons HTTP asli (Doc 09 §17, Doc 12 §3.4). Ketiga kolom snapshot nullable dan harus terisi bersama bila ada snapshot. Baris dengan `response_ref` lama tanpa snapshot tetap sah; `0080` tidak merekonstruksi respons lama. Guard mencegah eksekusi ulang atas reservasi aktif tanpa snapshot.
-- `0077` disediakan untuk `settings`. Keputusan pemilik: `settings.updated_by` adalah FK bigint nullable ke `users(id)`; `NULL` berarti system, termasuk saat bootstrap (Doc 09 §15).
+- `0077` sudah membuat `settings`. Keputusan pemilik: `settings.updated_by` adalah FK bigint nullable ke `users(id)`; `NULL` berarti system, termasuk saat bootstrap (Doc 09 §15).
+- Dua berkas memakai nomor `0075`, tetapi **basename lengkap berbeda**, sehingga tidak saling menimpa pada loader Laravel. Ini bukan bukti nomor numerik unik; alokasi berikutnya tetap harus menghindari pengulangan nomor. Reservasi `0051–0053` belum menjadi file: baseline langsung membuat dua boolean, bukan menjalankan backfill flag (§6.2).
+- Seluruh 29 basename di tabel ada dalam status runtime. Hasil lokal ReferenceSeeder dua kali: 10 role, 76 permission, 174 pasangan role-permission; 28 tabel publik dibandingkan, perubahan jumlah baris dan isi pada pemanggilan kedua masing-masing nol (P0.19, 2026-11-22).
 - Untuk basis data yang sudah berisi data, gunakan urutan expand, backfill, validasi, dan contract di bagian 6.2. Alokasi dan berkas di atas adalah baseline baru. Rollout atas basis data lama belum diverifikasi.
 
 ---
@@ -401,7 +407,7 @@ Dua kelompok yang tidak boleh dicampur, karena dipakai di tempat berbeda:
 | **Reference** (wajib produksi) | `apps/api/database/seeders/Reference/` | data yang membuat aplikasi bisa hidup | `db:seed --class=ReferenceSeeder` saat deploy pertama, idempoten |
 | **Demo** (dev/staging saja) | `apps/api/database/seeders/Demo/` | katalog fiktif, order contoh | dev & staging; **tidak pernah** prod |
 
-Isi Reference (semuanya berasal dari Doc 09 + Doc 02, bukan salinan siapa pun):
+Target isi Reference (semuanya berasal dari Doc 09 + Doc 02, bukan salinan siapa pun). **Implementasi 2026-11-22** baru memanggil `RolePermissionSeeder`, `FeatureFlagSeeder`, `SettingSeeder`, dan `LocalizationSeeder`: masing-masing menghasilkan 10 role/76 permission/174 pasangan, 7 flag, 5 setting, dan 8 lokalisasi pada DB lokal baru. Seeder tidak membuat akun operator. Tracking lane/stage, courier/tariff, template notifikasi, serta kategori di daftar target berikut belum memiliki tabel/seeder pada baseline 29 migrasi ini; jangan menganggapnya sudah terpasang.
 
 - `roles` + `permissions` + `role_has_permissions` (RBAC admin, Doc 11 §4.4 B): **10 role Blueprint** (superadmin, catalog-manager, sales-ops, preorder-ops, sourcing-ops, warehouse-staff, procurement-staff, finance, customer-support, analyst — Doc 11 B-10) di-seed sebagai **bundel permission**, bukan sebagai bypass. `superadmin` tidak lagi berarti bypass: bypass hanya lewat `users.is_admin`, dan setiap pemakaiannya tercatat `audit_logs` (Doc 11 §4.4 A). Seluruh baris memakai `guard_name = 'admin'`; `roles.name` berisi kode role Blueprint dan `permissions.name` berisi `<modul>.<aksi>` (kolom `code` lama diganti `name`, unik pada `(name, guard_name)`). Bundel ditulis ke `role_has_permissions`; akun admin bootstrapping diikat lewat `model_has_roles` (pengganti pivot `role_user` lama) dengan `is_operator = true` dan `is_admin = false` — hibah bypass menyusul manual oleh owner, tercatat audit (§6.2 langkah 3). Pemberian hak per orang (mis. `catalog.view` tanpa create/update/delete) lewat `model_has_permissions`; scope per batch/kategori/gudang lewat `role_scopes`. **Storefront tidak memakai spatie**: tidak ada role/permission customer yang di-seed.
 
@@ -421,9 +427,9 @@ Isi Reference (semuanya berasal dari Doc 09 + Doc 02, bukan salinan siapa pun):
   | Fulfillment | `shipment` | Audit | `audit` |
   | Reporting | `report` | Search | — (tanpa tabel, tanpa permission admin) |
 
-  `Lintas modul` (outbox/inbox/idempotency) tidak punya permission admin: ia infrastruktur, bukan layar. Aksi standar per prefix: `view` (index/show), `create`, `update`, `delete`; aksi khusus hanya yang terdaftar di register (`billing.void`, `order.force_transition`, `batch.close`, `payment.mark_paid_manual`) — menambah aksi khusus berarti mengubah Doc 11 §4.4 B dulu, bukan menyisipkannya diam-diam di seeder. Matriks role → permission per layar tetap milik Doc 06; seeder menyalinnya, tidak menurunkannya ulang.
+  `Lintas modul` (outbox/inbox/idempotency) tidak punya permission admin: ia infrastruktur, bukan layar. Aksi standar: `view` (index/show), `create`, `update`, `delete`, hanya untuk aksi yang tersedia per prefix pada matriks Doc 06 §1.3; aksi khusus hanya yang terdaftar di register (`billing.void`, `order.force_transition`, `batch.close`, `payment.mark_paid_manual`) — menambah aksi khusus berarti mengubah Doc 11 §4.4 B dulu. Konfigurasi `identity.roles` adalah bundel implementasi; tabel Doc 06 §1.3 mencatat pola dan jumlah aktual beserta kebutuhan grant tambahan.
 
-  **Cache permission adalah fakta operasional (Doc 11 §4.4 B, ADR-012):** spatie menyimpan cache permission di `PermissionRegistrar`. Pencabutan maupun penambahan hak — termasuk saat seeder berjalan ulang — **wajib lewat jalur yang meng-invalidasi cache** (API paket / `permission:cache-reset`), tidak pernah `UPDATE`/`DELETE` langsung ke tabel spatie. `UPDATE` liar membuat hak yang sudah dicabut tetap lolos sampai cache kedaluwarsa: itu lubang otorisasi, bukan detail performa. Seeder Reference karena itu memakai upsert pada kunci alamiah `(name, guard_name)` lewat model paket dan memanggil invalidasi cache sekali di akhir.
+  **Cache permission adalah fakta operasional (Doc 11 §4.4 B, ADR-012):** spatie menyimpan cache permission di `PermissionRegistrar`. Pencabutan maupun penambahan hak — termasuk saat seeder berjalan ulang — **wajib lewat jalur yang meng-invalidasi cache** (API paket / `permission:cache-reset`), tidak pernah `UPDATE`/`DELETE` langsung ke tabel spatie. Seeder memakai `firstOrCreate` pada `(name, guard_name)` lewat model paket, menyesuaikan bundel hanya bila belum diedit operator (`created_at = updated_at`), dan memanggil `forgetCachedPermissions()` sekali di akhir. Perubahan akses runtime juga menghapus relasi model yang sudah dimuat (Doc 06 §1.7).
 - `tracking_lanes`: `rts`, `import_po`, `request`, `marketplace_purchase` + `lane_stages` tiap jalur (tahap dikelola admin setelah ini; seed hanya baseline).
 - `courier_services` & `shipping_tariff_rules`: **kosong di produksi** — diisi admin dari kontrak nyata klien (Doc 03 §9 jalur paralel). Seeder hanya menanam placeholder yang tidak bisa dipakai checkout.
 - `feature_flags`: `marketplace_purchase.enabled` (default off, B-PO-9), `drops`, `reviews`, `quotation_flow` + override kosong.

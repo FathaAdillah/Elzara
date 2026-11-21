@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Identity\Infrastructure\Http;
 
-use App\Modules\Identity\Infrastructure\Mail\OneTimeCodeMail;
-use App\Modules\Identity\Infrastructure\Models\User;
+use App\Modules\Identity\Application\OneTimeSecrets;
+use App\Modules\Identity\Application\StorefrontAccounts;
+use App\Modules\Identity\Application\WebSession;
 use App\Platform\Http\StrictValidation;
 use App\Platform\Http\WireTime;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -48,10 +47,10 @@ final class StorefrontAuthController
 
         $user = $this->accounts->register($data['name'], $data['email'], $data['password'], $data['locale'] ?? 'id');
 
-        $this->sendOtp($user, 'verify_email');
+        $this->secrets->sendOtp($user, 'verify_email');
         $this->sessions->open($request, $user);
 
-        return response()->json(['user' => self::userRead($user)], 201);
+        return response()->json(['user' => StorefrontAccounts::userRead($user)], 201);
     }
 
     public function login(Request $request): JsonResponse
@@ -63,7 +62,7 @@ final class StorefrontAuthController
         ]);
         $key = $this->limit('web-login', Str::lower($data['email']).'|'.$request->ip(), 10, consume: false);
 
-        $user = $this->activeUserByEmail($data['email']);
+        $user = $this->accounts->activeUserByEmail($data['email']);
         $passwordHash = $user?->getAuthPassword();
         $matches = password_verify($data['password'], $passwordHash ?? self::DUMMY_PASSWORD);
         if ($user === null || $passwordHash === null || ! $matches) {
@@ -74,7 +73,7 @@ final class StorefrontAuthController
         RateLimiter::clear($key);
         $this->sessions->open($request, $user);
 
-        return response()->json(['user' => self::userRead($user)]);
+        return response()->json(['user' => StorefrontAccounts::userRead($user)]);
     }
 
     public function logout(Request $request): Response
@@ -95,9 +94,9 @@ final class StorefrontAuthController
         $this->assertOtpSupported($data['purpose'], $data['channel']);
         $this->limit('otp-request', Str::lower($data['email']).'|'.$request->ip(), 5);
 
-        $user = $this->activeUserByEmail($data['email']);
+        $user = $this->accounts->activeUserByEmail($data['email']);
         $expiresAt = $user !== null && ! ($data['purpose'] === 'verify_email' && $user->email_verified_at !== null)
-            ? $this->sendOtp($user, $data['purpose'])
+            ? $this->secrets->sendOtp($user, $data['purpose'])
             : $this->secrets->simulateIssue(OneTimeSecrets::OTP_TTL_MINUTES);
 
         return response()->json(['sent' => true, 'expires_at' => WireTime::format($expiresAt)]);
@@ -114,7 +113,7 @@ final class StorefrontAuthController
         $this->assertOtpSupported($data['purpose'], 'email');
         $this->limit('otp-verify', Str::lower($data['email']).'|'.$request->ip(), 10);
 
-        $user = $this->activeUserByEmail($data['email']);
+        $user = $this->accounts->activeUserByEmail($data['email']);
         abort_unless($user !== null && $this->secrets->consumeOtp($user, $data['purpose'], $data['code']), 401, 'Kode tidak valid atau kedaluwarsa.');
 
         // Kode email membuktikan kepemilikan kotak surat. Bila bukti itu datang dari luar sesi
@@ -139,10 +138,9 @@ final class StorefrontAuthController
         $data = StrictValidation::validate($request, ['email' => 'required|string|email|max:254']);
         $this->limit('password-reset', Str::lower($data['email']).'|'.$request->ip(), 5);
 
-        $user = $this->activeUserByEmail($data['email']);
+        $user = $this->accounts->activeUserByEmail($data['email']);
         if ($user !== null) {
-            [$token, $expiresAt] = $this->secrets->issueResetToken($user);
-            $this->mailAfterResponse($user, new OneTimeCodeMail('reset_password_link', $token, WireTime::format($expiresAt)));
+            $this->secrets->sendPasswordReset($user);
         } else {
             $this->secrets->simulateIssue(OneTimeSecrets::RESET_TTL_MINUTES);
         }
@@ -161,45 +159,12 @@ final class StorefrontAuthController
         $this->limit('password-reset-confirm', (string) $request->ip(), 10);
 
         $userId = $this->secrets->consumeResetToken($data['token']);
-        $user = $userId === null ? null : User::query()->whereKey($userId)->where('status', 'active')->first();
-        abort_unless($user instanceof User, 401, 'Token tidak valid atau kedaluwarsa.');
+        $user = $this->accounts->activeUserById($userId);
+        abort_unless($user !== null, 401, 'Token tidak valid atau kedaluwarsa.');
 
         $this->accounts->resetPassword($user, $data['password']);
 
         return response()->json(['reset' => true]);
-    }
-
-    /** @return array{user_id: string, name: string, email: string, email_verified_at: ?string, timezone: string} */
-    public static function userRead(User $user): array
-    {
-        return [
-            'user_id' => $user->public_id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'email_verified_at' => $user->email_verified_at === null ? null : WireTime::format($user->email_verified_at),
-            'timezone' => $user->timezone,
-        ];
-    }
-
-    private function sendOtp(User $user, string $purpose): CarbonImmutable
-    {
-        [$code, $expiresAt] = $this->secrets->issueOtp($user, 'email', $purpose);
-        $this->mailAfterResponse($user, new OneTimeCodeMail($purpose, $code, WireTime::format($expiresAt)));
-
-        return $expiresAt;
-    }
-
-    // Kirim setelah respons agar waktu respons tidak membedakan email terdaftar dari yang tidak;
-    // tetap di proses yang sama supaya rahasia mentah tidak pernah ditulis ke antrean.
-    private function mailAfterResponse(User $user, OneTimeCodeMail $mail): void
-    {
-        $email = $user->email;
-        dispatch(fn () => Mail::to($email)->send($mail))->afterResponse();
-    }
-
-    private function activeUserByEmail(string $email): ?User
-    {
-        return User::query()->where('email', $email)->where('status', 'active')->first();
     }
 
     private function assertPasswordFits(string $password): void

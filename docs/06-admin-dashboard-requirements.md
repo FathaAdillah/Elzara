@@ -2,7 +2,7 @@
 
 > **Catatan status (ADR-003 K-4 · 2026-11-17, direvisi 2026-11-18).** Kebutuhan di dokumen ini **diturunkan dari janji ke sisi customer** (Doc 05/07) — bagian itu **tetap milik kami dan tidak berubah** karena rujukan arsitektur berganti. Yang ikut berubah adalah **kerangka yang dipakai Blueprint**: **model role menjadi 10 role (Doc 11 B-10)** dan **grup menu diselaraskan dengan menu tree Blueprint §4**. Sejak keputusan pemilik 2026-11-18, kerangka identitas/auth/RBAC mengikuti register mengikat **Doc 11 §4.4** (butir A–J): satu tabel `users` dengan `is_operator`/`is_admin`, RBAC granular per permission lewat spatie, dan cookie sesi Sanctum. Alasannya ada di ADR-012 (RBAC/identitas/dependensi); mekanisme sesi di ADR-007 (BFF/sesi) hasil amandemen. Fakta observasi tetap; keputusan arsitektur bersumber dari Blueprint dan direkonsiliasi di **Doc 11**.
 
-Tanggal: 2026-11-16 · direvisi 2026-11-17 mengikuti Blueprint · direvisi 2026-11-18 mengikuti keputusan pemilik (Doc 11 §4.4)
+Tanggal: 2026-11-16 · direvisi 2026-11-17 mengikuti Blueprint · direvisi 2026-11-18 mengikuti keputusan pemilik (Doc 11 §4.4) · direkonsiliasi 2026-11-22 dengan bundel runtime
 Sumber penurunan: setiap kemampuan customer di `05-customer-feature-inventory.md` punya "beban kerja" di belakang layar. Admin dashboard = tempat beban itu diselesaikan. Ini **spesifikasi kebutuhan kami**, bukan tiruan panel siapa pun.
 
 Batas yang berubah setelah REA pass (Doc 08 §3): dari sisi publik **bisa** dipastikan bahwa panel admin situs sumber bukan aplikasi terpisah — rute `/admin` berada di aplikasi yang sama, memakai layout global yang sama, dan memakai komponen chunk yang sama dengan halaman tracking/invoice customer (satu tabel data generik). Yang **tetap tidak bisa** diamati adalah daftar layar, field, dan alur kerja di dalamnya; karena itu dokumen ini diturunkan dari sisi customer, bukan dari observasi admin. Tidak ada upaya enumerasi sub-rute admin yang dilakukan.
@@ -49,14 +49,14 @@ Satu tabel `users` melayani admin dashboard dan storefront (Doc 11 §4.4 A; ADR-
 
 | Kolom | Aturan |
 |---|---|
-| `is_operator boolean NOT NULL DEFAULT false` | satu-satunya gerbang boleh login ke admin dashboard (selain `status = active` + 2FA terkonfirmasi) |
+| `is_operator boolean NOT NULL DEFAULT false` | satu-satunya gerbang boleh login ke admin dashboard (selain `status = active` + kebijakan 2FA environment di bawah) |
 | `is_admin boolean NOT NULL DEFAULT false` | menyalakan bypass RBAC di admin (§1.6); tidak memberi hak apa pun di storefront |
 
 - `CHECK (is_admin = false OR is_operator = true)`: "bypass tanpa hak login admin" adalah keadaan mustahil di tingkat database, bukan kemungkinan yang dijaga kode.
 - Indeks lama `users_kind_status` **diganti** `users_operator_status (is_operator, status)` (Doc 09 §2).
-- **Login admin = email + password saja, plus 2FA wajib.** Tidak ada tombol Google/X di halaman login admin dan tidak akan pernah ada: jalur sosial ke admin ditutup by design (ADR-012 (RBAC/identitas/dependensi) D-4). 2FA memakai `staff_2fa_secrets` dengan **10 recovery code ter-hash**, satu kode satu kali pakai (Doc 09 §2). Kehilangan perangkat sekaligus semua recovery code berarti pemulihan lewat prosedur operasional berjejak, bukan lewat login sosial.
+- **Login admin = email + password saja, plus 2FA wajib di staging/production.** Khusus `APP_ENV=local`, satu email operator yang dikonfigurasi lewat `ELZARA_LOCAL_ADMIN_PASSWORD_ONLY_EMAIL` boleh masuk dengan kata sandi; pengecualian diperiksa ulang pada setiap validasi sesi (Doc 12 §3.1). Tidak ada tombol Google/X di halaman login admin dan tidak akan pernah ada: jalur sosial ke admin ditutup by design (ADR-012 (RBAC/identitas/dependensi) D-4). 2FA memakai `staff_2fa_secrets` dengan **10 recovery code ter-hash**, satu kode satu kali pakai (Doc 09 §2). Kehilangan perangkat sekaligus semua recovery code berarti pemulihan lewat prosedur operasional berjejak, bukan lewat login sosial.
 - **Login storefront = akun `active` apa pun, termasuk operator.** `is_operator`/`is_admin` **tidak memberi hak apa pun di web**: otorisasi storefront adalah kepemilikan (policy owner) + status akun. Operator yang berbelanja di storefront adalah aktor `web` (§1.8).
-- Customer biasa (`is_operator = false`) tidak punya jalur ke admin. Sesi storefront juga tidak pernah menjadi sesi admin: meski akun itu operator, masuk admin wajib login terpisah di guard `admin` dengan email+password+2FA (ADR-007 (BFF/sesi) D-4a).
+- Customer biasa (`is_operator = false`) tidak punya jalur ke admin. Sesi storefront juga tidak pernah menjadi sesi admin: meski akun itu operator, masuk admin wajib login terpisah di guard `admin` dengan kebijakan environment di atas (ADR-007 (BFF/sesi) D-4a).
 - Tabel `staff_users` **tidak dibuat** (Doc 11 §4.3): satu orang satu baris `users`; atribut operator (2FA) punya tabel sendiri. Dua tabel untuk satu orang adalah sumber bug "staf yang juga customer".
 
 ### 1.2 Bentuk RBAC: spatie, granular per aksi
@@ -85,22 +85,37 @@ Satu tabel `users` melayani admin dashboard dan storefront (Doc 11 §4.4 A; ADR-
 
 ### 1.3 Matriks per permission per area admin
 
-Matriks ini adalah **kebutuhan kami** yang diturunkan dari janji customer (§4) dan cakupan menu Blueprint §4, dengan prefix kanonik §1.2. Kolom view/create/update/delete menyatakan aksi mana yang **ada** untuk area itu; "tidak ada" berarti aksi itu memang tidak boleh ada (bukan belum dirancang). Kolom terakhir adalah role pembundel utama dari 10 role Blueprint; kebutuhan di luar bundel ditutup lewat grant langsung (§1.4), bukan role ke-11.
+Matriks ini adalah **kebutuhan kami** yang diturunkan dari janji customer (§4) dan cakupan menu Blueprint §4, dengan prefix kanonik §1.2. Kolom view/create/update/delete menyatakan aksi mana yang **ada** untuk area itu; "tidak ada" berarti aksi itu memang tidak boleh ada (bukan belum dirancang). Kolom terakhir membedakan bundel aktual dari kebutuhan grant tambahan, bukan janji bahwa semua kebutuhan menu sudah diimplementasikan. Kebutuhan di luar bundel ditutup lewat grant langsung (§1.4), bukan role ke-11.
+
+**Bundel aktual (2026-11-22).** `apps/api/config/identity.roles.php` dan `RolePermissionSeeder` menghasilkan **10 role, 76 permission, 174 pasangan role-permission** pada database baru, semuanya guard `admin`. Prefix dan empat aksi khusus cocok dengan Doc 11 §4.4 B. Pola `*` di tabel berikut diekspansi seeder hanya terhadap permission yang ada, bukan wildcard izin saat request. CRUD lengkap tersedia kecuali: `user`, `billing`, `order`, `payment`, `marketplace` tanpa delete; `review` tanpa create; `report` dan `audit` hanya view. Bundel tetap provisional (Q-8); tidak berarti persetujuan klien atas seluruh pembagian pekerjaan sudah tersedia.
+
+| Role | Pola bundel aktual | Jumlah permission |
+|---|---|---|
+| `superadmin` | `*` | 76 |
+| `catalog-manager` | `catalog.*`, `content.*`, `promotion.*` | 12 |
+| `sales-ops` | `order.*`, `cart.view`, `payment.view`, `user.view` | 7 |
+| `preorder-ops` | `batch.*`, `order.view`, `inventory.view` | 7 |
+| `sourcing-ops` | `sourcing.*`, `procurement.view`, `marketplace.view` | 6 |
+| `warehouse-staff` | `inventory.*`, `shipment.*`, `logistics.view` | 9 |
+| `procurement-staff` | `procurement.*`, `sourcing.view`, `billing.view`, `logistics.*` | 10 |
+| `finance` | `billing.*`, `payment.*`, `report.*`, `order.view`, `marketplace.*` | 13 |
+| `customer-support` | `ticket.*`, `user.view`, `user.update`, `order.view`, `review.*`, `marketplace.*` | 13 |
+| `analyst` | `report.*`, `*.view` | 21 |
 
 | Area admin (grup menu §2.2) | Prefix | view | create | update | delete | Aksi khusus | Role pembundel utama |
 |---|---|---|---|---|---|---|---|
 | Dashboard | `order`, `payment`, `report` | ada (proyeksi read-only) | — | — | — | — | semua role sebatas hak view modul sumber; `analyst` hanya view |
 | Catalog | `catalog` | ada | ada | ada | ada | — | `catalog-manager`; role lain cukup view lewat grant langsung |
 | Sales | `order` | ada | ada (order atas nama buyer — keputusan kita, bukan observasi) | ada (transisi beralasan) | tidak ada (batal = transisi + reason, baris tidak dihapus) | `order.force_transition` | `sales-ops`; `customer-support` view + ajukan retur; `finance` view |
-| Pre-Order | `batch` | ada | ada | ada | ada untuk draft; batch hidup dibatalkan, bukan dihapus | `batch.close` | `preorder-ops`; `catalog-manager` view; `finance` view posisi bayar |
-| Request/Sourcing | `sourcing` | ada | ada | ada (approve = grant terpisah, lihat catatan) | ada untuk draft | — | `sourcing-ops`; `customer-support` view |
-| Procurement (supplier) | `procurement` | ada | ada | ada | ada untuk draft | — | `procurement-staff`; `finance` view supplier invoice |
-| Inventory | `inventory` | ada | ada (movement/adjustment beralasan) | ada | terbatas draft; ledger pergerakan append-only, tidak dihapus | — | `warehouse-staff`; `catalog-manager` view; `sales-ops` view |
-| International Logistics | `logistics` | ada | ada | ada | ada untuk draft | — | `procurement-staff`; `finance` view landed cost; `warehouse-staff` view |
-| Fulfillment | `shipment` | ada | ada | ada (koreksi resi, exception) | terbatas draft label | — | `warehouse-staff`; `sales-ops` view/update resi; `customer-support` view |
-| Billing & Finance | `billing`, `payment` | ada | ada (tagih manual, intent, refund) | ada (koreksi beralasan) | tidak ada (invoice di-void, payment di-refund; baris tidak dihapus) | `billing.void`, `payment.mark_paid_manual` | `finance`; `customer-support` view + ajukan refund (grant langsung); `sales-ops` view |
+| Pre-Order | `batch` | ada | ada | ada | ada untuk draft; batch hidup dibatalkan, bukan dihapus | `batch.close` | `preorder-ops`; view untuk `catalog-manager`/`finance` perlu grant langsung |
+| Request/Sourcing | `sourcing` | ada | ada | ada (approve = grant terpisah, lihat catatan) | ada untuk draft | — | `sourcing-ops`; `procurement-staff` view; `customer-support` view perlu grant langsung |
+| Procurement (supplier) | `procurement` | ada | ada | ada | ada untuk draft | — | `procurement-staff`; `sourcing-ops` view; `finance` view perlu grant langsung |
+| Inventory | `inventory` | ada | ada (movement/adjustment beralasan) | ada | terbatas draft; ledger pergerakan append-only, tidak dihapus | — | `warehouse-staff`; `preorder-ops` view; view untuk `catalog-manager`/`sales-ops` perlu grant langsung |
+| International Logistics | `logistics` | ada | ada | ada | ada untuk draft | — | `procurement-staff`; `warehouse-staff` view; `finance` view perlu grant langsung |
+| Fulfillment | `shipment` | ada | ada | ada (koreksi resi, exception) | terbatas draft label | — | `warehouse-staff`; `sales-ops` view/update dan `customer-support` view perlu grant langsung |
+| Billing & Finance | `billing`, `payment` | ada | ada (tagih manual, intent, refund) | ada (koreksi beralasan) | tidak ada (invoice di-void, payment di-refund; baris tidak dihapus) | `billing.void`, `payment.mark_paid_manual` | `finance`; `procurement-staff` billing.view; `sales-ops` payment.view saja; `customer-support` view/ajukan refund perlu grant langsung + policy |
 | Marketing & CMS | `content`, `promotion`, `review` | ada | ada untuk content/promotion; `review.create` tidak ada (ulasan lahir dari customer terverifikasi, Doc 05 §3 P-4) | ada (moderasi review = update) | ada untuk content/promotion/review (pelanggaran) | — | `catalog-manager` (content+promotion); `customer-support` (moderasi review); `superadmin` |
-| CRM & Support | `user`, `ticket`, `notification` | ada | ada (buat/import akun, tiket, template notif) | ada (blokir, perpanjang jatuh tempo, preferensi) | `user.delete` tidak ada (hak hapus = status `deletion_requested` + legal-hold, §3.10); ticket/notification ada | — | `customer-support`; `superadmin` buat akun; `finance` view akun |
+| CRM & Support | `user`, `ticket`, `notification` | ada | ada (buat/import akun, tiket, template notif) | ada (blokir, perpanjang jatuh tempo, preferensi) | `user.delete` tidak ada (hak hapus = status `deletion_requested` + legal-hold, §3.10); ticket/notification ada | — | `customer-support` ticket.* + user.view/update, tanpa notification.*; `superadmin` buat akun; `sales-ops` user.view; notification untuk CS dan user.view untuk `finance` perlu grant langsung |
 | Reports | `report` | ada | — | — | — | — | `analyst` (read-only); `finance`; `superadmin`; role lain sebatas bundel |
 | System | `user`, `setting`, `audit` | ada | ada (setting/flag) | ada (grant `is_operator`/`is_admin` = update ber-audit) | terbatas untuk setting; `audit` tidak ada (append-only) | — | `superadmin`; `audit.view` bisa di-grant langsung ke auditor |
 | MarketplacePurchase (opsional, §2; bukan grup Blueprint §4) | `marketplace` | ada | ada (terbitkan kode) | ada (verifikasi, tautkan ke shipment) | tidak ada (revoked = transisi, bukan hapus) | — | `finance` + `customer-support` (verifikasi beralasan, §3.6); `superadmin` |
@@ -108,7 +123,7 @@ Matriks ini adalah **kebutuhan kami** yang diturunkan dari janji customer (§4) 
 Catatan yang mengikat cara membaca matriks:
 
 - **"tidak ada" pada delete bukan kelalaian.** Objek beraudit/append-only (order, invoice, payment, ledger stok, audit) tidak pernah dihapus barisnya; pembatalan/void/refund adalah transisi atau aksi khusus dengan `reason`. Ini menjaga S-6 dan rekonsiliasi keuangan.
-- **Modul Cart (`cart`) punya prefix kanonik tetapi tidak punya grup menu admin tersendiri di Blueprint §4.** Dukungan cart customer (mis. troubleshooting keranjang) dilayani lewat grant langsung `cart.view` di bawah CRM & Support, bukan layar baru. Jangan menambah grup menu untuknya tanpa catatan deviasi.
+- **Modul Cart (`cart`) punya prefix kanonik tetapi tidak punya grup menu admin tersendiri di Blueprint §4.** `sales-ops`, `analyst`, dan `superadmin` sudah membundel `cart.view`; dukungan cart oleh role yang belum membundelnya memerlukan grant langsung di bawah CRM & Support, bukan layar baru. Jangan menambah grup menu untuknya tanpa catatan deviasi.
 - **Pemisahan "ajukan vs setujui"** (refund, approve quote) diwujudkan lewat grant langsung + policy, bukan aksi khusus baru: register aksi khusus terkunci di Doc 11 §4.4 B. Contoh: CS memegang `payment.view` + hak mengajukan, `finance` memegang hak eksekusi; approver ≠ requester.
 - Bundel role di-seed di Doc 10 §8. Setiap operasi admin di `openapi.yaml` wajib menyatakan `x-elzara-permission: <modul>.<aksi>` (Doc 11 §4.4 I; Doc 12 §3.1) supaya matriks ini dan spec tidak bisa berbeda tanpa terdeteksi. Operasi yang boleh diakses lewat bypass `is_admin` tetap menulis `audit_logs` (§1.6).
 
@@ -128,7 +143,9 @@ Role adalah **bundel**, bukan satu-satunya jalur pemberian hak. `warehouse-staff
 
 ### 1.5 Scope baris: `role_scopes`
 
-Permission menjawab "boleh aksi apa"; tabel `role_scopes (user_id, role_id, scope_type, scope_id)` menjawab "baris mana yang boleh dilihat/diubah". `scope_type NULL = global | batch | category | warehouse` (Doc 09 §2; Doc 11 §4.4 B). Contoh: operator `preorder-ops` dengan scope `batch` id 12 hanya melihat batch 12 dan turunannya; punya `batch.view` tidak dengan sendirinya berarti semua batch. Policy wajib memeriksa keduanya: permission dulu, lalu scope baris. Satu pasangan user-role boleh punya scope global dan beberapa scope berbaris (PK komposit dengan aturan COALESCE yang lama dipertahankan di tabel baru). Scope menambah satu join pada setiap pemeriksaan hak berscope — itu biaya yang diterima jujur (ADR-012 (RBAC/identitas/dependensi), konsekuensi).
+Permission menjawab "boleh aksi apa"; tabel `role_scopes (user_id, role_id, scope_type, scope_id)` menjawab "baris mana yang boleh dilihat/diubah". `scope_type NULL = global | batch | category | warehouse` (Doc 09 §2; Doc 11 §4.4 B). Contoh: operator `preorder-ops` dengan scope `batch` id 12 hanya melihat batch 12 dan turunannya. Policy wajib memeriksa keduanya: permission dulu, lalu scope baris. Satu pasangan user-role boleh punya scope global dan beberapa scope berbaris, dijaga **indeks UNIQUE ekspresi COALESCE**, bukan PRIMARY KEY ekspresi (migrasi 0046). Kedua kolom scope harus sama-sama NULL atau pasangan tipe sah + id positif.
+
+`PermissionScopeResolver::allowed()` membaca ulang relasi hak: tidak punya permission → `[]`; grant langsung → global (`null`); role pemberi permission tanpa baris scope atau dengan scope NULL → global; selain itu gabungan unik scope dari seluruh role pemberi permission. Grant langsung karena itu **tidak dibatasi scope role**; memberi `batch.view` langsung untuk memperbaiki akses batch 12 justru membuka seluruh batch. Scope tetap harus diterapkan oleh policy/query konsumen; resolver saja bukan bukti seluruh layar domain sudah memfilter baris.
 
 ### 1.6 Bypass `is_admin`: risiko yang diterima, wajib berjejak
 
@@ -143,13 +160,14 @@ Permission menjawab "boleh aksi apa"; tabel `role_scopes (user_id, role_id, scop
 
 - Filter menu di Next.js hanya kenyamanan UI. Otorisasi hidup di **Laravel policy/gate per request** (Doc 04 §9; Doc 01 §9). Test wajib: user tanpa hak memanggil endpoint admin → 403 dari server, dibuktikan di feature suite, bukan diperiksa manual. Situs sumber menjaga `/admin` di klien (shell 200 untuk tamu, Doc 08 §3) — pola itu tidak kita tiru.
 - spatie menyimpan **cache permission**. Pencabutan/penambahan hak wajib lewat jalur yang meng-invalidasi cache (`PermissionRegistrar`), bukan `UPDATE` mentah ke `model_has_permissions`/`role_has_permissions`. Ini fakta operasional yang masuk runbook (Doc 11 §4.4 B), bukan catatan kaki skema: grant yang dicabut tanpa invalidasi cache masih dilayani sampai cache kedaluwarsa.
+- Jalur aktual `ChangeUserAccess` memakai API spatie (`givePermissionTo`, `revokePermissionTo`, `assignRole`, `removeRole`), menulis scope dan audit dalam transaksi, lalu menghapus relasi `roles`/`permissions` yang sudah dimuat dan memanggil `PermissionRegistrar::forgetCachedPermissions()`. Pencabutan role menghapus semua scope pasangan user-role itu. `RolePermissionSeeder` juga meng-invalidasi registrar di akhir; ia tidak menimpa bundel role yang telah diedit operator (`created_at != updated_at`). Uji `StaffRbacTest` membuktikan pencabutan langsung dan role terlihat pada sesi yang sama.
 
 ### 1.8 Transport auth: cookie sesi Sanctum, bukan token
 
 Mekanisme sesi **diputuskan pemilik 2026-11-18** (ADR-007 (BFF/sesi), amandemen; Doc 11 §4.4 C) — bukan lagi pertanyaan terbuka:
 
-- `laravel/sanctum` dengan `statefulApi`: cookie sesi **same-site** karena edge satu host dengan pemisah path (`/api/`, `/admin`, `/`). Tidak ada CORS lintas origin dan tidak ada `SameSite=None`.
-- Dua sesi terpisah: cookie `elzara_web_session` (guard `web`) dan `elzara_admin_session` (guard `admin`). Keduanya `Secure; HttpOnly; SameSite=Lax; Path=/`. **`Path=/` wajib** supaya cookie ikut terkirim ke `/api/`; pemisahan admin/storefront dilakukan lewat **nama cookie + guard**, bukan lewat path. Cookie storefront tidak pernah diterima guard admin, sehingga XSS di storefront tidak menjadi akses admin.
+- `laravel/sanctum` dengan `statefulApi`: browser memanggil `/api/` pada origin masing-masing app; edge saat ini membedakan storefront/dashboard berdasarkan host (Doc 12 §3.1). Tidak perlu CORS lintas origin atau `SameSite=None` untuk jalur itu.
+- Dua sesi terpisah: cookie `elzara_web_session` (guard `web`) dan `elzara_admin_session` (guard `admin`). Keduanya `Secure; HttpOnly; SameSite=Lax; Path=/` pada HTTPS staging/production; HTTP lokal memakai `SESSION_SECURE_COOKIE=false`. **`Path=/` wajib** supaya cookie ikut terkirim ke `/api/`; pemisahan admin/storefront dilakukan lewat **nama cookie + guard**, bukan lewat path. Cookie storefront tidak diterima guard admin; challenge sementara memakai `elzara_admin_challenge`, bukan sesi admin aktif.
 - **CSRF wajib pada setiap mutasi**, termasuk admin. Cookie `XSRF-TOKEN` sengaja tidak HttpOnly karena dibaca JavaScript untuk header `X-XSRF-TOKEN`; endpoint `sanctum/csrf-cookie` dipanggil sebelum mutasi pertama. Itu bagian dari desain Sanctum, bukan kelalaian.
 - `personal_access_tokens` **tidak dibuat**; tidak ada bearer token di browser (ADR-007 (BFF/sesi) D-3a). Kredensial server-to-server (webhook gateway, worker internal) memakai tanda tangan/HMAC atau jaringan internal, bukan cookie sesi.
 - Header log `X-Actor-Type` berubah dari `customer | staff | system` (lama) menjadi **`web | admin | system`**, diisi server dari guard/sesi yang dipakai, **tidak pernah dipercaya dari klien** (Doc 11 §4.4 I). Operator yang berbelanja di storefront adalah aktor `web`.
