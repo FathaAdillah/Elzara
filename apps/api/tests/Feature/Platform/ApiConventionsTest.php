@@ -99,6 +99,10 @@ final class ApiConventionsTest extends TestCase
             $this->assertNotNull(app(RateLimiter::class)->limiter($policy));
         }
         $this->assertNotSame(RatePolicy::limit($request, 'webhooks')->key, RatePolicy::limit($other, 'webhooks')->key);
+        $this->assertNotSame(
+            RatePolicy::key(Request::create('/api/v1/webhooks/payments/midtrans'), 'webhooks'),
+            RatePolicy::key(Request::create('/api/v1/webhooks/payments/xendit'), 'webhooks'),
+        );
         $this->assertSame(RatePolicy::limit($request, 'public')->key, RatePolicy::limit($other, 'public')->key);
     }
 

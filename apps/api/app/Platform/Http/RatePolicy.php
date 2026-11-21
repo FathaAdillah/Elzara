@@ -27,7 +27,7 @@ final class RatePolicy
         };
         $scope = $actor !== null ? 'account:'.$actor : 'ip:'.$request->ip();
         if ($policy === 'webhooks') {
-            $scope = 'provider:'.$request->segment(4).'|'.$scope;
+            $scope = 'provider:'.implode('/', array_slice(explode('/', $request->path()), 3, 2)).'|'.$scope;
         }
 
         return $policy.'|'.$scope;
