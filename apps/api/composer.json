@@ -67,7 +67,7 @@
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
         ],
         "dev:db-fresh": [
-            "@php artisan migrate:fresh --force",
+            "@php artisan migrate:fresh",
             "@php artisan db:seed --force --class=ReferenceSeeder"
         ],
         "dev:db-demo": [
