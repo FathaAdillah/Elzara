@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Content\Application\ExpiredUploadCleaner;
+use App\Modules\Content\Application\MediaVersionRelinker;
 use App\Platform\Outbox\OutboxDispatcher;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -47,3 +48,10 @@ Artisan::command('content:media:cleanup', function (ExpiredUploadCleaner $cleane
 })->purpose('Hapus reservasi upload kedaluwarsa beserta seluruh versi staging');
 
 Schedule::command('content:media:cleanup')->hourly()->withoutOverlapping();
+
+Artisan::command('content:media:relink-versions {--dry-run : Laporkan tanpa menulis object_version}', function (MediaVersionRelinker $relinker): int {
+    $result = $relinker->run((bool) $this->option('dry-run'));
+    $this->line(vsprintf('checked=%d unchanged=%d relinked=%d missing=%d mismatched=%d failed=%d', $result));
+
+    return $result['missing'] + $result['mismatched'] + $result['failed'] === 0 ? 0 : 1;
+})->purpose('Tautkan ulang media.object_version ke versi objek terkini setelah restore objek (runbook backup-restore-drill)');

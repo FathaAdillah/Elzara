@@ -145,6 +145,8 @@ jobs:
           MINIO_ROOT_PASSWORD: minioadmin
           ELZARA_S3_ACCESS_KEY: elzara-app
           ELZARA_S3_SECRET_KEY: elzara-test-secret
+          ELZARA_BACKUP_READER_ACCESS_KEY: elzara-backup-reader
+          ELZARA_BACKUP_READER_SECRET_KEY: elzara-backup-test-secret
         run: |
           docker build -f docker/minio/Dockerfile -t elzara/minio:dev .
           docker network create elzara_backend

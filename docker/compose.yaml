@@ -281,6 +281,40 @@ services:
       timeout: 5s
       retries: 1
 
+  # Salinan objek MinIO terenkripsi (rclone crypt) ke tujuan off-node yang sama dengan WAL-G; bukan bucket ketujuh.
+  object-backup:
+    <<: *x-common
+    image: rclone/rclone:1.71.2
+    profiles: [backup]
+    user: "65534:65534"
+    entrypoint: ["/bin/sh", "/opt/object-backup/object-backup.sh", "loop"]
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-elzara-1}
+      ELZARA_BACKUP_READER_ACCESS_KEY: ${ELZARA_BACKUP_READER_ACCESS_KEY:-}
+      ELZARA_BACKUP_READER_SECRET_KEY: ${ELZARA_BACKUP_READER_SECRET_KEY:-}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      BACKUP_S3_FORCE_PATH_STYLE: ${BACKUP_S3_FORCE_PATH_STYLE:-true}
+      OBJECT_BACKUP_S3_PATH: ${OBJECT_BACKUP_S3_PATH:-}
+      OBJECT_BACKUP_CRYPT_PASSWORD: ${OBJECT_BACKUP_CRYPT_PASSWORD:-}
+      OBJECT_BACKUP_CRYPT_SALT: ${OBJECT_BACKUP_CRYPT_SALT:-}
+      OBJECT_BACKUP_INTERVAL_SECONDS: ${OBJECT_BACKUP_INTERVAL_SECONDS:-3600}
+      OBJECT_BACKUP_RETAIN_DAYS: ${OBJECT_BACKUP_RETAIN_DAYS:-30}
+    volumes:
+      - ./object-backup:/opt/object-backup:ro
+    depends_on:
+      minio: { condition: service_healthy }
+    networks: [backend, backup-egress]
+    healthcheck:
+      # Sehat bila sync terakhir < 3x interval, atau loop baru jalan < 3x interval dan belum pernah sukses.
+      test: ["CMD-SHELL", "f=/tmp/last-object-backup-success; [ -f $$f ] || f=/tmp/object-backup-loop-started; [ $$(( $$(date +%s) - $$(cat $$f) )) -lt $$(( 3 * $${OBJECT_BACKUP_INTERVAL_SECONDS:-3600} )) ]"]
+      interval: 5m
+      timeout: 5s
+      retries: 1
+
   prometheus:
     <<: *x-common
     image: prom/prometheus:v3.5.0
