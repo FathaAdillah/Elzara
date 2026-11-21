@@ -47,6 +47,8 @@ Kita juga mewarisi satu jebakan operasional yang disebut Blueprint §11 secara e
 
 **Isolasi staging P0.13:** presigned PUT hanya menargetkan `incoming/<uuid>.<ext>` yang privat di semua bucket. Finalize menyalin VersionId yang tervalidasi ke `published/<uuid>.<ext>` dan menyimpan key/VersionId salinan, lalu menghapus versi staging setelah commit. Kebijakan anonim hanya mencakup `product-media/published/*`; penggunaan ulang URL PUT tidak dapat mengubah objek publik.
 
+`content:media:cleanup` dijadwalkan setiap jam tanpa overlap: reservasi belum finalized berumur lebih dari 30 menit dikunci, seluruh versi/delete marker staging dihapus, lalu baris dihapus. Kegagalan storage mempertahankan baris untuk retry. Lifecycle `incoming/` satu hari (termasuk versi noncurrent dan delete marker yatim) menjadi backstop untuk sisa staging atau PUT ulang setelah finalize.
+
 **Biaya yang jadi nyata:** satu komponen infrastruktur tambahan (MinIO + volume persisten) dengan backup dan uji restore sendiri; pekerjaan async untuk validasi/pemindaian/proses gambar di pool `media` (Blueprint §9); pembersih unggahan yatim; dan dua origin yang harus dikelola di edge.
 
 **Jadi tidak mungkin:** menjanjikan "upload langsung tampil di CDN" sebagai acceptance criterion — antara presigned-PUT selesai dan objek siap lewat edge selalu ada antrean validasi. Janji UX yang benar adalah "sedang diproses", bukan "gagal".

@@ -82,6 +82,13 @@ divalidasi ke `published/`, menyimpan key/VersionId salinan dan menghapus versi
 staging setelah commit. Hanya `product-media/published/*` boleh GET anonim;
 pastikan kebijakan lama `product-media/*` diganti saat menjalankan init ulang.
 
+Scheduler menjalankan `php artisan content:media:cleanup` setiap jam tanpa overlap.
+Perintah ini menghapus reservasi belum finalized yang berumur lebih dari 30 menit,
+termasuk seluruh versi dan delete marker staging. Output `deleted=N failed=N`;
+exit nonzero berarti storage gagal dan baris dipertahankan untuk retry setelah
+storage pulih. Lifecycle `incoming/` satu hari menghapus sisa staging termasuk
+PUT ulang setelah finalize; `published/` tidak terkena aturan ini.
+
 Rilis MinIO source-build tidak mendukung bucket-CORS API. Compose menetapkan
 `MINIO_API_CORS_ALLOW_ORIGIN` ke `ELZARA_EDGE_URL` dan `ELZARA_ADMIN_ORIGIN`, tanpa
 wildcard. `docker/minio/cors/bucket-cors.json` adalah template untuk provider yang

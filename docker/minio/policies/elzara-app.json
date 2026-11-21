@@ -3,6 +3,17 @@
   "Statement": [
     {
       "Effect": "Allow",
+      "Action": ["s3:ListBucketVersions"],
+      "Resource": [
+        "arn:aws:s3:::product-media",
+        "arn:aws:s3:::request-attachments",
+        "arn:aws:s3:::invoice-documents",
+        "arn:aws:s3:::shipment-documents"
+      ],
+      "Condition": {"StringLike": {"s3:prefix": ["incoming/*"]}}
+    },
+    {
+      "Effect": "Allow",
       "Action": ["s3:DeleteObject", "s3:DeleteObjectVersion"],
       "Resource": [
         "arn:aws:s3:::product-media/incoming/*",

@@ -54,6 +54,12 @@ docker run --rm \
     done
     # Hanya published/* boleh dibaca anonim; incoming/* selalu privat.
     ${MC} anonymous set-json /minio/policies/product-media-public.json local/product-media
+    for b in product-media request-attachments invoice-documents shipment-documents; do
+      if ! ${MC} ilm export "local/${b}" 2>/dev/null | grep -q NoncurrentVersionExpiration; then
+        ${MC} ilm rule add --prefix incoming/ --expire-days 1 --noncurrent-expire-days 1 "local/${b}"
+        ${MC} ilm rule add --prefix incoming/ --expire-delete-marker "local/${b}"
+      fi
+    done
     if ! ${MC} ilm rule ls --json local/exports | grep -Eq "\"(days|Days)\"[[:space:]]*:[[:space:]]*7([,}])"; then
       ${MC} ilm rule add --expire-days 7 local/exports
     fi

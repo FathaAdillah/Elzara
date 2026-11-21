@@ -10,6 +10,7 @@ use Aws\Exception\AwsException;
 use Aws\S3\S3Client;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -173,6 +174,59 @@ final class MediaUploadTest extends TestCase
         }
     }
 
+    public function test_cleanup_deletes_expired_staging_versions_but_preserves_recent_and_finalized_media(): void
+    {
+        $expired = $this->presign();
+        $this->uploadObject($expired, '%PDF-1.7 old version');
+        $this->uploadObject($expired, '%PDF-1.7 new version');
+        $client = app(BrowserPresigner::class)->client();
+        $client->deleteObject(['Bucket' => 'request-attachments', 'Key' => $expired['object_key']]);
+        $neighbor = $expired['object_key'].'.neighbor';
+        $client->putObject(['Bucket' => 'request-attachments', 'Key' => $neighbor, 'Body' => '%PDF-1.7 neighbor']);
+        $missing = $this->presign();
+        $recent = $this->presign();
+        $this->uploadObject($recent, '%PDF-1.7 recent');
+        $finalized = $this->presign();
+        $this->uploadObject($finalized, '%PDF-1.7 finalized');
+        $this->request('/api/v1/admin/media/'.$finalized['media_id'].'/finalize')->assertOk();
+        Media::query()->whereIn('id', [$expired['media_id'], $missing['media_id'], $finalized['media_id']])->update(['created_at' => now()->subMinutes(31)]);
+
+        $this->artisan('content:media:cleanup')->expectsOutput('deleted=2 failed=0')->assertExitCode(0);
+        $this->assertDatabaseMissing('media', ['id' => $expired['media_id']]);
+        $this->assertDatabaseMissing('media', ['id' => $missing['media_id']]);
+        $this->assertDatabaseHas('media', ['id' => $recent['media_id'], 'sha256' => null]);
+        $versions = $client->listObjectVersions(['Bucket' => 'request-attachments', 'Prefix' => $expired['object_key']]);
+        $this->assertSame([$neighbor], array_column($versions['Versions'] ?? [], 'Key'));
+        $this->assertEmpty($versions['DeleteMarkers']);
+        $this->assertSame('%PDF-1.7 recent', (string) $client->getObject(['Bucket' => 'request-attachments', 'Key' => $recent['object_key']])['Body']);
+        $signed = $this->request('/api/v1/admin/media/'.$finalized['media_id'].'/sign')->assertOk()->json('download_url');
+        $this->assertSame('%PDF-1.7 finalized', (string) $this->browser()->get($signed)->getBody());
+        $this->artisan('content:media:cleanup')->expectsOutput('deleted=0 failed=0')->assertExitCode(0);
+    }
+
+    public function test_cleanup_storage_failure_preserves_the_reservation_for_retry(): void
+    {
+        $upload = $this->presign();
+        $this->uploadObject($upload, '%PDF-1.7 retry cleanup');
+        Media::query()->whereKey($upload['media_id'])->update(['created_at' => now()->subMinutes(31)]);
+        $endpoint = config('filesystems.s3.internal_endpoint');
+        config(['filesystems.s3.internal_endpoint' => 'http://127.0.0.1:1']);
+        $this->artisan('content:media:cleanup')->expectsOutput('deleted=0 failed=1')->assertExitCode(1);
+        $this->assertDatabaseHas('media', ['id' => $upload['media_id'], 'sha256' => null]);
+        config(['filesystems.s3.internal_endpoint' => $endpoint]);
+        $this->artisan('content:media:cleanup')->expectsOutput('deleted=1 failed=0')->assertExitCode(0);
+        $this->assertDatabaseMissing('media', ['id' => $upload['media_id']]);
+    }
+
+    public function test_cleanup_empty_batch_and_hourly_schedule(): void
+    {
+        $this->artisan('content:media:cleanup')->expectsOutput('deleted=0 failed=0')->assertExitCode(0);
+        $events = array_values(array_filter(app(Schedule::class)->events(), fn ($event) => str_contains($event->command ?? '', 'content:media:cleanup')));
+        $this->assertCount(1, $events);
+        $this->assertSame('0 * * * *', $events[0]->expression);
+        $this->assertTrue($events[0]->withoutOverlapping);
+    }
+
     public function test_expired_upload_and_auth_csrf_idempotency_guards(): void
     {
         $upload = $this->presign();
@@ -203,6 +257,11 @@ final class MediaUploadTest extends TestCase
             $url = config('filesystems.s3.presign_endpoint').'/'.$bucket.'/'.$key;
             $this->assertSame($bucket === 'product-media' ? 200 : 403, $this->browser()->get($url)->getStatusCode(), $bucket);
             $this->assertSame('Enabled', $root->getBucketVersioning(['Bucket' => $bucket])['Status']);
+            if (in_array($bucket, config('media.upload_buckets'), true)) {
+                $rules = $root->getBucketLifecycleConfiguration(['Bucket' => $bucket])['Rules'];
+                $this->assertContains('incoming/', array_map(fn ($rule) => $rule['Filter']['Prefix'] ?? $rule['Prefix'] ?? null, $rules));
+                $this->assertContains(1, array_column(array_column($rules, 'NoncurrentVersionExpiration'), 'NoncurrentDays'));
+            }
         }
         $origin = config('filesystems.s3.presign_endpoint');
         $this->assertSame(403, $this->browser()->get($origin.'/product-media?list-type=2')->getStatusCode());
