@@ -21,7 +21,7 @@ const destinations = [
  */
 export default function HomePage() {
   return (
-    <main id="konten" className="mx-auto flex max-w-content flex-col gap-3 p-6">
+    <main id="konten" tabIndex={-1} className="mx-auto flex max-w-content flex-col gap-3 p-6">
       <h1 className="text-3xl font-semibold text-ink">{brand.name}</h1>
       <p className="max-w-prose text-sm text-ink-muted">
         Kerangka Sprint 0 — belum ada blok konten. Beranda dibangun dari modul Content
