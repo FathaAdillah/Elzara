@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Platform;
 
+use App\Platform\Infrastructure\Database\EnumCheckConstraint;
 use App\Platform\StateMachine\Axis;
 use App\Platform\StateMachine\InvalidTransition;
 use App\Platform\StateMachine\StateMachineRunner;
@@ -45,6 +46,10 @@ final class StateMachineTransitionTest extends TestCase
             next_status varchar NOT NULL,
             reason varchar NOT NULL
         )');
+        $checks = new EnumCheckConstraint(DB::connection(self::CONNECTION));
+        foreach (Axis::cases() as $axis) {
+            $checks->addAxis(self::TABLE, $axis);
+        }
         $this->database->table(self::TABLE)->insert([
             'id' => 1,
             'order_status' => 'awaiting_payment',

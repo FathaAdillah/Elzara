@@ -1667,7 +1667,7 @@ settings                                  [Settings]
   value jsonb NOT NULL                    {"v": ...} — dibungkus supaya `null` sah
   is_public boolean NOT NULL DEFAULT false  boleh dibaca storefront tanpa login
   description varchar(240), default_value jsonb NOT NULL
-  updated_by bigint NOT NULL REFERENCES users(id)
+  updated_by bigint REFERENCES users(id)  NULL = system
   --
   CHECK (value_type IN ('string','int','bool','decimal','json'))
   idx settings_group (group_name)
