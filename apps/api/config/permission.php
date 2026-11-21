@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Modules\Identity\Infrastructure\Models\Permission;
+use App\Modules\Identity\Infrastructure\Models\Role;
 use Spatie\Permission\DefaultTeamResolver;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 return [
     'models' => [
@@ -26,7 +26,7 @@ return [
         'model_morph_key' => 'model_id',
         'team_foreign_key' => 'team_id',
     ],
-    'register_permission_check_method' => true,
+    'register_permission_check_method' => false,
     'register_octane_reset_listener' => false,
     'events_enabled' => false,
     'teams' => false,

@@ -611,6 +611,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{user}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read operator roles, scopes, direct and effective permissions. */
+        get: operations["adminUserAccessGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Grant an admin permission directly; target must be an operator. Self-change and escalation are forbidden. */
+        post: operations["adminUserPermissionGrant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user}/permissions/{permission}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Revoke a direct permission. Send the required reason in the JSON request body. */
+        delete: operations["adminUserPermissionRevoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Assign an admin role and optionally add a batch, category or warehouse scope. Omitted scope means global. */
+        post: operations["adminUserRoleAssign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user}/roles/{role}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Revoke a role and all its scopes. Send the required reason in the JSON request body. */
+        delete: operations["adminUserRoleRevoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/auth/session": {
         parameters: {
             query?: never;
@@ -666,6 +751,36 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AdminAccessReason: {
+            reason: string;
+        };
+        AdminPermissionGrant: {
+            permission: string;
+            reason: string;
+        };
+        /** @description Both scope fields must be null/omitted together or contain a valid type and positive ID. */
+        AdminRoleAssignment: {
+            role: string;
+            reason: string;
+            /** @enum {string|null} */
+            scope_type?: "batch" | "category" | "warehouse" | null;
+            scope_id?: number | null;
+        };
+        AdminUserAccess: {
+            is_admin: boolean;
+            /** @description Sorted effective permission names; is_admin bypass is represented separately. */
+            permissions: string[];
+            direct_permissions: string[];
+            roles: {
+                role: string;
+                /** @description An empty list or a null scope row means global access for this role. */
+                scopes: {
+                    /** @enum {string|null} */
+                    scope_type: "batch" | "category" | "warehouse" | null;
+                    scope_id: number | null;
+                }[];
+            }[];
+        };
         MediaPresignResult: {
             /**
              * Format: uri
@@ -848,6 +963,22 @@ export interface components {
         };
     };
     responses: {
+        /** @description Current access state. No-store; mutations are audited and replayable. */
+        AdminAccess: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["AdminUserAccess"];
+            };
+        };
         /** @description Error RFC 7807 (application/problem+json) dengan X-Request-Id. */
         Problem: {
             headers: {
@@ -881,6 +1012,10 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Public user ULID, never the internal numeric identifier. */
+        AccessUser: string;
+        /** @description UUID v4. Identical requests replay for 24 hours; changed payload returns 409. */
+        AccessIdempotencyKey: string;
         /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
         XsrfToken: string;
         Limit: number;
@@ -2312,11 +2447,164 @@ export interface operations {
                     "application/json": {
                         /** @constant */
                         authenticated: true;
+                        /** @description Sorted effective admin permission names. */
+                        permissions: string[];
+                        is_admin: boolean;
                         user: components["schemas"]["AuthUserRead"];
                     };
                 };
             };
             401: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUserAccessGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Public user ULID, never the internal numeric identifier. */
+                user: components["parameters"]["AccessUser"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["AdminAccess"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUserPermissionGrant: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4. Identical requests replay for 24 hours; changed payload returns 409. */
+                "Idempotency-Key": components["parameters"]["AccessIdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                /** @description Public user ULID, never the internal numeric identifier. */
+                user: components["parameters"]["AccessUser"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPermissionGrant"];
+            };
+        };
+        responses: {
+            200: components["responses"]["AdminAccess"];
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUserPermissionRevoke: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4. Identical requests replay for 24 hours; changed payload returns 409. */
+                "Idempotency-Key": components["parameters"]["AccessIdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                /** @description Public user ULID, never the internal numeric identifier. */
+                user: components["parameters"]["AccessUser"];
+                permission: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAccessReason"];
+            };
+        };
+        responses: {
+            200: components["responses"]["AdminAccess"];
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUserRoleAssign: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4. Identical requests replay for 24 hours; changed payload returns 409. */
+                "Idempotency-Key": components["parameters"]["AccessIdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                /** @description Public user ULID, never the internal numeric identifier. */
+                user: components["parameters"]["AccessUser"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRoleAssignment"];
+            };
+        };
+        responses: {
+            200: components["responses"]["AdminAccess"];
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUserRoleRevoke: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4. Identical requests replay for 24 hours; changed payload returns 409. */
+                "Idempotency-Key": components["parameters"]["AccessIdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                /** @description Public user ULID, never the internal numeric identifier. */
+                user: components["parameters"]["AccessUser"];
+                role: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAccessReason"];
+            };
+        };
+        responses: {
+            200: components["responses"]["AdminAccess"];
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
             429: components["responses"]["RateLimited"];
@@ -2346,6 +2634,9 @@ export interface operations {
                     "application/json": {
                         /** @constant */
                         authenticated: true;
+                        /** @description Sorted effective admin permission names. */
+                        permissions: string[];
+                        is_admin: boolean;
                         user: components["schemas"]["AuthUserRead"];
                     };
                 };
