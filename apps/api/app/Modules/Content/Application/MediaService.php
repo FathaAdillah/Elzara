@@ -7,6 +7,7 @@ namespace App\Modules\Content\Application;
 use App\Modules\Content\Infrastructure\Models\Media;
 use App\Modules\Content\Infrastructure\Storage\BrowserPresigner;
 use App\Platform\Domain\Exception\MediaValidationFailed;
+use App\Platform\Http\WireTime;
 use App\Platform\Outbox\DomainEvent;
 use App\Platform\Outbox\OutboxWriter;
 use Aws\Exception\AwsException;
@@ -22,7 +23,7 @@ final class MediaService
 {
     public function __construct(private readonly BrowserPresigner $presigner, private readonly MagicByteValidator $validator, private readonly OutboxWriter $outbox) {}
 
-    /** @return array{upload_url: string, object_key: string, media_id: int, expires_at: string|null} */
+    /** @return array{upload_url: string, object_key: string, media_id: int, expires_at: string} */
     public function presign(int $actor, string $bucket, string $mime, string $kind, int $size): array
     {
         if (! in_array($bucket, Config::array('media.upload_buckets'), true) || ! in_array($mime, Config::array('media.allowed_mime'), true) || $size < 1 || $size > Config::integer('media.max_bytes')) {
@@ -39,7 +40,7 @@ final class MediaService
             'kind' => $kind, 'disk' => $bucket, 'path' => $key, 'mime' => $mime,
         ]);
 
-        return ['upload_url' => $url, 'object_key' => $key, 'media_id' => $media->id, 'expires_at' => now()->addSeconds(600)->toISOString()];
+        return ['upload_url' => $url, 'object_key' => $key, 'media_id' => $media->id, 'expires_at' => WireTime::format(now()->addSeconds(600))];
     }
 
     /** @return array{media_id: int, sha256: string|null} */
@@ -122,7 +123,7 @@ final class MediaService
         });
     }
 
-    /** @return array{download_url: string, expires_at: string|null} */
+    /** @return array{download_url: string, expires_at: string} */
     public function sign(int $actor, int $id): array
     {
         $media = $this->owned($actor, $id)->firstOrFail();
@@ -130,7 +131,7 @@ final class MediaService
             throw new MediaValidationFailed('media.not_validated');
         }
 
-        return ['download_url' => $this->presigner->get($media->disk, $media->path, $media->object_version), 'expires_at' => now()->addSeconds(120)->toISOString()];
+        return ['download_url' => $this->presigner->get($media->disk, $media->path, $media->object_version), 'expires_at' => WireTime::format(now()->addSeconds(120))];
     }
 
     /** @return Builder<Media> */

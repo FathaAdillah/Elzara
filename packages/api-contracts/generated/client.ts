@@ -950,6 +950,11 @@ export interface operations {
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -961,6 +966,7 @@ export interface operations {
             409: components["responses"]["Problem"];
             419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
             500: components["responses"]["Problem"];
         };
     };
@@ -978,12 +984,21 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
         responses: {
             /** @description Validated metadata; not yet approved moderation */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1000,6 +1015,7 @@ export interface operations {
             409: components["responses"]["Problem"];
             419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
             500: components["responses"]["Problem"];
         };
     };
@@ -1015,12 +1031,21 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
         responses: {
             /** @description Short-lived signed download */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1036,6 +1061,7 @@ export interface operations {
             404: components["responses"]["Problem"];
             419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     publicFeatureFlags: {

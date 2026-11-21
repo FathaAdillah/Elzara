@@ -8,6 +8,7 @@ use App\Modules\Content\Application\Commands\FinalizeMediaUpload;
 use App\Modules\Content\Application\Commands\PresignMediaUpload;
 use App\Modules\Content\Application\Commands\SignMediaDownload;
 use App\Modules\Content\Application\MediaService;
+use App\Platform\Http\StrictValidation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,7 @@ final class MediaController
     public function presign(Request $request): JsonResponse
     {
         /** @var array{bucket: string, mime: string, kind: string, size_bytes: int} $data */
-        $data = $request->validate([
+        $data = StrictValidation::validate($request, [
             'bucket' => 'required|string', 'mime' => 'required|string',
             'kind' => 'required|in:image,file,icon,label_pdf,proof,attachment', 'size_bytes' => 'required|integer|min:1',
         ]);
@@ -28,11 +29,15 @@ final class MediaController
 
     public function finalize(Request $request, int $media_id): JsonResponse
     {
+        StrictValidation::validate($request, []);
+
         return response()->json((new FinalizeMediaUpload($request->attributes->getInt('media_actor'), $media_id))->handle($this->media))->header('Cache-Control', 'no-store');
     }
 
     public function sign(Request $request, int $media_id): JsonResponse
     {
+        StrictValidation::validate($request, []);
+
         return response()->json((new SignMediaDownload($request->attributes->getInt('media_actor'), $media_id))->handle($this->media))->header('Cache-Control', 'no-store');
     }
 }

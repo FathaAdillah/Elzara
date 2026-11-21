@@ -46,6 +46,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [bucket, mime, kind, size_bytes]
               properties:
                 bucket: { type: string, enum: [product-media, request-attachments, invoice-documents, shipment-documents] }
@@ -55,7 +56,13 @@ paths:
       responses:
         "200":
           description: "Reserved upload; response and URL must not be cached. Replaying an expired reservation requires a new Idempotency-Key."
-          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/MediaPresignResult" }
@@ -64,6 +71,7 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         "419": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
         "500": { $ref: "#/components/responses/Problem" }
   /admin/media/{media_id}/finalize:
     post:
@@ -77,10 +85,20 @@ paths:
         - { name: media_id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
         - { $ref: "#/components/parameters/IdempotencyKey" }
         - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
       responses:
         "200":
           description: Validated metadata; not yet approved moderation
-          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
           content:
             application/json:
               schema:
@@ -95,6 +113,7 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         "419": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
         "500": { $ref: "#/components/responses/Problem" }
   /admin/media/{media_id}/sign:
     post:
@@ -107,10 +126,20 @@ paths:
       parameters:
         - { name: media_id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
         - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
       responses:
         "200":
           description: Short-lived signed download
-          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
           content:
             application/json:
               schema:
@@ -118,11 +147,12 @@ paths:
                 required: [download_url, expires_at]
                 properties:
                   download_url: { type: string, format: uri }
-                  expires_at: { type: string, format: date-time }
+                  expires_at: { type: string, format: date-time, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$' }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "419": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
   /feature-flags:
     get:
       operationId: publicFeatureFlags
@@ -1382,7 +1412,7 @@ components:
         upload_url: { type: string, format: uri, description: "Signed against MINIO_PUBLIC_ENDPOINT (default https://storage.localhost), never the internal Docker hostname. PUT with the declared Content-Type. TTL 600 seconds." }
         object_key: { type: string, pattern: "^incoming/[0-9a-f-]{36}\\.(jpg|png|webp|pdf)$" }
         media_id: { type: integer, format: int64 }
-        expires_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$' }
     FeatureFlagPublic:
       type: object
       additionalProperties: false

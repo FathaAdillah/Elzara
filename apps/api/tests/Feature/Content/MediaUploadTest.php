@@ -57,6 +57,7 @@ final class MediaUploadTest extends TestCase
     {
         $bytes = '%PDF-1.7 live upload';
         $upload = $this->presign();
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/', $upload['expires_at']);
         $this->assertSame('storage.localhost', parse_url($upload['upload_url'], PHP_URL_HOST));
         $this->assertMatchesRegularExpression('#^/request-attachments/incoming/[0-9a-f-]{36}\.pdf$#', parse_url($upload['upload_url'], PHP_URL_PATH));
         $this->assertStringContainsString('X-Amz-Expires=600', $upload['upload_url']);
@@ -70,7 +71,9 @@ final class MediaUploadTest extends TestCase
         $this->request($path.'/finalize')->assertOk();
         $this->assertSame(1, DB::table('outbox_events')->where('event_name', 'MediaValidated')->where('aggregate_id', $upload['media_id'])->count());
         $this->assertDatabaseHas('media', ['id' => $upload['media_id'], 'size_bytes' => strlen($bytes), 'is_moderated' => true, 'moderation_status' => 'pending']);
-        $signed = $this->request($path.'/sign')->assertOk()->json('download_url');
+        $download = $this->request($path.'/sign')->assertOk()->json();
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/', $download['expires_at']);
+        $signed = $download['download_url'];
         $this->assertStringContainsString('X-Amz-Expires=120', $signed);
         $this->assertStringContainsString('versionId=', $signed);
         $this->assertSame($bytes, (string) $this->browser()->get($signed)->getBody());
@@ -78,6 +81,38 @@ final class MediaUploadTest extends TestCase
         $this->assertSame($bytes, (string) $this->browser()->get($signed)->getBody());
         $unsigned = strtok($signed, '?');
         $this->assertSame(403, $this->browser()->get($unsigned)->getStatusCode());
+    }
+
+    public function test_media_requests_reject_missing_required_and_unknown_fields(): void
+    {
+        $this->request('/api/v1/admin/media/presign')->assertUnprocessable()->assertJsonPath('code', 'VALIDATION_FAILED');
+        foreach (['presign', '123/finalize', '123/sign'] as $path) {
+            $this->request('/api/v1/admin/media/'.$path, ['unexpected' => true] + ($path === 'presign' ? $this->payload() : []))
+                ->assertUnprocessable()->assertJsonPath('code', 'VALIDATION_FAILED')
+                ->assertJsonPath('errors.0.pointer', '/unexpected')->assertJsonPath('errors.0.code', 'unknown_field');
+            $this->request('/api/v1/admin/media/'.$path.'?unexpected=1', $path === 'presign' ? $this->payload() : [])
+                ->assertUnprocessable()->assertJsonPath('errors.0.pointer', '/unexpected');
+        }
+        $this->assertDatabaseCount('media', 0);
+    }
+
+    public function test_media_routes_share_the_admin_rate_policy_and_throttle_without_side_effects(): void
+    {
+        config(['api.rate_limits.admin' => 2]);
+        $upload = $this->request('/api/v1/admin/media/presign', $this->payload())->assertOk()
+            ->assertHeader('X-RateLimit-Limit', '2')->assertHeader('X-RateLimit-Remaining', '1')->assertHeader('X-RateLimit-Policy', 'admin')->json();
+        $path = '/api/v1/admin/media/'.$upload['media_id'];
+        $this->request($path.'/sign')->assertUnprocessable()->assertHeader('X-RateLimit-Remaining', '0');
+        foreach (['/api/v1/admin/media/presign', $path.'/finalize', $path.'/sign'] as $url) {
+            $response = $this->request($url, $url === '/api/v1/admin/media/presign' ? $this->payload() : [])->assertStatus(429)
+                ->assertHeader('Retry-After')->assertHeader('X-RateLimit-Limit', '2')->assertHeader('X-RateLimit-Remaining', '0')
+                ->assertHeader('X-RateLimit-Policy', 'admin')->assertJsonPath('type', 'urn:elzara:problem:rate-limit:exceeded');
+            $this->assertGreaterThanOrEqual(1, (int) $response->headers->get('Retry-After'));
+            $this->assertGreaterThanOrEqual(time(), (int) $response->headers->get('X-RateLimit-Reset'));
+        }
+        $this->assertDatabaseCount('media', 1);
+        $this->assertDatabaseHas('media', ['id' => $upload['media_id'], 'path' => $upload['object_key'], 'sha256' => null]);
+        $this->assertSame(0, DB::table('outbox_events')->where('event_name', 'MediaValidated')->where('aggregate_id', $upload['media_id'])->count());
     }
 
     #[DataProvider('invalidObjects')]
