@@ -8,9 +8,9 @@ use App\Modules\Identity\Infrastructure\Http\SocialAccountResolver;
 use App\Modules\Identity\Infrastructure\Mail\OneTimeCodeMail;
 use App\Modules\Identity\Infrastructure\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Laravel\Socialite\Facades\Socialite;
@@ -33,8 +33,7 @@ final class StorefrontAuthTest extends TestCase
     {
         parent::setUp();
         Mail::fake();
-        config(['cache.default' => 'array']);
-        RateLimiter::clear('');
+        Cache::flush();
     }
 
     public function test_register_requires_csrf_opens_web_session_and_records_event(): void
@@ -218,6 +217,79 @@ final class StorefrontAuthTest extends TestCase
         $fresh = $resolver->resolve('x', 'x-2', null, false, 'No Email', null);
         $this->assertStringEndsWith('@users.invalid', $fresh->email);
         $this->assertFalse((bool) $fresh->is_operator);
+    }
+
+    public function test_login_lockout_counts_failures_per_account_and_relogin_replaces_the_device_row(): void
+    {
+        $email = $this->account();
+        $jar = $this->browser();
+        for ($i = 0; $i < 10; $i++) {
+            $this->send($jar, 'POST', '/api/v1/auth/login', ['email' => $email, 'password' => 'wrong-password'])->assertUnauthorized();
+        }
+        $this->send($jar, 'POST', '/api/v1/auth/login', ['email' => $email, 'password' => self::PASSWORD])->assertStatus(429);
+
+        $other = $this->account();
+        $jar = $this->signedIn($other);
+        $this->send($jar, 'POST', '/api/v1/auth/login', ['email' => $other, 'password' => self::PASSWORD])->assertOk();
+        $this->send($jar, 'GET', '/api/v1/me/sessions')->assertOk()->assertJsonCount(1, 'data');
+        $this->assertSame(1, DB::table('user_sessions')->where('user_id', $this->id($other))->whereNull('revoked_at')->count());
+    }
+
+    public function test_mailbox_owner_proving_email_by_otp_evicts_the_unverified_registrant(): void
+    {
+        $email = $this->account();
+        $registrant = $this->signedIn($email);
+
+        $owner = $this->browser();
+        $this->send($owner, 'POST', '/api/v1/auth/otp/request', ['email' => $email, 'channel' => 'email', 'purpose' => 'login'])->assertOk();
+        $this->send($owner, 'POST', '/api/v1/auth/otp/verify', ['email' => $email, 'purpose' => 'login', 'code' => $this->mailedSecret('login')])->assertOk();
+
+        $this->assertNull(DB::table('users')->where('email', $email)->value('password_hash'));
+        $this->assertNotNull(DB::table('users')->where('email', $email)->value('email_verified_at'));
+        $this->send($registrant, 'GET', '/api/v1/me/sessions')->assertUnauthorized();
+        $this->sendFresh('POST', '/api/v1/auth/login', ['email' => $email, 'password' => self::PASSWORD])->assertUnauthorized();
+        $this->send($owner, 'GET', '/api/v1/me/sessions')->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_registrant_verifying_in_their_own_session_keeps_password_and_session(): void
+    {
+        $email = strtolower((string) Str::ulid()).'@example.test';
+        $jar = $this->browser();
+        $this->send($jar, 'POST', '/api/v1/auth/register', ['name' => 'Rina', 'email' => $email, 'password' => self::PASSWORD])->assertCreated();
+        $this->send($jar, 'POST', '/api/v1/auth/otp/verify', ['email' => $email, 'purpose' => 'verify_email', 'code' => $this->mailedSecret('verify_email')])->assertOk();
+
+        $this->assertNotNull(DB::table('users')->where('email', $email)->value('password_hash'));
+        $this->send($jar, 'GET', '/api/v1/me/sessions')->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_strict_input_and_password_byte_limit(): void
+    {
+        $jar = $this->browser();
+        $email = strtolower((string) Str::ulid()).'@example.test';
+        $this->send($jar, 'POST', '/api/v1/auth/register', ['name' => 'Rina', 'email' => $email, 'password' => self::PASSWORD, 'is_admin' => true])
+            ->assertUnprocessable()->assertJsonPath('errors.0.pointer', '/is_admin');
+        $this->send($jar, 'POST', '/api/v1/auth/register', ['name' => 'Rina', 'email' => $email, 'password' => str_repeat('é', 37)])
+            ->assertUnprocessable();
+        $this->assertFalse(DB::table('users')->where('email', $email)->exists());
+    }
+
+    public function test_social_sign_in_on_a_shared_browser_switches_account_instead_of_linking(): void
+    {
+        $alice = $this->account(verified: true);
+        $jar = $this->signedIn($alice);
+        $social = (new SocialiteUser)->setRaw(['email_verified' => true])->map([
+            'id' => 'g-'.Str::random(10), 'name' => 'Bob', 'email' => strtolower((string) Str::ulid()).'@example.test',
+        ]);
+        $provider = Mockery::mock();
+        $provider->shouldReceive('user')->andReturn($social);
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        $this->send($jar, 'GET', '/api/v1/auth/social/google/callback?code=abc&state=xyz')->assertRedirect(url('/account'));
+
+        $owner = DB::table('user_identities')->where('provider_user_id', $social->getId())->value('user_id');
+        $this->assertNotSame($this->id($alice), (int) $owner);
+        $this->assertSame(0, DB::table('user_sessions')->where('user_id', $this->id($alice))->whereNull('revoked_at')->count());
+        $this->send($jar, 'GET', '/api/v1/me/sessions')->assertOk()->assertJsonCount(1, 'data');
     }
 
     private function assertConflict(callable $callback): void

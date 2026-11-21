@@ -422,7 +422,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Redirect OAuth untuk login DAN registrasi: google (driver bawaan laravel/socialite) atau x (socialiteproviders/twitter, OAuth 2.0; driver twitter bawaan Socialite adalah OAuth 1.0a yang sudah ditinggalkan X dan tidak dipakai). State OAuth diterbitkan di sini dan wajib divalidasi di callback. */
+        /** @description Redirect OAuth untuk login DAN registrasi: google atau x (keduanya driver OAuth 2.0 bawaan laravel/socialite; X memakai PKCE). State OAuth diterbitkan di sini dan wajib divalidasi di callback. Tanpa intent=link, callback selalu membuka sesi untuk akun milik identitas sosial itu (sesi lain di browser ditutup), tidak pernah menautkan ke akun yang sedang terbuka. */
         get: operations["redirectSocialLogin"];
         put?: never;
         post?: never;
@@ -1641,6 +1641,7 @@ export interface operations {
                     name: string;
                     /** Format: email */
                     email: string;
+                    /** @description Maksimal 72 byte UTF-8 (batas bcrypt); lebih panjang ditolak 422. */
                     password: string;
                     /**
                      * @default id
@@ -1817,7 +1818,10 @@ export interface operations {
     };
     redirectSocialLogin: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description link = tautkan identitas ke akun yang sedang masuk */
+                intent?: "link";
+            };
             header?: never;
             path: {
                 provider: "google" | "x";
@@ -1976,6 +1980,7 @@ export interface operations {
             content: {
                 "application/json": {
                     token: string;
+                    /** @description Maksimal 72 byte UTF-8 (batas bcrypt); lebih panjang ditolak 422. */
                     password: string;
                 };
             };

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Identity\Infrastructure\Http;
 
 use App\Modules\Identity\Infrastructure\Models\User;
+use App\Platform\Http\WireTime;
 use App\Platform\Outbox\DomainEvent;
 use App\Platform\Outbox\OutboxWriter;
 use Carbon\CarbonImmutable;
@@ -37,10 +38,22 @@ final class StorefrontAccounts
                 'user_id' => $user->public_id,
                 'email_verified_at' => null,
                 'locale' => $locale,
-                'created_at' => CarbonImmutable::now()->toIso8601ZuluString(),
+                'created_at' => WireTime::format(CarbonImmutable::now()),
             ]));
 
             return $user;
+        });
+    }
+
+    // Bila kepemilikan email dibuktikan di luar sesi pendaftar, kata sandi yang dipasang
+    // sebelum verifikasi dan semua sesinya dicabut: pemilik kotak surat memegang akun sendirian.
+    public function markEmailVerified(User $user, bool $revokeExisting): void
+    {
+        DB::transaction(function () use ($user, $revokeExisting): void {
+            $user->forceFill(['email_verified_at' => now()] + ($revokeExisting ? ['password_hash' => null] : []))->save();
+            if ($revokeExisting) {
+                $this->revokeSessions($user);
+            }
         });
     }
 
@@ -49,10 +62,15 @@ final class StorefrontAccounts
     {
         DB::transaction(function () use ($user, $password): void {
             $user->forceFill(['password_hash' => Hash::make($password)])->save();
-            DB::table('user_sessions')
-                ->where('user_id', $user->getKey())
-                ->whereNull('revoked_at')
-                ->update(['revoked_at' => now(), 'updated_at' => now()]);
+            $this->revokeSessions($user);
         });
+    }
+
+    private function revokeSessions(User $user): void
+    {
+        DB::table('user_sessions')
+            ->where('user_id', $user->getKey())
+            ->whereNull('revoked_at')
+            ->update(['revoked_at' => now(), 'updated_at' => now()]);
     }
 }

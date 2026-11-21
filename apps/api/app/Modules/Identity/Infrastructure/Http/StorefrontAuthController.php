@@ -6,6 +6,8 @@ namespace App\Modules\Identity\Infrastructure\Http;
 
 use App\Modules\Identity\Infrastructure\Mail\OneTimeCodeMail;
 use App\Modules\Identity\Infrastructure\Models\User;
+use App\Platform\Http\StrictValidation;
+use App\Platform\Http\WireTime;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +23,9 @@ final class StorefrontAuthController
 {
     private const OTP_PURPOSES = ['login', 'verify_email'];
 
+    // bcrypt mengabaikan byte setelah ke-72; kata sandi lebih panjang ditolak, bukan dipotong diam-diam.
+    private const PASSWORD_MAX_BYTES = 72;
+
     private const DUMMY_PASSWORD = '$2y$12$4Oe8Yfb9YvX1t0Yb1o5Ywu1NnH6eQ3m5yJc3o5n2kJ8l9q2r0s1tC';
 
     public function __construct(
@@ -32,13 +37,14 @@ final class StorefrontAuthController
     public function register(Request $request): JsonResponse
     {
         /** @var array{name: string, email: string, password: string, locale?: string} $data */
-        $data = $request->validate([
-            'name' => ['required', 'string', 'min:2', 'max:120'],
-            'email' => ['required', 'string', 'email', 'max:254'],
-            'password' => ['required', 'string', 'min:8', 'max:128'],
-            'locale' => ['sometimes', 'string', 'in:id,en'],
+        $data = StrictValidation::validate($request, [
+            'name' => 'required|string|min:2|max:120',
+            'email' => 'required|string|email|max:254',
+            'password' => 'required|string|min:8|max:72',
+            'locale' => 'sometimes|string|in:id,en',
         ]);
-        $this->limit($request, 'register', (string) $request->ip(), 10);
+        $this->assertPasswordFits($data['password']);
+        $this->limit('register', (string) $request->ip(), 10);
 
         $user = $this->accounts->register($data['name'], $data['email'], $data['password'], $data['locale'] ?? 'id');
 
@@ -51,12 +57,11 @@ final class StorefrontAuthController
     public function login(Request $request): JsonResponse
     {
         /** @var array{email: string, password: string} $data */
-        $data = $request->validate([
-            'email' => ['required', 'string', 'email', 'max:254'],
-            'password' => ['required', 'string', 'min:1', 'max:128'],
+        $data = StrictValidation::validate($request, [
+            'email' => 'required|string|email|max:254',
+            'password' => 'required|string|min:1|max:128',
         ]);
-        $key = 'web-login:'.Str::lower($data['email']).'|'.$request->ip();
-        $this->limit($request, 'web-login', $key, 10, consume: false);
+        $key = $this->limit('web-login', Str::lower($data['email']).'|'.$request->ip(), 10, consume: false);
 
         $user = $this->activeUserByEmail($data['email']);
         $passwordHash = $user?->getAuthPassword();
@@ -82,38 +87,40 @@ final class StorefrontAuthController
     public function requestOtp(Request $request): JsonResponse
     {
         /** @var array{email: string, channel: string, purpose: string} $data */
-        $data = $request->validate([
-            'email' => ['required', 'string', 'email', 'max:254'],
-            'channel' => ['required', 'string', 'in:email,whatsapp,sms'],
-            'purpose' => ['required', 'string', 'in:login,reset_password,verify_phone,verify_email'],
+        $data = StrictValidation::validate($request, [
+            'email' => 'required|string|email|max:254',
+            'channel' => 'required|string|in:email,whatsapp,sms',
+            'purpose' => 'required|string|in:login,reset_password,verify_phone,verify_email',
         ]);
         $this->assertOtpSupported($data['purpose'], $data['channel']);
-        $this->limit($request, 'otp-request', Str::lower($data['email']).'|'.$request->ip(), 5);
+        $this->limit('otp-request', Str::lower($data['email']).'|'.$request->ip(), 5);
 
         $user = $this->activeUserByEmail($data['email']);
         $expiresAt = $user !== null && ! ($data['purpose'] === 'verify_email' && $user->email_verified_at !== null)
             ? $this->sendOtp($user, $data['purpose'])
-            : CarbonImmutable::now()->addMinutes(OneTimeSecrets::OTP_TTL_MINUTES);
+            : $this->secrets->simulateIssue(OneTimeSecrets::OTP_TTL_MINUTES);
 
-        return response()->json(['sent' => true, 'expires_at' => $expiresAt->toIso8601ZuluString()]);
+        return response()->json(['sent' => true, 'expires_at' => WireTime::format($expiresAt)]);
     }
 
     public function verifyOtp(Request $request): JsonResponse
     {
         /** @var array{email: string, purpose: string, code: string} $data */
-        $data = $request->validate([
-            'email' => ['required', 'string', 'email', 'max:254'],
-            'purpose' => ['required', 'string', 'in:login,reset_password,verify_phone,verify_email'],
-            'code' => ['required', 'string', 'regex:/^[0-9]{6}$/'],
+        $data = StrictValidation::validate($request, [
+            'email' => 'required|string|email|max:254',
+            'purpose' => 'required|string|in:login,reset_password,verify_phone,verify_email',
+            'code' => 'required|string|regex:/^[0-9]{6}$/',
         ]);
         $this->assertOtpSupported($data['purpose'], 'email');
-        $this->limit($request, 'otp-verify', Str::lower($data['email']).'|'.$request->ip(), 10);
+        $this->limit('otp-verify', Str::lower($data['email']).'|'.$request->ip(), 10);
 
         $user = $this->activeUserByEmail($data['email']);
         abort_unless($user !== null && $this->secrets->consumeOtp($user, $data['purpose'], $data['code']), 401, 'Kode tidak valid atau kedaluwarsa.');
 
-        if ($data['purpose'] === 'verify_email' && $user->email_verified_at === null) {
-            $user->forceFill(['email_verified_at' => now()])->save();
+        // Kode email membuktikan kepemilikan kotak surat. Bila bukti itu datang dari luar sesi
+        // pendaftar, kata sandi dan sesi yang dibuat sebelum verifikasi dicabut.
+        if ($user->email_verified_at === null) {
+            $this->accounts->markEmailVerified($user, revokeExisting: ! $user->is($this->sessions->user($request)));
         }
         if ($data['purpose'] === 'login') {
             $this->sessions->open($request, $user);
@@ -125,13 +132,15 @@ final class StorefrontAuthController
     public function requestPasswordReset(Request $request): JsonResponse
     {
         /** @var array{email: string} $data */
-        $data = $request->validate(['email' => ['required', 'string', 'email', 'max:254']]);
-        $this->limit($request, 'password-reset', Str::lower($data['email']).'|'.$request->ip(), 5);
+        $data = StrictValidation::validate($request, ['email' => 'required|string|email|max:254']);
+        $this->limit('password-reset', Str::lower($data['email']).'|'.$request->ip(), 5);
 
         $user = $this->activeUserByEmail($data['email']);
         if ($user !== null) {
             [$token, $expiresAt] = $this->secrets->issueResetToken($user);
-            Mail::to($user->email)->send(new OneTimeCodeMail('reset_password_link', $token, $expiresAt->toIso8601ZuluString()));
+            $this->mailAfterResponse($user, new OneTimeCodeMail('reset_password_link', $token, WireTime::format($expiresAt)));
+        } else {
+            $this->secrets->simulateIssue(OneTimeSecrets::RESET_TTL_MINUTES);
         }
 
         return response()->json(['sent' => true]);
@@ -140,11 +149,12 @@ final class StorefrontAuthController
     public function confirmPasswordReset(Request $request): JsonResponse
     {
         /** @var array{token: string, password: string} $data */
-        $data = $request->validate([
-            'token' => ['required', 'string', 'min:16', 'max:128'],
-            'password' => ['required', 'string', 'min:8', 'max:128'],
+        $data = StrictValidation::validate($request, [
+            'token' => 'required|string|min:16|max:128',
+            'password' => 'required|string|min:8|max:72',
         ]);
-        $this->limit($request, 'password-reset-confirm', (string) $request->ip(), 10);
+        $this->assertPasswordFits($data['password']);
+        $this->limit('password-reset-confirm', (string) $request->ip(), 10);
 
         $userId = $this->secrets->consumeResetToken($data['token']);
         $user = $userId === null ? null : User::query()->whereKey($userId)->where('status', 'active')->first();
@@ -155,28 +165,44 @@ final class StorefrontAuthController
         return response()->json(['reset' => true]);
     }
 
-    /** @return array{user_id: string, name: string, email: string, email_verified_at: ?string} */
+    /** @return array{user_id: string, name: string, email: string, email_verified_at: ?string, timezone: string} */
     public static function userRead(User $user): array
     {
         return [
             'user_id' => $user->public_id,
             'name' => $user->name,
             'email' => $user->email,
-            'email_verified_at' => $user->email_verified_at?->toIso8601ZuluString(),
+            'email_verified_at' => $user->email_verified_at === null ? null : WireTime::format($user->email_verified_at),
+            'timezone' => $user->timezone,
         ];
     }
 
     private function sendOtp(User $user, string $purpose): CarbonImmutable
     {
         [$code, $expiresAt] = $this->secrets->issueOtp($user, 'email', $purpose);
-        Mail::to($user->email)->send(new OneTimeCodeMail($purpose, $code, $expiresAt->toIso8601ZuluString()));
+        $this->mailAfterResponse($user, new OneTimeCodeMail($purpose, $code, WireTime::format($expiresAt)));
 
         return $expiresAt;
+    }
+
+    // Kirim setelah respons agar waktu respons tidak membedakan email terdaftar dari yang tidak;
+    // tetap di proses yang sama supaya rahasia mentah tidak pernah ditulis ke antrean.
+    private function mailAfterResponse(User $user, OneTimeCodeMail $mail): void
+    {
+        $email = $user->email;
+        dispatch(fn () => Mail::to($email)->send($mail))->afterResponse();
     }
 
     private function activeUserByEmail(string $email): ?User
     {
         return User::query()->where('email', $email)->where('status', 'active')->first();
+    }
+
+    private function assertPasswordFits(string $password): void
+    {
+        if (strlen($password) > self::PASSWORD_MAX_BYTES) {
+            throw ValidationException::withMessages(['password' => 'Kata sandi maksimal 72 byte.']);
+        }
     }
 
     // Reset kata sandi memakai token email (reset-request); OTP telepon menunggu gateway WhatsApp/SMS.
@@ -190,14 +216,16 @@ final class StorefrontAuthController
         }
     }
 
-    private function limit(Request $request, string $scope, string $key, int $max, bool $consume = true): void
+    private function limit(string $scope, string $subject, int $max, bool $consume = true): string
     {
-        $key = $scope.':'.$key;
+        $key = 'web-auth:'.$scope.':'.$subject;
         if (RateLimiter::tooManyAttempts($key, $max)) {
             abort(429, 'Terlalu banyak percobaan.', ['Retry-After' => (string) RateLimiter::availableIn($key)]);
         }
         if ($consume) {
             RateLimiter::hit($key, 60);
         }
+
+        return $key;
     }
 }

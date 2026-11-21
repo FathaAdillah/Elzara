@@ -9,8 +9,8 @@ return [
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI', rtrim((string) env('APP_URL', 'https://localhost'), '/').'/api/v1/auth/social/google/callback'),
     ],
-    // Provider X memakai driver `twitter` dari socialiteproviders/twitter (OAuth 2.0).
-    'twitter' => [
+    // Provider X memakai driver `x` bawaan laravel/socialite (OAuth 2.0 + PKCE).
+    'x' => [
         'client_id' => env('X_CLIENT_ID'),
         'client_secret' => env('X_CLIENT_SECRET'),
         'redirect' => env('X_REDIRECT_URI', rtrim((string) env('APP_URL', 'https://localhost'), '/').'/api/v1/auth/social/x/callback'),

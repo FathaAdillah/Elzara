@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Identity\Infrastructure\Http;
 
 use App\Modules\Identity\Infrastructure\Models\User;
+use App\Platform\Http\CursorPagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 use Throwable;
 
 // Sesi storefront: guard `web`, cookie elzara_web_session, satu baris user_sessions per sesi.
@@ -20,6 +22,11 @@ final class WebSession
         $session = $request->session();
 
         try {
+            // login() memigrasikan ID sesi; baris untuk ID lama dicabut agar tidak tersisa sebagai perangkat aktif.
+            DB::table('user_sessions')
+                ->where('session_hash', $this->hash($request))
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => now(), 'updated_at' => now()]);
             $guard->login($user, false);
             $session->regenerateToken();
             $now = now();
@@ -93,20 +100,15 @@ final class WebSession
         $request->session()->regenerateToken();
     }
 
-    /** @return list<object{id: int, session_hash: string, device_label: ?string, user_agent: ?string, ip: ?string, last_seen_at: ?string, created_at: string}> */
-    public function activeRows(User $user, ?int $beforeId, int $limit): array
+    /** @return array{data: list<stdClass>, meta: array{limit: int, has_more: bool, next_cursor: ?string, prev_cursor: ?string}} */
+    public function activePage(Request $request, User $user): array
     {
-        /** @var list<object{id: int, session_hash: string, device_label: ?string, user_agent: ?string, ip: ?string, last_seen_at: ?string, created_at: string}> $rows */
-        $rows = DB::table('user_sessions')
+        $query = DB::table('user_sessions')
             ->where('user_id', $user->getKey())
             ->whereNull('revoked_at')
-            ->when($beforeId !== null, fn ($query) => $query->where('id', '<', $beforeId))
-            ->orderByDesc('id')
-            ->limit($limit)
-            ->get(['id', 'session_hash', 'device_label', 'user_agent', 'ip', 'last_seen_at', 'created_at'])
-            ->all();
+            ->select(['id', 'session_hash', 'device_label', 'user_agent', 'ip', 'last_seen_at', 'created_at']);
 
-        return $rows;
+        return CursorPagination::paginate($request, $query, ['id' => 'desc']);
     }
 
     // Hanya baris milik $user yang bisa dicabut; baris akun lain tidak terlihat sama sekali.
