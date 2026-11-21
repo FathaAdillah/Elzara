@@ -45,12 +45,19 @@ log() { echo "{\"event\":\"$1\",\"at\":$(date -u +%s)${2:+,$2}}"; }
 
 prune() {
   cutoff=$(date -u -d "@$(( $(date -u +%s) - retain * 86400 ))" +%Y%m%d%H%M%S)
-  for dir in $(rclone lsf --dirs-only vault:deleted 2>/dev/null); do
+  # deleted/ baru ada setelah ada objek yang terhapus/tertimpa; selain "directory not found", gagal listing = gagal backup.
+  if ! dirs=$(rclone lsf --dirs-only vault:deleted 2>/tmp/object-backup-prune.err); then
+    grep -q 'directory not found' /tmp/object-backup-prune.err || { cat /tmp/object-backup-prune.err >&2; return 1; }
+    return 0
+  fi
+  pruned=0
+  for dir in $dirs; do
     stamp="${dir%/}"
     digits=$(printf '%s' "$stamp" | tr -d TZ)
     case "$digits" in *[!0-9]* | "") continue ;; esac
-    if [ "$digits" -lt "$cutoff" ]; then rclone purge "vault:deleted/$stamp"; fi
+    if [ "$digits" -lt "$cutoff" ]; then rclone purge "vault:deleted/$stamp" || pruned=1; fi
   done
+  return "$pruned"
 }
 
 run_backup() {
