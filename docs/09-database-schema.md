@@ -1771,6 +1771,7 @@ outbox_events                             [Lintas modul]   B4 — transactional 
   occurred_at timestamptz NOT NULL DEFAULT now()
   dispatched_at timestamptz, attempts smallint NOT NULL DEFAULT 0
   last_error text, locked_by varchar(64), locked_at timestamptz
+  request_id varchar(128), trace_id char(32)   korelasi request/trace W3C asal event (P0.18); NULL untuk baris lama
   --
   idx outbox_pending (occurred_at) WHERE dispatched_at IS NULL
   idx outbox_agg (aggregate_type, aggregate_id, occurred_at)
