@@ -1,0 +1,15 @@
+name: edge
+on:
+  pull_request:
+    paths: ['docker/nginx/**', 'docker/compose.yaml', 'scripts/*edge*', '.github/workflows/edge.yml']
+  push:
+    branches: [master]
+    paths: ['docker/nginx/**', 'docker/compose.yaml', 'scripts/*edge*', '.github/workflows/edge.yml']
+permissions: { contents: read }
+jobs:
+  nginx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/validate-edge-nginx.sh

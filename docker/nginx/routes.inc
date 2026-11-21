@@ -1,7 +1,4 @@
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    # CSP adalah milik kedua app Next (deliverable keamanan batch frontend) dan tidak diduplikasi di sini.
+    include /etc/nginx/elzara/security.inc;
     client_max_body_size 1m;
 
     location = /nginx-healthz { access_log off; return 200 "ok\n"; }

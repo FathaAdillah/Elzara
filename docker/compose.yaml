@@ -171,11 +171,13 @@ services:
     environment:
       ELZARA_ADMIN_HOST: ${ELZARA_ADMIN_HOST:-admin.localhost}
       ELZARA_EDGE_URL: ${ELZARA_EDGE_URL}
-      NGINX_ENVSUBST_FILTER: ^ELZARA_(ADMIN_HOST|EDGE_URL)$
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
+      NGINX_ENVSUBST_FILTER: ^(ELZARA_(ADMIN_HOST|EDGE_URL)|MINIO_PUBLIC_ENDPOINT)$
     volumes:
       - ./nginx/dokploy.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro
       - ./nginx/routes.inc:/etc/nginx/elzara/routes.inc:ro
+      - ./nginx/security.inc:/etc/nginx/elzara/security.inc:ro
     expose: ["8080"]
     depends_on:
       api: { condition: service_healthy }
