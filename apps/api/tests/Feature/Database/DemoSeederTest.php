@@ -12,6 +12,7 @@ use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Spatie\Permission\Exceptions\RoleDoesNotExist;
 use Tests\TestCase;
 
 final class DemoSeederTest extends TestCase
@@ -56,6 +57,17 @@ final class DemoSeederTest extends TestCase
         $operator->refresh();
         $this->assertFalse($operator->hasRole('superadmin'));
         $this->assertSame($hash, $operator->password_hash);
+    }
+
+    public function test_account_seeder_without_reference_data_leaves_no_roleless_operator(): void
+    {
+        try {
+            $this->seed(DemoAccountSeeder::class);
+            $this->fail('DemoAccountSeeder ran without the superadmin role');
+        } catch (RoleDoesNotExist) {
+        }
+
+        $this->assertDatabaseMissing('users', ['email' => DemoAccountSeeder::OPERATOR_EMAIL]);
     }
 
     public function test_database_seeder_never_calls_demo_seeder(): void

@@ -7,6 +7,7 @@ namespace Database\Seeders\Demo;
 use App\Modules\Identity\Infrastructure\Models\CustomerProfile;
 use App\Modules\Identity\Infrastructure\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 final class DemoAccountSeeder extends Seeder
@@ -21,13 +22,15 @@ final class DemoAccountSeeder extends Seeder
     {
         DemoEnvironment::assertNotProduction();
 
-        $operator = $this->account(self::OPERATOR_EMAIL, 'Demo Operator', true);
-        if ($operator->wasRecentlyCreated) {
-            $operator->assignRole('superadmin');
-        }
+        DB::transaction(function (): void {
+            $operator = $this->account(self::OPERATOR_EMAIL, 'Demo Operator', true);
+            if ($operator->wasRecentlyCreated) {
+                $operator->assignRole('superadmin');
+            }
 
-        $customer = $this->account(self::CUSTOMER_EMAIL, 'Demo Customer', false);
-        CustomerProfile::query()->firstOrCreate(['user_id' => $customer->id], ['display_name' => 'Demo Customer', 'gender' => 'undisclosed']);
+            $customer = $this->account(self::CUSTOMER_EMAIL, 'Demo Customer', false);
+            CustomerProfile::query()->firstOrCreate(['user_id' => $customer->id], ['display_name' => 'Demo Customer', 'gender' => 'undisclosed']);
+        });
     }
 
     /** Existing demo accounts keep their password and roles, so reseeding never undoes an operator's changes. */
