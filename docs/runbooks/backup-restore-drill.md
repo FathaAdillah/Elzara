@@ -4,7 +4,8 @@
 **Aturan pokok: backup yang belum diuji bukan backup.** Blueprint §13 minta "recovery drills, RPO/RTO terukur"; Doc 10 §9 menulis latihan restore wajib satu kali di Sprint 0 dan satu kali sebelum launch "dan hasilnya didokumentasikan **sebagai bukti, bukan niat**"; Doc 03 §8 memasukkannya ke hardening. Runbook ini adalah cara membuktikan kalimat itu setiap triwulan.
 **Rujukan:** Doc 10 §9 (backup/rollback/pemulihan), §5.4 (freeze window), §10 C6 (drift check vs `docs/schema.snapshot.sql`), M-13 · Blueprint §13 (PITR/WAL, object backup, recovery drills, RPO/RTO), §11 (backup & restore tests, monitoring disk), §14.1 (single node = SPOF), §15 (runbook wajib "database failover"), §19 (DoD: backup/restore diuji) · Doc 11 **B-12**, **B-15**, §2 (aturan M-1…M-13 tidak diubah) · Doc 01 §11 (job backup scheduler → tujuan off-node; Doc 11 §8.7) · `docs/threat-model.md` T-28, T-33
 
-> Semua perintah ditandai **`# belum diverifikasi di lingkungan ini`** (README §2.1). Angka target RTO/RPO di §2 bersifat sementara sampai drill pertama selesai.
+> **Mekanisme backup (P0.18):** image `docker/postgres/Dockerfile` (Postgres 16 alpine + WAL-G dipin) mengarsip setiap segmen WAL lewat `archive_command` (`wal-archive.sh`, gagal tertutup bila tujuan/kunci kosong) dan service `backup` (profil compose `backup`) membuat base backup harian + retensi `WALG_RETAIN_FULL`. Tujuan = bucket S3-compatible **di provider lain** dengan kredensial `BACKUP_S3_*` khusus backup (bukan MinIO aplikasi, Doc 11 §8.6); isi dienkripsi libsodium dengan `WALG_LIBSODIUM_KEY` sebelum keluar node, dan kunci itu wajib disimpan juga di luar node.
+> Drill PITR terisolasi: `scripts/backup-pitr-drill.sh` (hasil di register §5). Perintah yang masih bertanda **`# belum diverifikasi di lingkungan ini`** belum dijalankan terhadap staging Dokploy.
 
 ---
 
@@ -17,24 +18,25 @@
 | `pre-<release>.dump` ada untuk setiap rilis yang membawa migrasi | changelog rilis + bucket | tidak ada ⇒ rilis berikutnya ditahan (Doc 10 §9) |
 | object backup (bucket + `media`) ikut tersalin | job object backup (Blueprint §13, §11) | tidak berjalan 7 hari ⇒ SEV-2 |
 | kapasitas disk volume `pgdata`/minio/backup | monitoring disk (Blueprint §11) | > 80% ⇒ SEV-2; > 90% ⇒ SEV-1 (satu node, B-15) |
-| WAL/PITR archive berjalan | config WAL archiving (Blueprint §13) | menumpuk di disk lokal ⇒ SEV-2 (RTO memburuk, disk penuh) |
+| WAL/PITR archive berjalan | alert `ElzaraWalArchiveFailing` (`elzara_pg_wal_archive_failures_total`, `elzara_pg_wal_last_archived_age_seconds`, `infrastructure/monitoring/prometheus/alerts.yml`) | gagal atau arsip terakhir > 15 menit ⇒ SEV-2 (WAL menumpuk di disk lokal, RPO memburuk) |
+| base backup harian sukses | healthcheck service `backup` (unhealthy bila base backup terakhir > 26 jam) + log JSON `backup.succeeded`/`backup.failed` | unhealthy ⇒ SEV-2 |
 | hasil **drill** terakhir lebih tua dari 1 triwulan | register drill §5 | > 100 hari ⇒ SEV-2 (bukan SEV-1, tapi tidak boleh dibiarkan) |
 
 ## 2. Dampak
 
 Tanpa backup yang terbukti, satu kegagalan disk di **satu-satunya node** (Doc 11 B-15) berarti kehilangan A-1 (PII), A-3 (keadaan uang), A-4 (kebenaran stok), A-5 (kuotasi), A-7 (bukti pembelian) sekaligus. Tidak ada failover otomatis yang akan menyelamatkan kita — pemulihan di topologi ini **adalah** restore manual. Konsekuensi hukum/kepatuhan ikut di dalamnya: Blueprint §13 mengikat kita pada retensi & hak data sesuai regulasi Indonesia; kita tidak bisa menepati permintaan hapus/akses kalau tidak tahu isi salinan mana yang masih hidup (lihat `data-breach.md` §3.7).
 
-**Target (diisi oleh hasil drill, bukan oleh keinginan):** RTO = ___ , RPO = ___ . Angka sementara untuk memulai: RTO 4 jam, RPO 24 jam — dan keduanya wajib dikoreksi dengan waktu nyata yang terukur di §3.4.
+**Target (diisi oleh hasil drill, bukan oleh keinginan):** RTO = ___ , RPO = ___ . Angka sementara untuk memulai: RTO 4 jam, RPO 24 jam — dan keduanya wajib dikoreksi dengan waktu nyata yang terukur di §3.4. Drill lokal pertama (§5) membuktikan mekanismenya (RPO dibatasi `archive_timeout` = 5 menit, RTO 3 detik untuk database ~30 tabel nyaris kosong); angka itu **bukan** angka produksi dan target di atas baru diganti setelah drill di staging Dokploy dengan volume data nyata.
 
 ## 3. Langkah tanggap
 
 ### 3.1 Verifikasi harian (murah, otomatis, boleh dijam)
 
 ```bash
-# 1) daftar isi backup terbaru dari bucket (jalur akses = key service backup saja; T-28)
-docker compose -f docker/compose.yaml -f docker/compose.prod.yaml exec minio mc ls -l --recursive local/backups/<tanggal-today>   # belum diverifikasi di lingkungan ini
-# 2) uji BACA, bukan uji ADA — langkah wajib Doc 10 §9 butir 1
-docker compose -f docker/compose.yaml -f docker/compose.prod.yaml exec postgres pg_restore --list /tmp/<backup>.dump            # belum diverifikasi di lingkungan ini
+# 1) daftar base backup off-node (jalur akses = key service backup saja; T-28)
+docker compose -f docker/compose.yaml -f docker/profiles/production.yaml --profile backup exec backup wal-g backup-list --detail   # belum diverifikasi di lingkungan ini
+# 2) uji BACA, bukan uji ADA — langkah wajib Doc 10 §9 butir 1: rantai WAL utuh sejak base backup tertua
+docker compose -f docker/compose.yaml -f docker/profiles/production.yaml --profile backup exec backup wal-g wal-verify integrity timeline   # belum diverifikasi di lingkungan ini
 # 3) titik migrasi dicatat (Doc 10 §9 butir 2)
 docker compose -f docker/compose.yaml -f docker/compose.prod.yaml exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT max(id) AS max_id, max(migration) AS last_migration, count(*) AS n FROM migrations;"   # belum diverifikasi di lingkungan ini
 ```
@@ -80,9 +82,9 @@ Aturan keras:
 
 ### 3.5 PITR / titik-waktu (kalau recovery butuh mundur ke menit tertentu)
 
-Blueprint §13 menyebut PITR/WAL. Prosedur dasarnya: restore base backup → replay WAL sampai `recovery_target_time`/`restore_command`. **Status hari ini: belum diverifikasi** — WAL archiving belum terbukti dikonfigurasi di Doc 01 §11 (yang terdokumentasi baru `redis:7 appendonly yes` + volume `pgdata` + job backup ke tujuan off-node), dan tidak ada dokumen yang menetapkan retention WAL.
+Blueprint §13 menyebut PITR/WAL. Prosedur: `wal-g backup-fetch <PGDATA baru> LATEST` → `recovery.signal` + `restore_command = 'wal-g wal-fetch %f %p'` + `recovery_target_time` + `recovery_target_action = 'promote'` → start Postgres di volume/node baru. Retensi: `WALG_RETAIN_FULL` (default 7) base backup penuh beserta WAL di antaranya; WAL lebih tua dihapus oleh `wal-g delete retain`. **Status:** terbukti di drill lokal terisolasi (§5, `scripts/backup-pitr-drill.sh`); **belum** terbukti dari tujuan off-node staging Dokploy karena host/bucket staging belum ada.
 
-`[ verifikasi ]` sebelum PITR dijanjikan ke klien: (a) arsip WAL benar-benar sampai ke luar VPS, (b) satu restore-per-titik-waktu pernah berhasil di drill, (c) RPO yang dijanjikan = jarak arsip WAL teraman yang terbukti, bukan "±5 menit" karangan. Sampai tiga hal itu terbukti, kapasitas pemulihan kita adalah **restore dump terakhir** = RPO 24 jam.
+`[ verifikasi ]` sebelum PITR dijanjikan ke klien: (a) arsip WAL benar-benar sampai ke luar VPS, (b) satu restore-per-titik-waktu pernah berhasil di drill, (c) RPO yang dijanjikan = jarak arsip WAL teraman yang terbukti, bukan "±5 menit" karangan. (b) terbukti di drill lokal; (a) dan (c) menunggu drill staging. Sampai itu terbukti, janji ke klien tetap RPO 24 jam.
 
 ### 3.6 Pemulihan darurat nyata (bukan drill)
 
@@ -116,6 +118,29 @@ Kalau salinan backup diketahui berpindah tangan atau hilang: perlakukan sebagai 
 1. **Register drill** (isi setiap triwulan; ini artefak yang diminta Doc 10 §9 & Doc 03 §8): tanggal, siapa yang mengukur, file dump (nama + ukuran + sha256), waktu per langkah §3.4, RTO terukur, RPO efektif, hasil smoke/C6/invariant, dan apa yang gagal.
 2. Perbarui angka target di §2 dengan yang terukur. **Dokumen ini tidak boleh berisi target yang tidak pernah diuji.**
 3. Bila drill gagal: buka tiket dengan kategori "recovery gap", dan jalankan §3.6 sebagai prosedur darurat yang berlaku sampai gap tertutup. Putuskan juga apakah freeze rilis (Doc 10 §5.4) perlu diperluas.
+   | Tanggal | Lingkungan | Pengukur | Hasil |
+   |---|---|---|---|
+   | 2026-11-21 | lokal terisolasi (`scripts/backup-pitr-drill.sh`: primary image produksi + migrasi Laravel asli → MinIO terpisah sebagai stand-in off-node → restore PITR ke cluster scratch) | Devin (P0.18) | PASS — rincian di bawah |
+
+   Hasil drill 2026-11-21 (keluaran skrip apa adanya):
+
+   | Item | Hasil |
+   |---|---|
+   | Status | PASS |
+   | Postgres / WAL-G | 16.16 / v3.0.10 |
+   | Tujuan | MinIO terpisah, kredensial khusus backup, enkripsi libsodium + brotli |
+   | Objek off-node | 12 (berkas memuat teks tabel: 0) |
+   | Kunci salah | ditolak |
+   | Durasi base backup | 1s |
+   | Arsip WAL | 4 archived, 0 failed |
+   | Target PITR | 2026-11-21 21:56:10.825808+00 |
+   | Baris terakhir pulih | 2026-11-21 21:56:09.762463+00 |
+   | Isi tabel pulih | after-base=250 before-base=500 (diharapkan after-base=250 before-base=500; batch insiden & DELETE tidak ikut) |
+   | Migrasi | primary 29:0084_Content_add_media_object_version → restore 29:0084_Content_add_media_object_version |
+   | Tabel public pulih | 29 |
+   | RTO terukur (fetch + replay WAL + promote) | 3s |
+
+   Belum tercakup drill ini dan wajib di drill staging: tujuan off-node sungguhan di provider lain, volume data nyata (RTO 3 detik di sini hanya mengukur mekanisme), smoke aplikasi + drift C6 + invariant §3.4 butir 5–8, dan restore objek/media (§3.4 butir 9; replikasi bucket MinIO off-node belum diotomasi).
 4. Tiket/ADR & isu yang biasanya lahir dari drill:
    - enkripsi at-rest + **pemegang kunci** terpisah dari VPS (T-28);
    - retensi & penghancuran salinan (Blueprint §13; kebutuhan hak hapus — `data-breach.md` §3.7);

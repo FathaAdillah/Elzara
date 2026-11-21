@@ -1,5 +1,6 @@
 import createClient from "openapi-fetch";
 import type { paths } from "@elzara/api-client";
+import { childTraceparent } from "./trace";
 
 /**
  * Satu-satunya jalur frontend → API adalah klien TypeScript TER-GENERATE dari
@@ -30,3 +31,22 @@ export const apiBaseUrl: string =
   typeof window === "undefined" ? internalBaseUrl() : PUBLIC_BASE_URL;
 
 export const api = createClient<paths>({ baseUrl: apiBaseUrl });
+
+// Server component meneruskan trace request halaman ke API (web → api → job, Doc 01 §12).
+// Di luar request scope (build, ISR) `headers()` melempar; request tetap jalan sebagai trace baru di API.
+if (typeof window === "undefined") {
+  api.use({
+    async onRequest({ request }) {
+      try {
+        const { headers } = await import("next/headers");
+        const incoming = (await headers()).get("traceparent");
+        if (incoming && !request.headers.has("traceparent")) {
+          request.headers.set("traceparent", childTraceparent(incoming));
+        }
+      } catch {
+        // tanpa request scope
+      }
+      return request;
+    },
+  });
+}

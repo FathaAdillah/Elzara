@@ -179,7 +179,7 @@ jobs:
           '
       - name: Tidak ada service data store yang didefinisikan ulang oleh profil (satu berkas satu definisi)
         run: |
-          count=$(docker compose -f docker/compose.yaml -f docker/profiles/production.yaml config | grep -c 'image: postgres')
+          count=$(docker compose -f docker/compose.yaml -f docker/profiles/production.yaml config | grep -c 'image: elzara/postgres')
           if [ "${count}" != "1" ]; then echo "postgres didefinisikan ${count} kali"; exit 1; fi
       - name: Tujuh dan hanya tujuh antrian Horizon (Doc 11 §8.1)
         run: |

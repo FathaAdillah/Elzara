@@ -14,6 +14,7 @@ for listener in dev dokploy; do
     -v "$ROOT/docker/nginx/routes.inc:/etc/nginx/elzara/routes.inc:ro" \
     -v "$ROOT/docker/nginx/security.inc:/etc/nginx/elzara/security.inc:ro" \
     -v "$ROOT/docker/nginx/storage.conf:/etc/nginx/elzara/storage.conf:ro" \
+    -v "$ROOT/docker/nginx/metrics.conf:/etc/nginx/conf.d/metrics.conf:ro" \
     nginx:1.27-alpine nginx -t
   echo "PASS nginx -t ($listener)"
 done

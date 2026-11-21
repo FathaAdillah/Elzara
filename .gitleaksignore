@@ -1,4 +1,4 @@
-# Reviewed false positives (UUID Idempotency-Key fixtures/examples, empty DB_PASSWORD) in already-merged commits.
+# Reviewed false positives (UUID Idempotency-Key fixtures/examples, empty DB_PASSWORD, empty GRAFANA_ADMIN_PASSWORD) in already-merged commits.
 c8b5e3beb6c1b9c55936d3c7d229a283f3268a9a:apps/api/tests/Concurrency/Platform/IdempotencyLockTest.php:generic-api-key:18
 c8b5e3beb6c1b9c55936d3c7d229a283f3268a9a:apps/api/tests/Feature/Platform/IdempotencyGuardTest.php:generic-api-key:21
 5a9ca4bea089544fc456a040c5ff75506a28f507:apps/api/.env.example:generic-api-key:26
@@ -9,3 +9,5 @@ c8b5e3beb6c1b9c55936d3c7d229a283f3268a9a:apps/api/tests/Feature/Platform/Idempot
 5e5b58b130e991eaef1af8cc6daf2379f29e8e65:.qoder/plans/2026-11-17-sprint-0-fondasi.md:generic-api-key:3181
 5e5b58b130e991eaef1af8cc6daf2379f29e8e65:.codex/plans/2026-11-17-sprint-0-fondasi.md:generic-api-key:2927
 5e5b58b130e991eaef1af8cc6daf2379f29e8e65:.codex/plans/2026-11-17-sprint-0-fondasi.md:generic-api-key:3181
+76009105c2273c1ae7d2eac5e308a550010c9a48:docker/.env.production.example:generic-api-key:63
+76009105c2273c1ae7d2eac5e308a550010c9a48:docker/.env.example:generic-api-key:82

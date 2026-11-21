@@ -11,6 +11,9 @@ use App\Platform\Http\AttachRequestId;
 use App\Platform\Http\IdempotencyGuard;
 use App\Platform\Http\InternalAccess;
 use App\Platform\Http\RateLimit;
+use App\Platform\Http\TraceContext;
+use App\Platform\Observability\ObservabilityServiceProvider;
+use App\Platform\Observability\RecordRequestMetrics;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -26,12 +29,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([CreateAdminOperator::class, EnrollAdminTwoFactor::class])
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prepend([AttachRequestId::class, SelectAdminSession::class, ApiResponseHeaders::class]);
+        $middleware->prepend([RecordRequestMetrics::class, AttachRequestId::class, TraceContext::class, SelectAdminSession::class, ApiResponseHeaders::class]);
 
         $middleware->statefulApi();
         $middleware->alias(['idempotency' => IdempotencyGuard::class, 'internal' => InternalAccess::class, 'rate' => RateLimit::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->report(ObservabilityServiceProvider::reportStorageError(...));
         $exceptions->render(
             fn (Throwable $exception, Request $request) => app(ApiProblemRenderer::class)->render($exception, $request)
         );

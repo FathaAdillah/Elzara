@@ -9,6 +9,7 @@ use App\Modules\Identity\Infrastructure\Models\Permission;
 use App\Modules\Identity\Infrastructure\Models\Role;
 use App\Modules\Identity\Infrastructure\Models\User;
 use App\Modules\Settings\Infrastructure\Models\FeatureFlag;
+use App\Platform\Observability\Metrics;
 use Database\Seeders\Reference\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
@@ -119,8 +120,10 @@ final class StaffRbacTest extends TestCase
     {
         $admin = $this->operator(admin: true);
         $this->login($admin);
+        Metrics::reset();
         $this->send('GET', '/api/v1/admin/feature-flags')->assertOk();
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'rbac.bypass')->count());
+        $this->assertSame(1.0, (float) array_sum(array_filter(Metrics::snapshot()['counters'], static fn (string $field): bool => str_starts_with($field, 'elzara_rbac_bypass_total'), ARRAY_FILTER_USE_KEY)));
         $this->assertDatabaseHas('audit_logs', ['action' => 'rbac.bypass', 'actor_id' => $admin->id, 'request_id' => 'rbac-test-request', 'reason' => 'is_admin bypass: setting.view']);
         Auth::guard('admin')->setUser($admin);
         Auth::shouldUse('web');
