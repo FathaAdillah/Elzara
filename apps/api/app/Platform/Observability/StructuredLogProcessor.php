@@ -6,6 +6,7 @@ namespace App\Platform\Observability;
 
 use Monolog\LogRecord;
 use Monolog\Processor\ProcessorInterface;
+use Throwable;
 
 /**
  * Log JSON keluar proses tanpa PII/rahasia (Doc 01 §12): kunci sensitif dimasking, user_id di-hash,
@@ -83,11 +84,33 @@ final class StructuredLogProcessor implements ProcessorInterface
                 is_array($value) && $depth < 6 => $this->scrub($value, $depth + 1),
                 is_array($value) => self::REDACTED,
                 is_string($value) => $this->scrubString($value),
+                $value instanceof Throwable => $this->exception($value, $depth),
                 default => $value,
             };
         }
 
         return $clean;
+    }
+
+    /**
+     * Formatter Monolog menulis pesan exception apa adanya; normalisasikan di sini agar pesannya ikut disamarkan.
+     *
+     * @return array<string, mixed>
+     */
+    private function exception(Throwable $e, int $depth): array
+    {
+        $previous = $e->getPrevious();
+
+        return [
+            'class' => $e::class,
+            'message' => $this->scrubString($e->getMessage()),
+            'code' => $e->getCode(),
+            'file' => $e->getFile().':'.$e->getLine(),
+            'trace' => array_slice(array_map(
+                static fn (array $frame): string => ($frame['file'] ?? '[internal]').':'.($frame['line'] ?? 0),
+                $e->getTrace(),
+            ), 0, 20),
+        ] + ($previous !== null && $depth < 6 ? ['previous' => $this->exception($previous, $depth + 1)] : []);
     }
 
     private function scrubString(string $value): string

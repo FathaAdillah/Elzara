@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Tests\Feature\Platform;
 
 use App\Platform\Observability\Metrics;
+use App\Platform\Observability\ObservabilityServiceProvider;
 use App\Platform\Observability\StructuredLogProcessor;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
+use League\Flysystem\UnableToReadFile;
 use Monolog\Level;
 use Monolog\LogRecord;
+use RuntimeException;
 use Tests\TestCase;
 
 final class ObservabilityTest extends TestCase
@@ -154,5 +157,32 @@ final class ObservabilityTest extends TestCase
         $this->assertSame('4bf92f3577b34da6a3ce929d0e0e4736', $line['extra']['trace_id']);
         $this->assertSame('[redacted]', $line['context']['email']);
         $this->assertSame(StructuredLogProcessor::hashUser(9), $line['context']['user_hash']);
+    }
+
+    public function test_exception_in_log_context_is_normalised_and_redacted(): void
+    {
+        $previous = new RuntimeException('token for budi@example.com');
+        $record = new LogRecord(new DateTimeImmutable, 'stderr', Level::Error, 'gagal', [
+            'exception' => new RuntimeException('Bearer abc.def gagal untuk 081234567890', 3, $previous),
+        ]);
+
+        $exception = (new StructuredLogProcessor('elzara-api', 'testing'))($record)->context['exception'];
+
+        $this->assertIsArray($exception);
+        $this->assertSame(RuntimeException::class, $exception['class']);
+        $this->assertSame('Bearer [redacted] gagal untuk [phone]', $exception['message']);
+        $this->assertSame(3, $exception['code']);
+        $this->assertSame('token for [email]', $exception['previous']['message']);
+        $this->assertStringNotContainsString('budi@example.com', json_encode($exception, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_storage_errors_are_counted_even_when_wrapped(): void
+    {
+        ObservabilityServiceProvider::reportStorageError(new RuntimeException('Object storage unavailable.', 0, UnableToReadFile::fromLocation('a.jpg')));
+        ObservabilityServiceProvider::reportStorageError(new RuntimeException('bukan storage'));
+
+        $counters = array_filter(Metrics::snapshot()['counters'], static fn (string $field): bool => str_starts_with($field, 'elzara_storage_errors_total'), ARRAY_FILTER_USE_KEY);
+        $this->assertSame(1.0, (float) array_sum($counters));
+        $this->assertStringContainsString('UnableToReadFile', (string) array_key_first($counters));
     }
 }
