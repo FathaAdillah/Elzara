@@ -1207,15 +1207,150 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [authenticated, user]
+                required: [authenticated, user, permissions, is_admin]
                 properties:
                   authenticated: { type: boolean, const: true }
+                  permissions: { type: array, items: { type: string }, description: Sorted effective admin permission names. }
+                  is_admin: { type: boolean }
                   user: { $ref: "#/components/schemas/AuthUserRead" }
         "401": { $ref: "#/components/responses/Problem" }
         "419": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
 
+  /admin/users/{user}/access:
+    get:
+      operationId: adminUserAccessGet
+      tags: [Identity]
+      x-elzara-auth: admin
+      x-elzara-permission: user.view
+      security: [{ adminSession: [] }]
+      description: "Read operator roles, scopes, direct and effective permissions."
+      parameters:
+        - { $ref: "#/components/parameters/AccessUser" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminAccess" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/users/{user}/permissions:
+    post:
+      operationId: adminUserPermissionGrant
+      tags: [Identity]
+      x-elzara-auth: admin
+      x-elzara-permission: user.update
+      security: [{ adminSession: [] }]
+      description: "Grant an admin permission directly; target must be an operator. Non-bypass actors need global access to the permission. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access. Other authorization denials use FORBIDDEN."
+      parameters:
+        - { $ref: "#/components/parameters/AccessUser" }
+        - { $ref: "#/components/parameters/AccessIdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminPermissionGrant" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminAccess" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/users/{user}/permissions/{permission}:
+    delete:
+      operationId: adminUserPermissionRevoke
+      tags: [Identity]
+      x-elzara-auth: admin
+      x-elzara-permission: user.update
+      security: [{ adminSession: [] }]
+      description: "Revoke a direct permission. Send the required reason in the JSON request body. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access."
+      parameters:
+        - { $ref: "#/components/parameters/AccessUser" }
+        - name: permission
+          in: path
+          required: true
+          schema: { type: string }
+        - { $ref: "#/components/parameters/AccessIdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminAccessReason" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminAccess" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/users/{user}/roles:
+    post:
+      operationId: adminUserRoleAssign
+      tags: [Identity]
+      x-elzara-auth: admin
+      x-elzara-permission: user.update
+      security: [{ adminSession: [] }]
+      description: "Assign an admin role and optionally add a batch, category or warehouse scope. Omitted scope means global. Non-bypass actors must hold every permission globally for a global assignment, or globally/within the requested scope for a scoped assignment. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access."
+      parameters:
+        - { $ref: "#/components/parameters/AccessUser" }
+        - { $ref: "#/components/parameters/AccessIdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminRoleAssignment" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminAccess" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/users/{user}/roles/{role}:
+    delete:
+      operationId: adminUserRoleRevoke
+      tags: [Identity]
+      x-elzara-auth: admin
+      x-elzara-permission: user.update
+      security: [{ adminSession: [] }]
+      description: "Revoke a role and all its scopes. Send the required reason in the JSON request body. Self-change returns 403 with code RBAC_SELF_ACCESS_CHANGE and detail Operators can't change their own access."
+      parameters:
+        - { $ref: "#/components/parameters/AccessUser" }
+        - name: role
+          in: path
+          required: true
+          schema: { type: string }
+        - { $ref: "#/components/parameters/AccessIdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminAccessReason" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminAccess" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
   /admin/auth/session:
     get:
       operationId: getAdminSession
@@ -1237,9 +1372,11 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [authenticated, user]
+                required: [authenticated, user, permissions, is_admin]
                 properties:
                   authenticated: { type: boolean, const: true }
+                  permissions: { type: array, items: { type: string }, description: Sorted effective admin permission names. }
+                  is_admin: { type: boolean }
                   user: { $ref: "#/components/schemas/AuthUserRead" }
         "401": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
@@ -1314,6 +1451,18 @@ components:
       name: X-Provider-Signature
       description: "Penanda skema tanda tangan/HMAC server-to-server, BUKAN bearer token dan bukan cookie sesi. Nama header konkret mengikuti driver provider (X-<Provider>-Signature, Doc 12 §5.2); nilai = HMAC atas body mentah dengan secret per driver + replay window. Nama X-Provider-Signature di sini representasi kontrak: OpenAPI tidak memodelkan nama header per-provider dalam satu skema. Worker internal memakai jaringan internal, bukan header ini. personal_access_tokens tidak dibuat (ADR-007 D-3a)."
   parameters:
+    AccessUser:
+      name: user
+      in: path
+      required: true
+      description: Public user ULID, never the internal numeric identifier.
+      schema: { type: string, pattern: "^[0-9A-HJKMNP-TV-Z]{26}$" }
+    AccessIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID v4. Identical requests replay for 24 hours; changed payload returns 409.
+      schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' }
     XsrfToken:
       name: X-XSRF-TOKEN
       in: header
@@ -1380,6 +1529,19 @@ components:
       description: "XSRF-TOKEN=<nilai>; Secure; SameSite=Lax; Path=/ - sengaja TANPA HttpOnly agar dibaca JavaScript untuk header X-XSRF-TOKEN (ADR-007 D-2a)."
       schema: { type: string }
   responses:
+    AdminAccess:
+      description: Current access state. No-store; mutations are audited and replayable.
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+        X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+        X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+        X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+        X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+        Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/AdminUserAccess" }
     Problem:
       description: "Error RFC 7807 (application/problem+json) dengan X-Request-Id."
       headers:
@@ -1406,6 +1568,57 @@ components:
         application/problem+json:
           schema: { $ref: "#/components/schemas/ProblemDetails" }
   schemas:
+    AdminAccessReason:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 320, pattern: '\S' }
+    AdminPermissionGrant:
+      type: object
+      additionalProperties: false
+      required: [permission, reason]
+      properties:
+        permission: { type: string, maxLength: 64 }
+        reason: { type: string, minLength: 1, maxLength: 320, pattern: '\S' }
+    AdminRoleAssignment:
+      type: object
+      additionalProperties: false
+      required: [role, reason]
+      description: Both scope fields must be null/omitted together or contain a valid type and positive ID.
+      properties:
+        role: { type: string, maxLength: 48 }
+        reason: { type: string, minLength: 1, maxLength: 320, pattern: '\S' }
+        scope_type: { type: [string, "null"], enum: [batch, category, warehouse, null] }
+        scope_id: { type: [integer, "null"], minimum: 1 }
+    AdminUserAccess:
+      type: object
+      required: [roles, direct_permissions, permissions, is_admin]
+      properties:
+        is_admin: { type: boolean }
+        permissions:
+          type: array
+          description: Sorted effective permission names; is_admin bypass is represented separately.
+          items: { type: string }
+        direct_permissions:
+          type: array
+          items: { type: string }
+        roles:
+          type: array
+          items:
+            type: object
+            required: [role, scopes]
+            properties:
+              role: { type: string }
+              scopes:
+                type: array
+                description: An empty list or a null scope row means global access for this role.
+                items:
+                  type: object
+                  required: [scope_type, scope_id]
+                  properties:
+                    scope_type: { type: [string, "null"], enum: [batch, category, warehouse, null] }
+                    scope_id: { type: [integer, "null"], minimum: 1 }
     MediaPresignResult:
       type: object
       required: [upload_url, object_key, media_id, expires_at]

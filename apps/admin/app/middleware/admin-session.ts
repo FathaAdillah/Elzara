@@ -1,6 +1,7 @@
 import type { AdminSession } from '#shared/types/admin-session'
 
 export default defineNuxtRouteMiddleware(async () => {
+  if (import.meta.server) useResponseHeader('Cache-Control').value = 'no-store'
   const request = useRequestFetch()
   const session = useState<AdminSession | null>('admin-session', () => null)
   try {

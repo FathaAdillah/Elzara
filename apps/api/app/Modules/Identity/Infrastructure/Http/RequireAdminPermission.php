@@ -16,7 +16,7 @@ final class RequireAdminPermission
     public function handle(Request $request, Closure $next, string $permission): Response
     {
         $user = $this->sessions->activeUser($request);
-        abort_unless($user->checkPermissionTo($permission, 'admin'), 403);
+        abort_unless($user->can($permission), 403);
         $request->attributes->set('admin_actor_id', $user->id);
 
         return $next($request);

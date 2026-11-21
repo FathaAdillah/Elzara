@@ -17,6 +17,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property CarbonImmutable|null $email_verified_at
  * @property string|null $password_hash
  * @property bool $is_operator
+ * @property bool $is_admin
  * @property string $status
  * @property string $timezone
  */
@@ -35,6 +36,7 @@ final class User extends Authenticatable
     {
         return [
             'is_operator' => 'boolean',
+            'is_admin' => 'boolean',
             'email_verified_at' => 'immutable_datetime',
         ];
     }

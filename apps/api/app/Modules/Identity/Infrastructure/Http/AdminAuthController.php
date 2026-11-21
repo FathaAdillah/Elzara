@@ -124,6 +124,8 @@ final class AdminAuthController
     {
         return response()->json([
             'authenticated' => true,
+            'permissions' => $user->getAllPermissions()->where('guard_name', 'admin')->pluck('name')->unique()->sort()->values()->all(),
+            'is_admin' => $user->is_admin,
             'user' => [
                 'user_id' => $user->public_id,
                 'name' => $user->name,

@@ -6,6 +6,7 @@ import type { AdminSession } from '#shared/types/admin-session'
 const route = useRoute()
 const preview = computed(() => route.meta.adminPreview === true)
 const session = useState<AdminSession | null>('admin-session', () => null)
+const { can } = useAdminAccess()
 const operatorName = computed(() => preview.value ? 'Operator Demo' : session.value?.user.name || 'Operator')
 const home = computed(() => preview.value ? '/preview' : '/')
 const sections = [
@@ -17,12 +18,16 @@ const activeHash = ref('')
 const openGroups = ref<string[]>([])
 const selectedSection = computed(() => preview.value ? sections.find(section => `#${section.id}` === activeHash.value) : undefined)
 const activeLink = 'font-semibold before:bg-(--admin-selected) text-highlighted'
+const routeNavigation = computed(() => adminRouteNavigation(route.path))
 
 const navigation = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: home.value, exact: true, exactHash: true,
-    ui: { link: selectedSection.value ? undefined : activeLink },
+    active: routeNavigation.value.section === 'dashboard' && !selectedSection.value,
+    ui: { link: routeNavigation.value.section === 'dashboard' && !selectedSection.value ? activeLink : undefined },
   },
+  ...(!preview.value && can('user.view') ? [{ label: 'Akses staf', icon: 'i-lucide-users', to: '/staff', active: routeNavigation.value.section === 'staff' }] : []),
+  ...(!preview.value && can('setting.view') ? [{ label: 'Feature flags', icon: 'i-lucide-settings', to: '/settings/feature-flags', active: routeNavigation.value.section === 'feature-flags' }] : []),
   ...(preview.value ? [{
     value: 'operasional', label: 'Operasional', icon: 'i-lucide-package-check',
     active: Boolean(selectedSection.value),
@@ -36,7 +41,7 @@ const navigation = computed<NavigationMenuItem[]>(() => [
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => selectedSection.value
   ? [{ label: 'Operasional' }, { label: selectedSection.value.label }]
-  : [{ label: 'Dashboard' }])
+  : routeNavigation.value.breadcrumbs)
 
 onMounted(() => {
   watch(() => route.hash, async (hash, previousHash) => {
@@ -74,7 +79,7 @@ const accountMenu = computed<DropdownMenuItem[][]>(() => [
   [{ type: 'label', label: operatorName.value, avatar: { ...accountAvatar, size: 'sm' }, class: 'min-h-10 text-highlighted' }],
   [
     { label: 'Profil', icon: 'i-lucide-user-round', onSelect: () => { profileOpen.value = true } },
-    { label: 'Log Viewer', icon: 'i-lucide-file-text', onSelect: () => { logsOpen.value = true } },
+    ...(preview.value || can('audit.view') ? [{ label: 'Log Viewer', icon: 'i-lucide-file-text', onSelect: () => { logsOpen.value = true } }] : []),
   ],
   [{
     label: 'Keluar', icon: 'i-lucide-log-out', color: 'error', disabled: leaving.value,

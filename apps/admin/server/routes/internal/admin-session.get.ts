@@ -21,8 +21,14 @@ export default defineEventHandler(async (event): Promise<AdminSession> => {
       timeout: 5000,
     })
     if (session?.authenticated === true && typeof session.user?.user_id === 'string'
-      && typeof session.user.name === 'string') {
-      return { authenticated: true, user: { user_id: session.user.user_id, name: session.user.name } }
+      && typeof session.user.name === 'string' && typeof session.is_admin === 'boolean'
+      && Array.isArray(session.permissions) && session.permissions.every(permission => typeof permission === 'string')) {
+      return {
+        authenticated: true,
+        user: { user_id: session.user.user_id, name: session.user.name },
+        permissions: session.permissions,
+        is_admin: session.is_admin,
+      }
     }
   } catch (error) {
     const status = (error as { statusCode?: number } | null)?.statusCode
