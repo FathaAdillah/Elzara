@@ -58,9 +58,10 @@ final class OneTimeSecrets
     // Kerja hashing yang sama untuk email tak terdaftar, agar waktu respons tidak membocorkan akun.
     public function simulateIssue(int $ttlMinutes): CarbonImmutable
     {
+        $expiresAt = CarbonImmutable::now()->addMinutes($ttlMinutes);
         password_hash(Str::random(40), PASSWORD_ARGON2ID);
 
-        return CarbonImmutable::now()->addMinutes($ttlMinutes);
+        return $expiresAt;
     }
 
     /** @return array{0: string, 1: CarbonImmutable} */
