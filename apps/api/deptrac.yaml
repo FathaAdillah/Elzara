@@ -8,10 +8,10 @@ deptrac:
               - { type: classLike, value: '^App\\Modules\\[^\\]+\\Contracts\\' }
         - name: PlatformShared
           collectors:
-              - { type: classLike, value: '^App\\Platform\\(?:Domain\\|Http\\ApiProblem$|Outbox\\(?:DomainEvent|OutboxWriter|InboxConsumer)$|StateMachine\\)' }
+              - { type: classLike, value: '^App\\Platform\\(?:Domain\\|Http\\(?:ApiProblem|StrictValidation|CursorPagination|WireTime)$|Outbox\\(?:DomainEvent|OutboxWriter|InboxConsumer)$|StateMachine\\)' }
         - name: PlatformInternal
           collectors:
-              - { type: classLike, value: '^App\\Platform\\(?!(?:Domain\\|Http\\ApiProblem$|Outbox\\(?:DomainEvent|OutboxWriter|InboxConsumer)$|StateMachine\\))' }
+              - { type: classLike, value: '^App\\Platform\\(?!(?:Domain\\|Http\\(?:ApiProblem|StrictValidation|CursorPagination|WireTime)$|Outbox\\(?:DomainEvent|OutboxWriter|InboxConsumer)$|StateMachine\\))' }
         - name: DatabaseAccess
           collectors:
               - { type: classLike, value: '^Illuminate\\(?:Database\\|Support\\Facades\\DB$)' }

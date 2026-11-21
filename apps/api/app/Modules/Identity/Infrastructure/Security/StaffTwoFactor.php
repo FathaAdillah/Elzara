@@ -62,7 +62,10 @@ final class StaffTwoFactor
             /** @var list<string> $hashes */
             $hashes = json_decode($factor->recovery, true, 8, JSON_THROW_ON_ERROR);
             foreach ($hashes as $hash) {
-                if (password_get_info($hash)['algoName'] === 'argon2id' && password_verify($normalized, $hash)) {
+                $legacy = str_starts_with($hash, 'legacy-sha256$');
+                $digest = $legacy ? substr($hash, strlen('legacy-sha256$')) : $hash;
+                $candidate = $legacy ? hash('sha256', $normalized) : $normalized;
+                if (password_get_info($digest)['algoName'] === 'argon2id' && password_verify($candidate, $digest)) {
                     $deleted = DB::update(
                         'UPDATE staff_2fa_secrets SET recovery_hashes = array_remove(recovery_hashes, ?), updated_at = ? WHERE id = ?',
                         [$hash, now(), $factor->id],

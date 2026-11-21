@@ -19,6 +19,9 @@
         access_log /var/log/nginx/webhooks.log;
     }
 
+    location /api/v1/internal/ { return 404; }
+    location = /api/v1/internal { return 404; }
+
     location /api/ {
         limit_req zone=api burst=50 nodelay;
         fastcgi_pass api_fpm;
@@ -27,18 +30,6 @@
         fastcgi_param DOCUMENT_ROOT /app/public;
         fastcgi_param HTTPS $edge_https if_not_empty;
         fastcgi_read_timeout 30s;
-    }
-
-    # Presigned URL yang dilihat browser (MINIO_PUBLIC_ENDPOINT) diarahkan ke MinIO, origin sama
-    # dengan storefront sehingga tidak perlu CORS lintas origin untuk upload (ADR-008 K-7).
-    location /storage/ {
-        include /etc/nginx/elzara/security.inc;
-        proxy_hide_header Content-Security-Policy;
-        proxy_pass http://minio_s3/;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_request_buffering off;
-        client_max_body_size 20m;
     }
 
     location = /sanctum/csrf-cookie {

@@ -65,7 +65,36 @@ curl -s -o /dev/null -D - "https://<endpoint-yang-muncul-di-URL-presign>/<objek-
 
 - endpoint yang dipakai API untuk operasi internal boleh hostname Docker;
 - endpoint yang dipakai untuk **presigned URL** (browser yang mengirim PUT) wajib hostname publik — Blueprint §11;
-- nama variabel env khusus untuk "endpoint publik" **belum ada** di mana pun yang terdokumentasi. Doc 01 §11.3 menunjuk `.env.example` (deliverable Sprint 0, Doc 03 §3) sebagai satu-satunya daftar variabel, dan daftar minimum yang direncanakan baru berisi `FILESYSTEM_DISK`, `AWS_*` (endpoint MinIO internal) dan `ASSET_URL` — tidak ada var "endpoint untuk presigned URL" → butir terbuka README §5 nomor 6 + **ADR-008**. Jangan menambah var tanpa menuliskannya di `.env.example`; aturan proyek: *tidak ada var yang wajib tapi tidak terdokumentasi* (Doc 01 §11.3).
+- variabel endpoint publik adalah **`MINIO_PUBLIC_ENDPOINT`**, terdaftar di `apps/api/.env.example`; default `https://storage.localhost` (profil Compose lokal HTTP). Gunakan origin khusus `storage.<domain>` tanpa prefix path. Nginx mempertahankan URI dan `Host` menuju MinIO; menghapus prefix `/storage` akan membatalkan signature SigV4. `MediaValidationTest` memeriksa hostname/path/TTL, dan `MediaUploadTest` melakukan PUT sungguhan melalui nginx lalu finalize serta signed download.
+
+Provisioning memakai `docker/minio/init-buckets.sh` dengan image source-build
+`elzara/minio:dev` dari `docker/minio/Dockerfile` (MinIO + mc). Aman dijalankan ulang.
+Hanya `product-media` memberi `GetObject` anonim, tanpa listing. Lima bucket lain
+privat; audit-archives tidak dapat dibaca service account aplikasi. Semua bucket
+memakai versioning, dan finalize menyimpan VersionId agar PUT ulang tidak mengganti
+unduhan tervalidasi. Jangan menonaktifkan versioning; objek tanpa VersionId ditolak.
+Lifecycle exports menghapus objek aktif setelah 7 hari, versi noncurrent setelah
+7 hari noncurrent, dan delete marker tanpa versi tersisa.
+GET privat berlaku 120 detik, PUT 600 detik. Jangan merekam query signature di log.
+
+Semua PUT menargetkan `incoming/` privat. Finalize menyalin versi yang telah
+divalidasi ke `published/`, menyimpan key/VersionId salinan dan menghapus versi
+staging setelah commit. Hanya `product-media/published/*` boleh GET anonim;
+pastikan kebijakan lama `product-media/*` diganti saat menjalankan init ulang.
+
+Scheduler menjalankan `php artisan content:media:cleanup` setiap jam tanpa overlap.
+Perintah ini menghapus reservasi belum finalized yang berumur lebih dari 30 menit,
+termasuk seluruh versi dan delete marker staging. Output `deleted=N failed=N`;
+exit nonzero berarti storage gagal dan baris dipertahankan untuk retry setelah
+storage pulih. Lifecycle `incoming/` satu hari menghapus sisa staging termasuk
+PUT ulang setelah finalize; `published/` tidak terkena aturan ini.
+
+Rilis MinIO source-build tidak mendukung bucket-CORS API. Compose menetapkan
+`MINIO_API_CORS_ALLOW_ORIGIN` ke `ELZARA_EDGE_URL` dan `ELZARA_ADMIN_ORIGIN`, tanpa
+wildcard. `docker/minio/cors/bucket-cors.json` adalah template untuk provider yang
+mendukung bucket-CORS (`ELZARA_MINIO_SERVER_CORS=0`); jangan gunakan template dev di
+produksi tanpa menyesuaikan origin. Verifikasi preflight dari kedua origin setelah
+perubahan konfigurasi dan pastikan origin asing tidak menerima ACAO.
 
 ```bash
 # CORS bucket: hanya origin web/admin sah yang boleh PUT/GET langsung

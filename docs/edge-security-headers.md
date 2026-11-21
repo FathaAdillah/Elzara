@@ -31,12 +31,15 @@ Neither frontend allows `unsafe-inline` or `unsafe-eval` for scripts.
   edge-owned `default-src 'none'`; upstream CSP is hidden on API/storage routes.
   There is exactly one CSP header per response.
 
-The storage location re-includes the common security snippet alongside its local
+The storage server's proxy location includes the common security snippet alongside its local
 CSP hide directive: nginx does not inherit a parent's `proxy_hide_header` list
 when a location defines its own. This prevents MinIO's HSTS/nosniff headers from
 leaking through or duplicating edge-owned headers. The header script checks a
-403 missing-object response on `/storage/` for both hostnames, including no HSTS
-on HTTP and exactly one HSTS on HTTPS-mode listeners.
+403 missing-object response on the dedicated `storage.*` hostname, including no
+HSTS on HTTP and exactly one HSTS on HTTPS-mode listeners. The master branch's
+SigV4-preserving storage topology replaces the old `/storage/` prefix proxy:
+URI and Host reach MinIO unchanged. Storage HSTS follows the configured public
+edge scheme (including HTTPS terminated by Dokploy); standalone TLS is explicit.
 
 Inline styles remain permitted for React style props, Nuxt UI and chart positioning.
 Fonts and scripts are self-hosted. Images allow self/data; admin permits blob
@@ -54,7 +57,7 @@ After starting the stack (see `docker/README.md`):
 ```sh
 bash scripts/validate-edge-nginx.sh
 docker compose --env-file docker/.env -f docker/compose.local.yaml exec nginx nginx -t
-python3 scripts/check-edge-headers.py --base-url http://localhost --web-host localhost --admin-host admin.localhost --media-origin http://localhost
+python3 scripts/check-edge-headers.py --base-url http://localhost --web-host localhost --admin-host admin.localhost --storage-host storage.localhost --media-origin http://storage.localhost
 ```
 
 The `edge` CI workflow validates both local and Dokploy nginx listeners. The HTTP

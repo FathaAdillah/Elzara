@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Content\Application\ExpiredUploadCleaner;
 use App\Platform\Outbox\OutboxDispatcher;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -37,3 +38,12 @@ Artisan::command('platform:outbox:dispatch {--queue=} {--limit=50}', function (O
 })->purpose('Kirim event yang menunggu di transactional outbox');
 
 Schedule::command('platform:outbox:dispatch')->everyMinute();
+
+Artisan::command('content:media:cleanup', function (ExpiredUploadCleaner $cleaner): int {
+    $result = $cleaner->run();
+    $this->line(sprintf('deleted=%d failed=%d', $result['deleted'], $result['failed']));
+
+    return $result['failed'] === 0 ? 0 : 1;
+})->purpose('Hapus reservasi upload kedaluwarsa beserta seluruh versi staging');
+
+Schedule::command('content:media:cleanup')->hourly()->withoutOverlapping();
