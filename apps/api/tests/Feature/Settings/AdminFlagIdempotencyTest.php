@@ -104,6 +104,23 @@ final class AdminFlagIdempotencyTest extends TestCase
         $this->assertDatabaseCount('audit_logs', 0);
     }
 
+    public function test_audit_preserves_the_request_id_seen_by_the_client(): void
+    {
+        $user = $this->login();
+        $this->grant($user, 'setting.update');
+        foreach (['client-request-7', (string) Str::uuid(), str_repeat('a', 128)] as $requestId) {
+            $this->send('PATCH', $this->payload(), (string) Str::uuid(), requestId: $requestId)
+                ->assertOk()->assertHeader('X-Request-Id', $requestId);
+            $query = DB::table('audit_logs');
+            if (strlen($requestId) > 26) {
+                $query->where('after->_context->request_id', $requestId);
+            } else {
+                $query->where('request_id', $requestId);
+            }
+            $this->assertSame(1, $query->count());
+        }
+    }
+
     private function payload(): array
     {
         return ['flags' => [['code' => 'checkout.enabled', 'default_enabled' => false, 'env' => 'local', 'enabled' => false, 'rollout_percent' => 25]], 'reason' => 'Incident maintenance'];
@@ -134,7 +151,7 @@ final class AdminFlagIdempotencyTest extends TestCase
         $this->send('GET', path: '/sanctum/csrf-cookie?scope=admin'.($login ? '&purpose=login' : ''))->assertNoContent();
     }
 
-    private function send(string $method, array $payload = [], ?string $key = null, bool $csrf = true, string $path = self::PATH): TestResponse
+    private function send(string $method, array $payload = [], ?string $key = null, bool $csrf = true, string $path = self::PATH, ?string $requestId = null): TestResponse
     {
         $headers = ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json', 'HTTP_HOST' => 'localhost', 'HTTP_ORIGIN' => 'https://localhost', 'HTTPS' => 'on'];
         if ($csrf && isset($this->cookies['XSRF-TOKEN'])) {
@@ -142,6 +159,9 @@ final class AdminFlagIdempotencyTest extends TestCase
         }
         if ($key !== null) {
             $headers['HTTP_IDEMPOTENCY_KEY'] = $key;
+        }
+        if ($requestId !== null) {
+            $headers['HTTP_X_REQUEST_ID'] = $requestId;
         }
         $response = $this->call($method, $path, [], $this->cookies, [], $headers, json_encode($payload, JSON_THROW_ON_ERROR));
         foreach ($response->headers->getCookies() as $cookie) {

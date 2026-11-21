@@ -9,7 +9,6 @@ use App\Modules\Settings\Application\Queries\ListFeatureFlags;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 final class AdminFeatureFlagController
 {
@@ -33,10 +32,10 @@ final class AdminFeatureFlagController
             'flags.*.enabled' => ['required_with:flags.*.env,flags.*.rollout_percent', 'boolean'],
             'flags.*.rollout_percent' => ['sometimes', 'integer', 'between:0,100'],
         ]);
-        $requestId = $request->attributes->get('request_id');
+        $requestId = $request->attributes->getString('request_id');
         $this->dispatchSync(new UpdateFeatureFlags(
             $request->attributes->getInt('admin_actor_id'), $data['flags'], $data['reason'],
-            is_string($requestId) && strlen($requestId) === 26 ? $requestId : (string) Str::ulid(),
+            $requestId,
             $request->ip(), (string) $request->userAgent(),
         ));
 

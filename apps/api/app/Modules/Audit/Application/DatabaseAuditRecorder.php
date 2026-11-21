@@ -6,11 +6,16 @@ namespace App\Modules\Audit\Application;
 
 use App\Modules\Audit\Contracts\AuditRecorder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 final class DatabaseAuditRecorder implements AuditRecorder
 {
     public function record(int $actorId, string $action, string $targetType, int $targetId, array $before, array $after, string $reason, string $requestId, ?string $ip, string $userAgent): void
     {
+        if (strlen($requestId) > 26) {
+            $after['_context'] = ['request_id' => $requestId];
+            $requestId = (string) Str::ulid();
+        }
         DB::table('audit_logs')->insert([
             'actor_id' => $actorId, 'action' => $action, 'target_type' => $targetType, 'target_id' => $targetId,
             'before' => json_encode($before, JSON_THROW_ON_ERROR), 'after' => json_encode($after, JSON_THROW_ON_ERROR),
