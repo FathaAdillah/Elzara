@@ -70,7 +70,7 @@ final class ApiProblemRenderer
         $response = $this->problem($exception, $status)->forRequest($request, $requestId)->toResponse();
         foreach ($headers as $name => $value) {
             if (in_array(strtolower($name), ['allow', 'retry-after', 'www-authenticate'], true)) {
-                $response->headers->set($name, is_array($value) ? array_values(array_filter($value, is_string(...))) : $value);
+                $response->headers->set($name, is_array($value) ? array_values(array_filter($value, is_string(...))) : (string) $value);
             }
         }
 

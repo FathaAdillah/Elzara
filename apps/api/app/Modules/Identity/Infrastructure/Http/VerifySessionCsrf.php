@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Symfony\Component\HttpFoundation\Response;
 
-final class VerifyAdminCsrf
+final class VerifySessionCsrf
 {
     public function __construct(private readonly Encrypter $encrypter) {}
 

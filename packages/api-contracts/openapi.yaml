@@ -753,7 +753,7 @@ paths:
       tags: [Identity]
       x-elzara-auth: public
       security: []
-      description: "Minta OTP (otp_challenges, modul Identity) untuk purpose login | reset_password | verify_phone. Respons identik ada/tidaknya akun (anti-enumeration); kode hanya dikirim bila akun ada. Rate limit ketat di edge dan API."
+      description: "Minta OTP (otp_challenges, modul Identity) untuk purpose login | reset_password | verify_phone | verify_email. Saat ini hanya login dan verify_email lewat channel email yang dilayani; kombinasi lain -> 422 (reset kata sandi memakai /auth/password/reset-request, OTP telepon menunggu gateway). Respons identik ada/tidaknya akun (anti-enumeration); kode hanya dikirim bila akun ada. Rate limit ketat di edge dan API."
       parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
       requestBody:
         required: true
@@ -765,7 +765,7 @@ paths:
               properties:
                 email: { type: string, format: email, maxLength: 254 }
                 channel: { type: string, enum: [email, whatsapp, sms] }
-                purpose: { type: string, enum: [login, reset_password, verify_phone] }
+                purpose: { type: string, enum: [login, reset_password, verify_phone, verify_email] }
       responses:
         "200":
           description: "Challenge dibuat (atau diam-diam tidak, bila akun tidak ada) + masa berlaku"
@@ -787,7 +787,7 @@ paths:
       tags: [Identity]
       x-elzara-auth: public
       security: []
-      description: "Verifikasi kode OTP; percobaan dibatasi (otp_challenges.attempts) dan challenge sekali-pakai (consumed_at). purpose=login membuka sesi web; purpose lain menandai challenge terverifikasi untuk langkah berikutnya. Kode salah/kedaluwarsa -> 401."
+      description: "Verifikasi kode OTP; percobaan dibatasi (otp_challenges.attempts) dan challenge sekali-pakai (consumed_at). purpose=login membuka sesi web; purpose=verify_email mengisi users.email_verified_at (syarat penautan akun sosial); purpose lain menandai challenge terverifikasi untuk langkah berikutnya. Kode salah/kedaluwarsa -> 401."
       parameters: [{ $ref: "#/components/parameters/XsrfToken" }]
       requestBody:
         required: true
@@ -798,7 +798,7 @@ paths:
               required: [email, purpose, code]
               properties:
                 email: { type: string, format: email, maxLength: 254 }
-                purpose: { type: string, enum: [login, reset_password, verify_phone] }
+                purpose: { type: string, enum: [login, reset_password, verify_phone, verify_email] }
                 code: { type: string, pattern: "^[0-9]{6}$" }
       responses:
         "200":
@@ -813,7 +813,7 @@ paths:
                 required: [verified, purpose]
                 properties:
                   verified: { type: boolean, const: true }
-                  purpose: { type: string, enum: [login, reset_password, verify_phone] }
+                  purpose: { type: string, enum: [login, reset_password, verify_phone, verify_email] }
         "401": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/Problem" }

@@ -5,11 +5,10 @@ import { NextResponse, type NextRequest } from "next/server";
  * "hanya route-guard non-otoritatif (UI), bukan pengganti policy"). Yang PUTUS di sini
  * hanyalah caching: halaman privat tidak boleh masuk CDN/ISR (Doc 01 §2.4, Doc 04 §8).
  *
- * Tidak ada redirect ke halaman login di kerangka ini, dan itu bukan kelalaian: bentuk
- * sesi/cookie/CSRF adalah ADR-007 yang masih `Proposed` (Q-2), dan endpoint auth belum
- * dinormakan (Doc 12 §2.4) — jadi rute login storefront belum boleh diciptakan. Setelah
- * ADR-007 tertutup, berkas ini yang menerima gerbang UI-nya; keputusan tetap di Laravel
- * Policy/Gate (Doc 12 §3.1), bukan di sini.
+ * Sesi storefront adalah cookie Sanctum `elzara_web_session` yang HttpOnly (ADR-007
+ * amandemen, Doc 12 §3.1); halaman masuk ada di `/account/login`. Tidak ada redirect di
+ * sini karena keberadaan cookie bukan bukti sesi aktif: keputusan tetap di guard `web`
+ * Laravel, yang menjawab 401 untuk sesi tercabut.
  */
 const PRIVATE_PREFIXES = ["/cart", "/checkout", "/account"];
 
