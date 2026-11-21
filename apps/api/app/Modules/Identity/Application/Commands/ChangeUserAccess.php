@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Identity\Application\Commands;
 
 use App\Modules\Audit\Contracts\AuditRecorder;
+use App\Modules\Identity\Application\Queries\PermissionScopeResolver;
 use App\Modules\Identity\Application\Queries\UserAccess;
 use App\Modules\Identity\Infrastructure\Models\Permission;
 use App\Modules\Identity\Infrastructure\Models\Role;
@@ -15,7 +16,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 final class ChangeUserAccess
 {
-    public function __construct(private AuditRecorder $audit, private UserAccess $access) {}
+    public function __construct(private AuditRecorder $audit, private UserAccess $access, private PermissionScopeResolver $scopes) {}
 
     public function change(AccessChange $command, string $operation): void
     {
@@ -35,11 +36,17 @@ final class ChangeUserAccess
             if ($resource === null) {
                 throw ValidationException::withMessages([$isRole ? 'role' : 'permission' => 'Unknown admin access name.']);
             }
+            $type = $operation === 'role.assign' ? $command->scopeType : null;
+            $id = $operation === 'role.assign' ? $command->scopeId : null;
+            if (($type === null) !== ($id === null) || ($type !== null && (! in_array($type, ['batch', 'category', 'warehouse'], true) || $id < 1))) {
+                throw ValidationException::withMessages(['scope_type' => 'Invalid scope pair.']);
+            }
             $actor = $command->actor->fresh() ?? abort(403);
             if (! $actor->is_admin && in_array($operation, ['role.assign', 'permission.grant'], true)) {
                 $permissions = $resource instanceof Role ? $resource->permissions->map(fn (\Spatie\Permission\Models\Permission $permission): string => $permission->name)->all() : [$resource->name];
                 foreach ($permissions as $permission) {
-                    abort_unless($actor->checkPermissionTo($permission, 'admin'), 403);
+                    $allowed = $this->scopes->allowed($permission, $actor);
+                    abort_unless($allowed === null || ($type !== null && in_array($id, $allowed[$type] ?? [], true)), 403);
                 }
             }
             $before = $this->access->forUser($target);
@@ -51,11 +58,6 @@ final class ChangeUserAccess
                 $target->removeRole($resource->name);
                 DB::table('role_scopes')->where('user_id', $target->id)->where('role_id', $resource->id)->delete();
             } else {
-                $type = $command->scopeType;
-                $id = $command->scopeId;
-                if (($type === null) !== ($id === null) || ($type !== null && (! in_array($type, ['batch', 'category', 'warehouse'], true) || $id < 1))) {
-                    throw ValidationException::withMessages(['scope_type' => 'Invalid scope pair.']);
-                }
                 $target->assignRole($resource->name);
                 DB::table('role_scopes')->insertOrIgnore(['user_id' => $target->id, 'role_id' => $resource->id, 'scope_type' => $type, 'scope_id' => $id]);
             }

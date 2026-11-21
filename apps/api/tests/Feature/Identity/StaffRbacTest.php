@@ -223,6 +223,60 @@ final class StaffRbacTest extends TestCase
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'rbac.role.assign')->count());
     }
 
+    public function test_scoped_actor_cannot_delegate_global_or_out_of_scope_access(): void
+    {
+        $actor = $this->batchScopedOperator();
+        $target = $this->operator();
+        $this->login($actor);
+        $this->send('POST', $this->path($target).'/permissions', ['permission' => 'batch.view', 'reason' => 'Global delegation'])->assertForbidden();
+        $body = ['role' => 'preorder-ops', 'reason' => 'Delegate batch'];
+        $this->send('POST', $this->path($target).'/roles', $body)->assertForbidden();
+        foreach ([['scope_type' => 'batch', 'scope_id' => 13], ['scope_type' => 'warehouse', 'scope_id' => 12]] as $scope) {
+            $this->send('POST', $this->path($target).'/roles', $body + $scope)->assertForbidden();
+        }
+        $this->assertSame([], app(PermissionScopeResolver::class)->allowed('batch.view', $target));
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'rbac.permission.grant', 'target_id' => $target->id]);
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'rbac.role.assign', 'target_id' => $target->id]);
+    }
+
+    public function test_scoped_actor_can_delegate_matching_scope_with_mixed_global_permissions(): void
+    {
+        $actor = $this->batchScopedOperator();
+        $actor->givePermissionTo('batch.close');
+        $target = $this->operator();
+        $this->login($actor);
+        $this->send('POST', $this->path($target).'/roles', ['role' => 'preorder-ops', 'scope_type' => 'batch', 'scope_id' => 12, 'reason' => 'Delegate batch'])->assertOk();
+        $this->assertSame(['batch' => [12]], app(PermissionScopeResolver::class)->allowed('batch.view', $target));
+        $this->assertDatabaseHas('audit_logs', ['action' => 'rbac.role.assign', 'target_id' => $target->id]);
+    }
+
+    public function test_actor_must_cover_requested_scope_for_every_permission_in_the_bundle(): void
+    {
+        $actor = $this->batchScopedOperator();
+        $role = Role::findByName('catalog-manager', 'admin');
+        $role->syncPermissions(['batch.view', 'setting.view']);
+        $actor->assignRole($role);
+        DB::table('role_scopes')->insert(['user_id' => $actor->id, 'role_id' => $role->id, 'scope_type' => 'batch', 'scope_id' => 13]);
+        $target = $this->operator();
+        $this->login($actor);
+        $body = ['role' => 'catalog-manager', 'scope_type' => 'batch', 'scope_id' => 12, 'reason' => 'Delegate mixed bundle'];
+        $this->send('POST', $this->path($target).'/roles', $body)->assertForbidden();
+        $actor->givePermissionTo('setting.view');
+        $this->send('POST', $this->path($target).'/roles', $body)->assertOk();
+        $this->assertSame(['batch' => [12]], app(PermissionScopeResolver::class)->allowed('setting.view', $target));
+    }
+
+    private function batchScopedOperator(): User
+    {
+        $actor = $this->operator();
+        $actor->givePermissionTo(['user.view', 'user.update']);
+        $role = Role::findByName('preorder-ops', 'admin');
+        $actor->assignRole($role);
+        DB::table('role_scopes')->insert(['user_id' => $actor->id, 'role_id' => $role->id, 'scope_type' => 'batch', 'scope_id' => 12]);
+
+        return $actor;
+    }
+
     private function operator(bool $admin = false, bool $operator = true): User
     {
         return User::query()->forceCreate(['public_id' => (string) Str::ulid(), 'name' => 'Operator', 'email' => Str::ulid().'@example.test', 'is_operator' => $operator, 'is_admin' => $admin, 'password_hash' => password_hash('fixture-password', PASSWORD_BCRYPT, ['cost' => 4])]);
