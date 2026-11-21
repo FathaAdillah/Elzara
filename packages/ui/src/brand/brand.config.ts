@@ -18,7 +18,7 @@ export interface BrandConfig {
 }
 
 export const brand: BrandConfig = {
-  name: "",
+  name: "Elzara",
   tagline: "",
   supportWhatsapp: "",
   legal: { company: "", address: "", npwp: "", email: "" },
@@ -30,5 +30,5 @@ export const brand: BrandConfig = {
   tz: "Asia/Jakarta",
   // Preset yang diimpor globals.css kedua app hari ini; diganti lewat BRAND_THEME saat build (Doc 04 §4).
   theme: "playful",
-  seo: { defaultOg: "", siteName: "" },
+  seo: { defaultOg: "", siteName: "Elzara" },
 };
