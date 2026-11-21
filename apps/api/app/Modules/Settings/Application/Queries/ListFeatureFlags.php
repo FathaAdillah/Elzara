@@ -15,9 +15,9 @@ final class ListFeatureFlags
     public function __construct(private FeatureFlagQuery $flags) {}
 
     /** @return list<array{code: string, enabled: bool}> */
-    public function publicFlags(): array
+    public function publicFlags(int|string|null $subjectId = null): array
     {
-        return array_map(fn (string $code): array => ['code' => $code, 'enabled' => $this->flags->enabled($code)], self::PUBLIC_CODES);
+        return array_map(fn (string $code): array => ['code' => $code, 'enabled' => $this->flags->enabled($code, $subjectId)], self::PUBLIC_CODES);
     }
 
     /** @return list<array<string, mixed>> */
