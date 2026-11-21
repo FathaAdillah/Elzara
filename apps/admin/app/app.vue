@@ -3,7 +3,7 @@ import { id } from '@nuxt/ui/locale'
 </script>
 
 <template>
-  <UApp :locale="id">
+  <UApp :locale="id" :toaster="{ progress: false }">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

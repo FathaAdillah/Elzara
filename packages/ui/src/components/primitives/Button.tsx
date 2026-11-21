@@ -14,11 +14,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 // Komponen hanya menyebut Lapis 2 (warna) dan Lapis 3 (ukuran) - tidak ada nilai konkret di berkas ini.
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: "bg-brand text-surface",
+  primary: "bg-brand text-on-brand",
   secondary: "bg-brand-ink text-ink",
   ghost: "bg-transparent text-ink",
-  danger: "bg-danger text-surface",
-  accent: "bg-accent text-ink",
+  danger: "bg-danger text-on-status",
+  accent: "bg-accent text-on-accent",
 };
 
 const SIZE: Record<ButtonSize, string> = {
@@ -39,20 +39,22 @@ export function Button({
   trailingIcon,
   className = "",
   disabled,
+  type = "button",
   children,
   ...rest
 }: ButtonProps) {
   return (
     <button
       {...rest}
+      type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={[
         VARIANT[variant],
         SIZE[size],
         // min-h-touch menjaga target >=44px walau varian sm lebih pendek (Doc 04 §5.2)
-        "inline-flex min-h-touch items-center justify-center gap-2 rounded-badge font-medium",
-        "transition-base hover:brightness-95 motion-reduce:transition-none disabled:opacity-50",
+        "inline-flex min-h-touch min-w-touch items-center justify-center gap-2 rounded-badge font-medium",
+        "enabled:hover:underline disabled:opacity-50",
         FOCUS,
         block ? "w-full" : "",
         className,
@@ -60,9 +62,9 @@ export function Button({
         .filter(Boolean)
         .join(" ")}
     >
-      {leadingIcon}
+      {leadingIcon && <span aria-hidden="true">{leadingIcon}</span>}
       {children}
-      {trailingIcon}
+      {trailingIcon && <span aria-hidden="true">{trailingIcon}</span>}
     </button>
   );
 }

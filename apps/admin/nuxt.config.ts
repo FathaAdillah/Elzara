@@ -1,3 +1,5 @@
+import { brand, resolveBrandTheme } from '@elzara/ui/brand'
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-19',
   modules: ['@nuxt/ui'],
@@ -20,8 +22,8 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      htmlAttrs: { lang: 'id' },
-      titleTemplate: '%s · Elzara Admin',
+      htmlAttrs: { lang: brand.locale, 'data-brand-theme': resolveBrandTheme(process.env.BRAND_THEME ?? process.env.NUXT_PUBLIC_BRAND_THEME, 'admin') },
+      titleTemplate: `%s · ${brand.name} Admin`,
       link: [{ rel: 'icon', type: 'image/png', href: '/brand/elzara-mark.png' }],
     },
   },

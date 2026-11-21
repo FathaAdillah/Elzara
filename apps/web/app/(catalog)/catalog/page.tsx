@@ -1,3 +1,5 @@
+import { Badge } from "@elzara/ui";
+
 /**
  * Stub rute katalog. Route group `(catalog)` tidak menambah segmen URL, jadi halaman
  * ini hidup di `/catalog` (nama yang dipakai checklist ganti-brand Doc 04 §11 butir 9).
@@ -15,10 +17,13 @@ export default function CatalogPage() {
       <h1 className="text-2xl font-semibold text-ink">Katalog</h1>
       <p className="max-w-prose text-sm text-ink-muted">
         Belum ada grid produk dan tidak akan pernah ada produk contoh di repo. Isinya
-        dirender dari respons klien ter-generate terhadap <code>/api/v1/products</code>;
-        badge mode (RTS/PO/Quote) memakai utilitas Lapis 2 (<code>po</code>,{" "}
-        <code>ready</code>, <code>quote</code>) dari <code>packages/ui</code>.
+        dirender dari respons klien ter-generate terhadap <code>/api/v1/products</code>.
       </p>
+      <ul aria-label="Mode pemenuhan" className="flex flex-wrap gap-2">
+        <li><Badge tone="ready">Stok siap</Badge></li>
+        <li><Badge tone="po">Pre-order</Badge></li>
+        <li><Badge tone="quote">Penawaran</Badge></li>
+      </ul>
     </section>
   );
 }

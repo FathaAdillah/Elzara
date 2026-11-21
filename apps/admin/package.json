@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@elzara/api-client": "file:../../packages/api-contracts",
+    "@elzara/ui": "file:../../packages/ui",
     "@fontsource-variable/geist": "^5.2.6",
     "@iconify-json/lucide": "^1.2.0",
     "@nuxt/ui": "4.13.0",
