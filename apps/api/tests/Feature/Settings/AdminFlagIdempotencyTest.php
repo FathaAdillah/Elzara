@@ -42,7 +42,7 @@ final class AdminFlagIdempotencyTest extends TestCase
 
     public function test_authentication_permissions_and_csrf_are_enforced(): void
     {
-        $this->send('GET')->assertUnauthorized();
+        $this->send('GET')->assertUnauthorized()->assertHeader('X-RateLimit-Policy', 'admin');
         $this->send('PATCH', $this->payload())->assertUnauthorized();
         $user = $this->login();
         $this->send('GET')->assertForbidden();
@@ -59,7 +59,7 @@ final class AdminFlagIdempotencyTest extends TestCase
         $user = $this->login();
         $this->grant($user, 'setting.update');
         $key = (string) Str::uuid();
-        $first = $this->send('PATCH', $this->payload(), $key)->assertOk()->assertHeader('Idempotency-Replayed', 'false');
+        $first = $this->send('PATCH', $this->payload(), $key)->assertOk()->assertHeader('Idempotency-Replayed', 'false')->assertHeader('X-RateLimit-Policy', 'admin');
         $replay = $this->send('PATCH', $this->payload(), $key)->assertOk()->assertHeader('Idempotency-Replayed', 'true');
         $this->assertSame($first->getContent(), $replay->getContent());
         $changed = $this->payload();

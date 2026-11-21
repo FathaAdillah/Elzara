@@ -760,6 +760,8 @@ export interface components {
             email: string;
             /** Format: date-time */
             email_verified_at?: string | null;
+            /** @description Zona IANA akun; default Asia/Jakarta. Tersedia pada payload admin. */
+            timezone?: string;
         };
         /** @description Baris user_sessions (modul Identity, layar perangkat di profil). id = session_hash: hash identitas sesi, BUKAN nilai cookie sesi, sehingga aman ditampilkan dan dipakai untuk revoke. */
         SessionRead: {
@@ -778,6 +780,27 @@ export interface components {
         Problem: {
             headers: {
                 "X-Request-Id": components["headers"]["RequestId"];
+                "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Batas akun/IP terlampaui; coba lagi setelah Retry-After detik. */
+        RateLimited: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                "Retry-After": components["headers"]["RetryAfter"];
                 [name: string]: unknown;
             };
             content: {
@@ -798,6 +821,18 @@ export interface components {
     };
     requestBodies: never;
     headers: {
+        /** @description Batas permintaan per jendela 60 detik. */
+        RateLimitLimit: number;
+        /** @description Sisa permintaan pada bucket akun/IP saat ini. */
+        RateLimitRemaining: number;
+        /** @description Waktu reset bucket: epoch UTC detik. */
+        RateLimitReset: number;
+        /** @description Kebijakan origin yang berlaku; ambang sementara menunggu k6. */
+        RateLimitPolicy: string;
+        /** @description Detik sebelum mencoba kembali; hanya pada respons 429. */
+        RetryAfter: number;
+        /** @description Zona IANA users.timezone pada permintaan terautentikasi. */
+        DisplayedTimezone: string;
         /** @description Selalu dikembalikan, termasuk 4xx/5xx dan response replay. */
         RequestId: string;
         /** @description true bila respons ini hasil replay key yang sama. */
@@ -825,6 +860,12 @@ export interface operations {
             /** @description Public flag decisions for the current environment */
             200: {
                 headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
@@ -836,6 +877,7 @@ export interface operations {
             };
             404: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     adminFeatureFlagsList: {
@@ -850,6 +892,12 @@ export interface operations {
             /** @description Flags and environment overrides */
             200: {
                 headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -859,6 +907,7 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     adminFeatureFlagsPatch: {
@@ -892,6 +941,12 @@ export interface operations {
             /** @description Updated flags with overrides */
             200: {
                 headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
                     [name: string]: unknown;
                 };
@@ -906,6 +961,7 @@ export interface operations {
             409: components["responses"]["Problem"];
             419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     getHealth: {
@@ -960,7 +1016,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     getProduct: {
@@ -1145,6 +1201,11 @@ export interface operations {
             /** @description Order lahir langsung awaiting_payment; draft tidak dipakai (Doc 11 §8.3) */
             201: {
                 headers: {
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     "X-Request-Id": components["headers"]["RequestId"];
                     "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
                     [name: string]: unknown;
@@ -1156,10 +1217,16 @@ export interface operations {
             401: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
             /** @description Checkout disabled; retryable CHECKOUT_DISABLED with localized explanation */
             503: {
                 headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1599,7 +1666,7 @@ export interface operations {
             };
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     loginWeb: {
@@ -1637,7 +1704,7 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     logoutWeb: {
@@ -1702,7 +1769,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     verifyOtp: {
@@ -1745,7 +1812,7 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     redirectSocialLogin: {
@@ -1770,7 +1837,7 @@ export interface operations {
                 content?: never;
             };
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     handleSocialCallback: {
@@ -1800,7 +1867,7 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     listMySessions: {
@@ -1892,7 +1959,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     confirmPasswordReset: {
@@ -1929,7 +1996,7 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     loginAdmin: {
@@ -1955,6 +2022,11 @@ export interface operations {
             /** @description Tantangan 2FA atau sesi yang sudah dibuka untuk operator development lokal */
             200: {
                 headers: {
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     "X-Request-Id": components["headers"]["RequestId"];
                     "Set-Cookie": components["headers"]["AdminSessionCookie"];
                     [name: string]: unknown;
@@ -1980,7 +2052,7 @@ export interface operations {
             403: components["responses"]["Problem"];
             419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     verifyAdminTwoFactor: {
@@ -2006,6 +2078,11 @@ export interface operations {
             /** @description 2FA terkonfirmasi; sesi admin dibuka */
             200: {
                 headers: {
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     "X-Request-Id": components["headers"]["RequestId"];
                     "Set-Cookie": components["headers"]["AdminSessionCookie"];
                     [name: string]: unknown;
@@ -2021,7 +2098,7 @@ export interface operations {
             401: components["responses"]["Problem"];
             419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     getAdminSession: {
@@ -2037,6 +2114,11 @@ export interface operations {
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2049,6 +2131,7 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     logoutAdmin: {
@@ -2067,6 +2150,11 @@ export interface operations {
             204: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -2074,6 +2162,7 @@ export interface operations {
             401: components["responses"]["Problem"];
             419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     getCsrfCookie: {
@@ -2100,7 +2189,7 @@ export interface operations {
                 content?: never;
             };
             422: components["responses"]["Problem"];
-            429: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
 }

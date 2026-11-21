@@ -7,11 +7,15 @@
   --neutral-900: #141419;
   --brand-50: #fdf0f6;
   --brand-600: #f26b9a;
+  --brand-contrast: #9b2756;
+  --brand-foreground: #141419;
+  --accent-foreground: #141419;
+  --status-foreground: #ffffff;
   --coral-500: #ff8a5c;
   --violet-600: #7b2bf9;
-  --green-600: #1c8a4f;
+  --green-600: #167140;
   --red-600: #c62828;
-  --amber-500: #b45309;
+  --amber-500: #a04a09;
   --sky-600: #0369a1;
   --neutral-overlay: rgb(0 0 0/.55);
 

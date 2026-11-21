@@ -47,7 +47,7 @@ Rujukan terperinci: [plan Sprint 0](2026-11-17-sprint-0-fondasi.md), Task 1-20. 
 - [ ] **P0.13 | Task 13 / 0.9** Siapkan enam bucket, presigned PUT publik, finalize, validasi MIME/magic-byte, CORS dan URL privat. Uji upload/finalize dan penolakan objek yang tidak sah.
 - [ ] **P0.14 | Task 14 / 0.10** Buat locales ID/EN, flag, setting admin dan kill switch checkout. Buktikan perubahan flag memengaruhi alur checkout terkait.
 - [ ] **P0.15 | Task 15 / 0.11** Buat ReferenceSeeder idempoten dan DemoSeeder dev/staging, factory dan aset orisinal. Jalankan ReferenceSeeder dua kali pada DB dev dan periksa perubahan baris.
-- [ ] **P0.16 | Task 16 / 0.8** Lengkapi token/preset, Button/Input/Card/Badge/Modal/Toast/Grid; hubungkan ke kedua app dan periksa aksesibilitas komponen yang digunakan.
+- [x] **P0.16 | Task 16 / 0.8** Lengkapi token/preset, Button/Input/Card/Badge/Modal/Toast/Grid; hubungkan ke kedua app dan periksa aksesibilitas komponen yang digunakan. Storefront memakai primitif React, admin memakai Nuxt UI dengan token yang sama. Uji komponen dan kontras WCAG AA lulus; kedua image Node 22 dibangun dan menghidangkan preset `brand` dalam smoke HTTP lokal.
 - [ ] **P0.17 | Task 17 / 0.16** Selaraskan header edge dan CSP tiap app; verifikasi header dan jalur publik/admin dari entry point.
 - [ ] **P0.18 | Task 18 / 0.12** Sambungkan log JSON dan korelasi request/job, metrik/trace, backup off-node dan prosedur restore; dokumentasikan hasil drill.
 - [ ] **P0.19 | Auth Task 11-14 + K1-K3** Jalankan Feature test terarah, tutup drift/gerbang dokumen dan serahkan bukti skema. Setelah syarat M1-M3 selesai, rebuild tiga image; buktikan Compose, migrasi, seeder dan health lokal. Build tiga image produksi melalui Dokploy dengan `docker/compose.yaml`, domain diarahkan ke service `nginx:8080`. Startup Compose lokal memakai override `docker/profiles/local.yaml` dan dicatat terpisah.
@@ -55,7 +55,7 @@ Rujukan terperinci: [plan Sprint 0](2026-11-17-sprint-0-fondasi.md), Task 1-20. 
 
 ### Sprint 1 | Kontrak final dan lingkungan
 
-- [ ] **P0.21 | 1.1-1.2** Pisahkan akses publik/admin/internal; selesaikan validasi, cursor pagination, UTC/tampilan zona, dan rate limit. Verifikasi jalur akses dan respons yang berubah.
+- [x] **P0.21 | 1.1-1.2** Pisahkan akses publik/admin/internal; selesaikan validasi, cursor pagination, UTC/tampilan zona, dan rate limit. Verifikasi jalur akses dan respons yang berubah. Rute `/api/v1/internal/*` ditolak edge nginx (404, `nginx -t` lulus) dan middleware `internal` hanya melayani CIDR `ELZARA_INTERNAL_CIDRS`. Setiap rute `/api/v1` wajib punya tepat satu permukaan dan kebijakan rate (tes inventaris rute). Kebijakan `public`/`web`/`admin`/`admin-auth`/`webhooks` per akun atau IP mengirim header `X-RateLimit-*` pada semua respons dan `Retry-After` pada 429. Field tak dikenal ditolak 422 `unknown_field`; cursor pagination keyset bertanda tangan menolak offset, limit >100, cursor rusak, dan filter berbeda. Timestamp kawat UTC milidetik dengan `Z`; `X-Displayed-Timezone` dari `users.timezone`. Spec dan klien hasil generate diperbarui tanpa drift. Di PHP 8.4.28 dan PostgreSQL 16, Feature+Contract lulus (40 tes, 545 assertions); Pint, PHPStan dan Deptrac bersih.
 - [ ] **P0.22 | 1.3-1.4** Isolasi local/staging/production; verifikasi kompatibilitas expand/contract; selesaikan permission per aksi di server setelah sign-off dan uji scope, direct grant serta audit.
 - [ ] **P0.23 | 1.5-1.6** Sediakan harness concurrency dengan fixture stok/kuota dan Playwright untuk RTS, PO, dan Request Order. Simpan artefak untuk skenario yang sudah tersedia.
 - [ ] **P0.24 | 1.7-1.9** Ukur baseline katalog/checkout di staging yang diotorisasi; lengkapi runbook callback, replay, queue dan kill switch; catat keputusan yang diperlukan untuk gateway/Waiting Room.
@@ -133,7 +133,7 @@ Rujukan terperinci: [plan Sprint 0](2026-11-17-sprint-0-fondasi.md), Task 1-20. 
 - [ ] **K1.3** Catat keputusan controller mengenai perubahan konstanta gate H, bila diperlukan. Gate H saat ini cocok. Riwayat perubahan konstanta eksternal belum terverifikasi.
 - [x] **K1.4** Tutup gerbang skema dan A-H. Pemeriksa skema lulus. Setelah penyesuaian redaksi Doc 11 dan perluasan runbook, audit_sweep3 mencetak verdict LULUS untuk A-H.
 
-- [ ] **K1.5** Rekonsiliasi algoritme recovery code dengan controller. Doc 09 menetapkan Argon2id, sementara Task 7 dan agen feature menetapkan SHA-256.
+- [x] **K1.5** Rekonsiliasi algoritme recovery code dengan controller. Argon2id ditetapkan; legacy SHA-256 dibungkus migrasi.
 
 ### K2 | Matriks admin dan kontrak auth
 

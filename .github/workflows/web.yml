@@ -67,8 +67,8 @@ jobs:
     needs: verify
     steps:
       - uses: actions/checkout@v4
-      - name: packages/ui harus typecheck sendiri (sumber token bersama, Doc 04 §11)
-        run: docker run --rm -v "${GITHUB_WORKSPACE}:/repo" -w /repo/packages/ui node:22 sh -ec 'npm install --no-package-lock --no-audit --no-fund && npm run typecheck'
+      - name: packages/ui typecheck, WCAG contrast and primitive tests
+        run: docker run --rm -v "${GITHUB_WORKSPACE}:/repo" -w /repo/packages/ui node:22 sh -ec 'npm ci --no-audit --no-fund && npm run typecheck && npm test'
       - name: Klien kontrak yang dipakai storefront identik dengan openapi.yaml (K-3)
         run: bash scripts/check-contract-drift.sh
 

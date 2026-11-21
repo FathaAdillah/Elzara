@@ -12,10 +12,7 @@ use App\Modules\Settings\Application\DatabaseSettingValueQuery;
 use App\Modules\Settings\Application\FeatureFlagService;
 use App\Modules\Settings\Contracts\FeatureFlagQuery;
 use App\Modules\Settings\Contracts\SettingValueQuery;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
-use SocialiteProviders\Manager\SocialiteWasCalled;
-use SocialiteProviders\Twitter\TwitterExtendSocialite;
 
 final class AppServiceProvider extends ServiceProvider
 {
@@ -27,8 +24,5 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->bind(SettingValueQuery::class, DatabaseSettingValueQuery::class);
     }
 
-    public function boot(): void
-    {
-        Event::listen(SocialiteWasCalled::class, [TwitterExtendSocialite::class, 'handle']);
-    }
+    public function boot(): void {}
 }

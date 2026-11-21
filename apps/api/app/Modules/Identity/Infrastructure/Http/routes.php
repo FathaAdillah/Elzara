@@ -10,18 +10,18 @@ use App\Modules\Identity\Infrastructure\Http\StorefrontAuthController;
 use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('admin/auth')->middleware(VerifySessionCsrf::class)->group(function (): void {
+Route::prefix('admin/auth')->middleware(['rate:admin', VerifySessionCsrf::class])->group(function (): void {
     Route::post('login', [AdminAuthController::class, 'login'])
-        ->middleware('throttle:30,1,admin-login');
+        ->middleware('rate:admin-auth');
     Route::post('2fa/verify', [AdminAuthController::class, 'verify'])
-        ->middleware('throttle:30,1,admin-verify');
+        ->middleware('rate:admin-auth');
     Route::get('session', [AdminAuthController::class, 'session']);
     Route::post('logout', [AdminAuthController::class, 'logout']);
 });
 
 // Storefront memakai guard `web` dan cookie elzara_web_session; CSRF diperiksa untuk setiap mutasi.
-Route::middleware([EnsureWebSession::class, VerifySessionCsrf::class])->group(function (): void {
-    Route::prefix('auth')->middleware('throttle:60,1,web-auth')->group(function (): void {
+Route::middleware(['rate:web', EnsureWebSession::class, VerifySessionCsrf::class])->group(function (): void {
+    Route::prefix('auth')->group(function (): void {
         Route::post('register', [StorefrontAuthController::class, 'register']);
         Route::post('login', [StorefrontAuthController::class, 'login']);
         Route::post('logout', [StorefrontAuthController::class, 'logout']);

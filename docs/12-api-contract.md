@@ -381,6 +381,8 @@ Blueprint §7 menawarkan dua jalur ("OAuth2/OIDC atau server-side session/BFF se
 
 ### 3.3 Pagination cursor
 
+Implementasi Platform memakai cursor base64url bertanda tangan (kunci urut, id, arah, dan hash filter). Cursor rusak atau tidak sesuai urutan menghasilkan `400 urn:elzara:problem:pagination:cursor-invalid`; `offset` dan `page` ditolak dengan 422. Kunci urut tidak boleh null dan harus berakhir dengan id unik. `has_more` menyatakan halaman berikutnya dalam urutan asli; `prev_cursor` menelusuri arah sebaliknya. Pemanggil helper menerapkan filter pada query dan menyertakan seluruh parameter filter untuk hash; perubahan urutan key objek filter tidak mengubah hash.
+
 Semua daftar yang bisa melewati satu halaman memakai cursor. **Offset dilarang** dan ditolak validator spec.
 
 ```json
@@ -421,6 +423,8 @@ Semua daftar yang bisa melewati satu halaman memakai cursor. **Offset dilarang**
 
 ### 3.5 Rate limit — header yang dijamin
 
+Origin menyediakan kebijakan `public` (IP), `web` (akun/IP), `admin` (operator/IP), `admin-auth` (IP bersama untuk login dan verifikasi), dan `webhooks` (provider + IP). Ambang per menit sementara: 120/60/120/30/1000; override melalui `ELZARA_RATE_PUBLIC`, `ELZARA_RATE_WEB`, `ELZARA_RATE_ADMIN`, `ELZARA_RATE_ADMIN_AUTH`, dan `ELZARA_RATE_WEBHOOKS`. Rute baru wajib menyatakan kebijakan permukaannya. `/internal/*` hanya menerima CIDR `ELZARA_INTERNAL_CIDRS` (default loopback dan jaringan privat); akses lain mendapat 404 problem. Edge nginx selalu menolak jalur internal, termasuk dari jaringan privat.
+
 Setiap response (termasuk yang di-cache di edge, kalau lolos) membawa:
 
 ```
@@ -442,6 +446,8 @@ X-RateLimit-Policy: checkout-per-account
 Cloudflare Rate Limiting bekerja di edge dan header ini tetap dikendalikan origin sehingga konsisten saat orang menembus Cloudflare (Blueprint §16 test "Cloudflare bypass"). Angka ambang **ditetapkan setelah k6** (Doc 11 §6 Q-4).
 
 ### 3.6 Waktu, timezone, dan format
+
+Formatter Platform mengirim UTC dengan tepat tiga digit milidetik dan `Z`. Respons permintaan terautentikasi membawa `X-Displayed-Timezone`, termasuk payload sesi admin yang menyertakan `user.timezone`.
 
 | Aturan | Isi |
 |---|---|

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BreadcrumbItem, DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import { brand } from '@elzara/ui/brand'
 import type { AdminSession } from '#shared/types/admin-session'
 
 const route = useRoute()
@@ -55,6 +56,16 @@ const logoutError = ref('')
 const profileOpen = ref(false)
 const logsOpen = ref(false)
 const notificationRead = ref(false)
+const toast = useToast()
+
+function markNotificationRead() {
+  notificationRead.value = true
+  toast.add({ title: 'Notifikasi ditandai sudah dibaca', color: 'success', icon: 'i-lucide-check', type: 'background' })
+}
+
+function focusAccountMenu() {
+  if (!profileOpen.value && !logsOpen.value) document.getElementById('admin-account-menu')?.focus()
+}
 const accountAvatar = {
   icon: 'i-lucide-user-round',
   class: 'shrink-0 bg-(--admin-selected) text-highlighted',
@@ -97,9 +108,9 @@ async function logout() {
       :ui="{ root: 'bg-(--admin-sidebar) border-default', content: 'max-w-[min(19rem,85vw)] bg-(--admin-sidebar)', header: 'h-18 border-b border-default px-4', body: 'px-3 pt-4', footer: 'px-3 pb-4' }"
     >
       <template #header="{ collapsed }">
-        <NuxtLink :to="home" aria-label="Elzara Admin" class="inline-flex min-w-0 items-center gap-3 text-highlighted">
+        <NuxtLink :to="home" :aria-label="`${brand.name} Admin`" class="inline-flex min-w-0 items-center gap-3 text-highlighted">
           <img src="/brand/elzara-mark.png" alt="" width="36" height="36" fetchpriority="high" class="size-9 shrink-0">
-          <span v-if="!collapsed" class="truncate text-lg font-semibold tracking-tight">Elzara <span class="text-sm font-medium text-(--admin-ink)">Admin</span></span>
+          <span v-if="!collapsed" class="truncate text-lg font-semibold tracking-tight">{{ brand.name }} <span class="text-sm font-medium text-(--admin-ink)">Admin</span></span>
         </NuxtLink>
       </template>
 
@@ -125,6 +136,7 @@ async function logout() {
             :ui="{ content: collapsed ? 'w-56' : 'w-(--reka-dropdown-menu-trigger-width)' }"
           >
             <UButton
+              id="admin-account-menu"
               type="button" color="neutral" variant="soft" block :loading="leaving"
               class="bg-(--admin-tint) hover:bg-muted data-[state=open]:bg-muted"
               :trailing-icon="collapsed ? undefined : 'i-lucide-chevrons-up-down'"
@@ -164,8 +176,7 @@ async function logout() {
                   <template v-if="preview">
                     <p class="text-sm text-highlighted">Stok menipis</p>
                     <p class="text-sm text-muted">Contoh · 6 produk perlu diperiksa.</p>
-                    <UButton v-if="!notificationRead" variant="soft" size="sm" label="Tandai sudah dibaca" @click="notificationRead = true" />
-                    <p v-else class="text-xs text-muted" role="status">Sudah dibaca</p>
+                    <UButton variant="soft" size="sm" :aria-disabled="notificationRead" :label="notificationRead ? 'Sudah dibaca' : 'Tandai sudah dibaca'" @click="!notificationRead && markNotificationRead()" />
                   </template>
                   <p v-else class="text-sm text-muted">Notifikasi admin belum tersedia.</p>
                 </div>
@@ -183,7 +194,7 @@ async function logout() {
       </template>
     </UDashboardPanel>
 
-    <UModal v-model:open="profileOpen" title="Profil" description="Informasi akun operator.">
+    <UModal v-model:open="profileOpen" title="Profil" description="Informasi akun operator." @after:leave="focusAccountMenu">
       <template #body>
         <div class="flex items-center gap-3">
           <UAvatar v-bind="accountAvatar" size="lg" aria-hidden="true" />
@@ -195,7 +206,7 @@ async function logout() {
       </template>
     </UModal>
 
-    <UModal v-model:open="logsOpen" title="Log Viewer" description="Riwayat aktivitas admin.">
+    <UModal v-model:open="logsOpen" title="Log Viewer" description="Riwayat aktivitas admin." @after:leave="focusAccountMenu">
       <template #body>
         <ul v-if="preview" class="divide-y divide-default text-sm" aria-label="Contoh log aktivitas">
           <li class="flex items-center justify-between gap-3 py-2">

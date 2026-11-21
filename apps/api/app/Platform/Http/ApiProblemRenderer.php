@@ -58,6 +58,9 @@ final class ApiProblemRenderer
 
         if ($exception instanceof HttpResponseException) {
             $response = $exception->getResponse();
+            if ($response->headers->get('Content-Type') === 'application/problem+json') {
+                return $response;
+            }
             if (! $response->isClientError() && ! $response->isServerError()) {
                 $response->headers->set(AttachRequestId::HEADER, $requestId);
 
