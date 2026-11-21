@@ -21,7 +21,7 @@ const busy = ref(false)
 const mutationError = ref('')
 const notice = ref('')
 const scopeOptions = ['global', 'batch', 'category', 'warehouse']
-const validReason = computed(() => Boolean(reason.value.trim()) && reason.value.length <= 320)
+const validReason = computed(() => validAdminReason(reason.value))
 const validScope = computed(() => scopeType.value === 'global'
   || (Number.isSafeInteger(scopeId.value) && Number(scopeId.value) > 0))
 
@@ -67,7 +67,7 @@ function assignRole() {
         <UAlert v-if="notice" color="success" :title="notice" />
         <UButton variant="outline" :disabled="busy" @click="refresh()">Muat ulang akses</UButton>
         <UCard v-if="can('user.update')">
-          <UFormField label="Alasan perubahan" required help="Wajib untuk setiap pemberian maupun pencabutan akses; maksimal 320 karakter.">
+          <UFormField label="Alasan perubahan" required help="Wajib untuk setiap pemberian maupun pencabutan akses; minimal 1 karakter non-spasi, maksimal 320 karakter.">
             <UTextarea v-model="reason" class="w-full" required :maxlength="320" :disabled="busy" />
           </UFormField>
         </UCard>

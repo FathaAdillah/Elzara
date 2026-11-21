@@ -5,6 +5,11 @@ export function hasAdminPermission(session: AdminSession | null, permission: str
     && (session.is_admin === true || session.permissions.includes(permission))
 }
 
+export function validAdminReason(reason: string, minimum = 1): boolean {
+  const length = Array.from(reason.trim()).length
+  return length >= minimum && length <= 320
+}
+
 export function adminApiError(error: unknown): string {
   const status = (error as { statusCode?: number } | null)?.statusCode
   if (status === 403) return '403 — Tidak ada akses. Izin Anda tidak mencukupi atau telah dicabut.'

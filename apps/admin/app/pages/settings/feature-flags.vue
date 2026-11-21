@@ -9,12 +9,13 @@ const { data: flags, error, status, refresh } = await useAsyncData('admin-featur
   { server: false },
 )
 const reason = ref('')
+const validReason = computed(() => validAdminReason(reason.value, 5))
 const busy = ref(false)
 const mutationError = ref('')
 const notice = ref('')
 
 async function toggleFlag(code: string, enabled: boolean) {
-  if (!can('setting.update') || !reason.value.trim() || reason.value.length > 320 || busy.value) return
+  if (!can('setting.update') || !validReason.value || busy.value) return
   busy.value = true
   notice.value = ''
   mutationError.value = ''
@@ -43,7 +44,7 @@ async function toggleFlag(code: string, enabled: boolean) {
         <UAlert v-if="mutationError" color="error" :title="mutationError" />
         <UAlert v-if="notice" color="success" :title="notice" />
         <UButton variant="outline" :disabled="busy" @click="refresh()">Muat ulang</UButton>
-        <UFormField v-if="can('setting.update')" label="Alasan perubahan" required>
+        <UFormField v-if="can('setting.update')" label="Alasan perubahan" required :help="validReason ? 'Maksimal 320 karakter.' : 'Minimal 5 karakter setelah spasi awal/akhir dihapus; maksimal 320 karakter.'">
           <UTextarea v-model="reason" class="w-full" :maxlength="320" :disabled="busy" />
         </UFormField>
         <p v-else class="text-sm text-muted">Hanya baca — perubahan memerlukan setting.update.</p>
@@ -59,7 +60,7 @@ async function toggleFlag(code: string, enabled: boolean) {
                 <li v-for="override in flag.overrides" :key="override.env">{{ override.env }}: {{ override.enabled ? 'Aktif' : 'Nonaktif' }} ({{ override.rollout_percent }}%)</li>
               </ul>
             </div>
-            <UButton v-if="can('setting.update')" :loading="busy" :disabled="!reason.trim() || busy" @click="toggleFlag(flag.code, flag.default_enabled)">Ubah default menjadi {{ flag.default_enabled ? 'nonaktif' : 'aktif' }}</UButton>
+            <UButton v-if="can('setting.update')" :loading="busy" :disabled="!validReason || busy" @click="toggleFlag(flag.code, flag.default_enabled)">Ubah default menjadi {{ flag.default_enabled ? 'nonaktif' : 'aktif' }}</UButton>
           </div>
         </UCard>
       </template>
