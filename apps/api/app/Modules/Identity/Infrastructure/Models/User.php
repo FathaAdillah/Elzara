@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Identity\Infrastructure\Models;
 
 use Carbon\CarbonImmutable;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Permission\Traits\HasRoles;
@@ -23,6 +25,9 @@ use Spatie\Permission\Traits\HasRoles;
  */
 final class User extends Authenticatable
 {
+    /** @use HasFactory<UserFactory> */
+    use HasFactory;
+
     use HasRoles;
     use SoftDeletes;
 
@@ -59,5 +64,10 @@ final class User extends Authenticatable
     public function canAccessAdmin(): bool
     {
         return $this->is_operator && $this->status === 'active';
+    }
+
+    protected static function newFactory(): UserFactory
+    {
+        return UserFactory::new();
     }
 }

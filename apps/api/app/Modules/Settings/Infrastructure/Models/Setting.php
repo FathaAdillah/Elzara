@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Infrastructure\Models;
 
+use Database\Factories\SettingFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -13,6 +15,9 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class Setting extends Model
 {
+    /** @use HasFactory<SettingFactory> */
+    use HasFactory;
+
     protected $table = 'settings';
 
     protected $guarded = [];
@@ -20,5 +25,10 @@ final class Setting extends Model
     protected function casts(): array
     {
         return ['value' => 'array', 'default_value' => 'array', 'is_public' => 'boolean'];
+    }
+
+    protected static function newFactory(): SettingFactory
+    {
+        return SettingFactory::new();
     }
 }

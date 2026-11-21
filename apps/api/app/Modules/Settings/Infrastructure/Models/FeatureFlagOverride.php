@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Infrastructure\Models;
 
+use Database\Factories\FeatureFlagOverrideFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -15,6 +17,9 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class FeatureFlagOverride extends Model
 {
+    /** @use HasFactory<FeatureFlagOverrideFactory> */
+    use HasFactory;
+
     protected $table = 'feature_flag_overrides';
 
     protected $guarded = [];
@@ -39,5 +44,10 @@ final class FeatureFlagOverride extends Model
     protected function casts(): array
     {
         return ['enabled' => 'boolean', 'rollout_percent' => 'integer'];
+    }
+
+    protected static function newFactory(): FeatureFlagOverrideFactory
+    {
+        return FeatureFlagOverrideFactory::new();
     }
 }
