@@ -43,6 +43,12 @@ Kita juga mewarisi satu jebakan operasional yang disebut Blueprint §11 secara e
 
 ## Konsekuensi
 
+**Amandemen implementasi P0.13:** endpoint publik adalah origin khusus tanpa prefix (`https://storage.localhost`; profil lokal HTTP memakai `http://storage.localhost`). Nginx mempertahankan URI dan header `Host` menuju MinIO. Bentuk lama `/storage` yang dipotong proxy membatalkan SigV4 karena canonical path ikut ditandatangani. Upload TTL 600 detik, download privat 120 detik. Semua bucket memakai versioning; finalize menyimpan VersionId agar penggunaan ulang PUT tidak mengganti versi unduhan yang telah divalidasi. SSE tidak diminta pada profil tanpa KMS; aktifkan enkripsi server-side setelah KMS tersedia. CORS MinIO source-build dikonfigurasi melalui `MINIO_API_CORS_ALLOW_ORIGIN` dari origin web/admin (tanpa wildcard), karena API bucket-CORS tidak tersedia pada rilis ini. `product-media` mengizinkan GetObject anonim saja, tanpa listing. RBAC media granular menunggu P0.12; sementara endpoint menuntut sesi operator admin aktif, CSRF dan kepemilikan reservasi.
+
+**Isolasi staging P0.13:** presigned PUT hanya menargetkan `incoming/<uuid>.<ext>` yang privat di semua bucket. Finalize menyalin VersionId yang tervalidasi ke `published/<uuid>.<ext>` dan menyimpan key/VersionId salinan, lalu menghapus versi staging setelah commit. Kebijakan anonim hanya mencakup `product-media/published/*`; penggunaan ulang URL PUT tidak dapat mengubah objek publik.
+
+`content:media:cleanup` dijadwalkan setiap jam tanpa overlap: reservasi belum finalized berumur lebih dari 30 menit dikunci, seluruh versi/delete marker staging dihapus, lalu baris dihapus. Kegagalan storage mempertahankan baris untuk retry. Lifecycle `incoming/` satu hari (termasuk versi noncurrent dan delete marker yatim) menjadi backstop untuk sisa staging atau PUT ulang setelah finalize.
+
 **Biaya yang jadi nyata:** satu komponen infrastruktur tambahan (MinIO + volume persisten) dengan backup dan uji restore sendiri; pekerjaan async untuk validasi/pemindaian/proses gambar di pool `media` (Blueprint §9); pembersih unggahan yatim; dan dua origin yang harus dikelola di edge.
 
 **Jadi tidak mungkin:** menjanjikan "upload langsung tampil di CDN" sebagai acceptance criterion — antara presigned-PUT selesai dan objek siap lewat edge selalu ada antrean validasi. Janji UX yang benar adalah "sedang diproses", bukan "gagal".

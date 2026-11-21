@@ -35,16 +35,6 @@
         fastcgi_read_timeout 30s;
     }
 
-    # Presigned URL yang dilihat browser (MINIO_PUBLIC_ENDPOINT) diarahkan ke MinIO, origin sama
-    # dengan storefront sehingga tidak perlu CORS lintas origin untuk upload (ADR-008 K-7).
-    location /storage/ {
-        proxy_pass http://minio_s3/;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_request_buffering off;
-        client_max_body_size 20m;
-    }
-
     location = /sanctum/csrf-cookie {
         limit_req zone=api burst=50 nodelay;
         include fastcgi_params;

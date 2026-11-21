@@ -4,6 +4,66 @@
  */
 
 export interface paths {
+    "/admin/media/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reserve an owned media upload and sign a public PUT URL
+         * @description Active admin operator session and CSRF required; storefront auth and granular media RBAC are not implemented yet. Only the creating operator may finalize or download. PUT directly to the private incoming/ staging key in upload_url with the declared Content-Type within 600 seconds. Public endpoint has no path prefix. Objects remain pending moderation after validation.
+         */
+        post: operations["adminMediaPresign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/media/{media_id}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate an owned upload and persist its immutable object version
+         * @description Active admin operator session and CSRF required. Within 30 minutes of reservation, checks staging bytes, MIME and actual size synchronously, copies that exact version to a published/ key never targeted by a presigned PUT, then deletes the staged version after commit. Only product-media/published/ is anonymously readable. Transactionally records metadata and MediaValidated outbox event on the media queue. A missing, empty, mismatched or oversize object returns MEDIA_VALIDATION_FAILED. Unknown or unowned media returns 404. Repeated successful finalization does not emit another event.
+         */
+        post: operations["adminMediaFinalize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/media/{media_id}/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign a private download for the validated object version
+         * @description Active admin operator session and CSRF required. Only the reserving operator may sign; validation is required first. URL expires in 120 seconds and pins the validated VersionId even if the upload URL is reused. Never cache or log these URLs. No idempotency replay because every response must contain a fresh short-lived signature.
+         */
+        post: operations["adminMediaSign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feature-flags": {
         parameters: {
             query?: never;
@@ -606,6 +666,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        MediaPresignResult: {
+            /**
+             * Format: uri
+             * @description Signed against MINIO_PUBLIC_ENDPOINT (default https://storage.localhost), never the internal Docker hostname. PUT with the declared Content-Type. TTL 600 seconds.
+             */
+            upload_url: string;
+            object_key: string;
+            /** Format: int64 */
+            media_id: number;
+            /** Format: date-time */
+            expires_at: string;
+        };
         FeatureFlagPublic: {
             /** @enum {string} */
             code: "checkout.enabled" | "drops.enabled" | "reviews.enabled" | "guest_checkout.enabled" | "loyalty.enabled" | "marketplace_purchase.enabled";
@@ -848,6 +920,150 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    adminMediaPresign: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    bucket: "product-media" | "request-attachments" | "invoice-documents" | "shipment-documents";
+                    /** @enum {string} */
+                    mime: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
+                    /** @enum {string} */
+                    kind: "image" | "file" | "icon" | "label_pdf" | "proof" | "attachment";
+                    size_bytes: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Reserved upload; response and URL must not be cached. Replaying an expired reservation requires a new Idempotency-Key. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaPresignResult"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["Problem"];
+        };
+    };
+    adminMediaFinalize: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                media_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Validated metadata; not yet approved moderation */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        media_id: number;
+                        sha256: string;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["Problem"];
+        };
+    };
+    adminMediaSign: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                media_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Short-lived signed download */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        download_url: string;
+                        /** Format: date-time */
+                        expires_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     publicFeatureFlags: {
         parameters: {
             query?: never;

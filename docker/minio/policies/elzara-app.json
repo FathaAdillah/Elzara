@@ -3,7 +3,38 @@
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload"],
+      "Action": ["s3:DeleteObject", "s3:DeleteObjectVersion"],
+      "Resource": [
+        "arn:aws:s3:::product-media/published/*",
+        "arn:aws:s3:::request-attachments/published/*",
+        "arn:aws:s3:::invoice-documents/published/*",
+        "arn:aws:s3:::shipment-documents/published/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucketVersions"],
+      "Resource": [
+        "arn:aws:s3:::product-media",
+        "arn:aws:s3:::request-attachments",
+        "arn:aws:s3:::invoice-documents",
+        "arn:aws:s3:::shipment-documents"
+      ],
+      "Condition": {"StringLike": {"s3:prefix": ["incoming/*"]}}
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:DeleteObject", "s3:DeleteObjectVersion"],
+      "Resource": [
+        "arn:aws:s3:::product-media/incoming/*",
+        "arn:aws:s3:::request-attachments/incoming/*",
+        "arn:aws:s3:::invoice-documents/incoming/*",
+        "arn:aws:s3:::shipment-documents/incoming/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:GetObjectVersion", "s3:AbortMultipartUpload"],
       "Resource": [
         "arn:aws:s3:::product-media/*",
         "arn:aws:s3:::request-attachments/*",

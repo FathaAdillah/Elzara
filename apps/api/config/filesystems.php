@@ -27,8 +27,8 @@ $disks = [
 foreach ($buckets as $bucket => $visibility) {
     $disks[$bucket] = [
         'driver' => 's3',
-        'key' => env('AWS_ACCESS_KEY_ID'),
-        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'key' => env('ELZARA_S3_ACCESS_KEY'),
+        'secret' => env('ELZARA_S3_SECRET_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'id-jkt-1'),
         'bucket' => $bucket,
         'endpoint' => $internalEndpoint,
@@ -49,9 +49,9 @@ return [
     // Dua endpoint wajib ada (ADR-008 K-7): SDK bicara ke internal, presign menandatangani host yang bisa dijangkau browser.
     's3' => [
         'internal_endpoint' => $internalEndpoint,
-        'presign_endpoint' => (string) env('MINIO_PUBLIC_ENDPOINT', 'https://localhost/storage'),
+        'presign_endpoint' => (string) env('MINIO_PUBLIC_ENDPOINT', 'https://storage.localhost'),
         'presign_tls_verify' => (bool) env('MINIO_PUBLIC_TLS_VERIFY', false),
-        'presign_expiry_seconds' => (int) env('MINIO_PRESIGN_EXPIRY_SECONDS', 300),
+        'presign_expiry_seconds' => (int) env('MINIO_PRESIGN_EXPIRY_SECONDS', 600),
     ],
 
     'links' => [],
