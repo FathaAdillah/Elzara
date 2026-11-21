@@ -134,7 +134,12 @@ async function submitVerification() {
                     :aria-pressed="revealPassword"
                     :disabled="sending"
                     @click="revealPassword = !revealPassword"
-                  />
+                  >
+                    <!-- Remount on toggle: Nuxt Icon only registers bundled icons when an icon mounts without SSR payload. -->
+                    <template #leading="{ ui }">
+                      <UIcon :key="String(revealPassword)" :name="revealPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" data-slot="leadingIcon" :class="ui.leadingIcon()" />
+                    </template>
+                  </UButton>
                 </template>
               </UInput>
             </UFormField>
