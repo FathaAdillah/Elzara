@@ -157,7 +157,13 @@ jobs:
           bash docker/minio/init-buckets.sh
           bash docker/minio/init-buckets.sh
           docker run -d --name storage-edge --network elzara_backend -p 127.0.0.1:9080:80 \
-            -v "$PWD/docker/nginx/storage.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.27-alpine
+            --add-host api:127.0.0.1 --add-host web:127.0.0.1 --add-host admin:127.0.0.1 \
+            -e ELZARA_ADMIN_HOST=admin.localhost -e ELZARA_EDGE_URL=http://localhost \
+            -e MINIO_PUBLIC_ENDPOINT=http://storage.localhost:9080 \
+            -e 'NGINX_ENVSUBST_FILTER=^(ELZARA_(ADMIN_HOST|EDGE_URL)|MINIO_PUBLIC_ENDPOINT)$' \
+            -v "$PWD/docker/nginx/storage.conf:/etc/nginx/conf.d/default.conf:ro" \
+            -v "$PWD/docker/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro" \
+            -v "$PWD/docker/nginx/security.inc:/etc/nginx/elzara/security.inc:ro" nginx:1.27-alpine
           docker exec storage-edge nginx -t
       - run: php artisan test --testsuite=Feature,Contract
         working-directory: apps/api

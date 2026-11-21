@@ -18,6 +18,7 @@ export default defineNuxtConfig({
     apiInternalOrigin: 'http://nginx:8080',
     adminOrigin: 'http://admin.localhost',
     adminSessionPath: '/api/v1/admin/auth/session',
+    mediaPublicOrigin: '',
     public: { previewEnabled: false },
   },
   app: {

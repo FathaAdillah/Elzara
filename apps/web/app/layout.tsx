@@ -3,6 +3,8 @@ import { brand, resolveBrandTheme } from "@/config/brand";
 import { SkipLink } from "./skip-link";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Metadata publik diambil dari config brand, bukan string literal di komponen
  * (Doc 04 §3, §5: nama toko / tagline / legal tidak boleh di-hardcode).

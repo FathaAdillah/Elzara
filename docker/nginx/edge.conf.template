@@ -33,3 +33,37 @@ map $frontend_upstream $admin_limit_key {
     default "";
 }
 
+map $edge_scheme $edge_hsts {
+    default "";
+    https "max-age=63072000; includeSubDomains; preload";
+}
+
+map "${ELZARA_EDGE_URL}" $storage_edge_scheme {
+    default http;
+    ~^https:// https;
+}
+
+map "${MINIO_PUBLIC_ENDPOINT}" $media_origin {
+    default "'self'";
+    ~^(https?://[^/]+) $1;
+}
+
+map $frontend_upstream $frontend_csp {
+    web_app "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: $media_origin; font-src 'self'; connect-src 'self' $media_origin; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'";
+    admin_app "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: $media_origin; font-src 'self'; connect-src 'self' $media_origin; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'";
+}
+
+map $upstream_http_content_security_policy $frontend_fallback_csp {
+    default "";
+    "" $frontend_csp;
+}
+
+map $host $surface_csp {
+    default $frontend_fallback_csp;
+    ~^storage\. "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'none'";
+}
+
+map $uri $edge_csp {
+    default $surface_csp;
+    ~^/(api/|sanctum/csrf-cookie$|nginx-healthz$) "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'none'";
+}
