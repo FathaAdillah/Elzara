@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 final class IdempotencyLockTest extends TestCase
 {
-    private const KEY = 'a8d4bccc-56a7-40ad-a0f1-a4761fc6886f';
+    private const KEY = 'a8d4bccc-56a7-40ad-a0f1-a4761fc6886f'; // gitleaks:allow
 
     private const CONTENDER = 'idempotency_contender';
 

@@ -1,0 +1,11 @@
+# Reviewed false positives (UUID Idempotency-Key fixtures/examples, empty DB_PASSWORD) in already-merged commits.
+c8b5e3beb6c1b9c55936d3c7d229a283f3268a9a:apps/api/tests/Concurrency/Platform/IdempotencyLockTest.php:generic-api-key:18
+c8b5e3beb6c1b9c55936d3c7d229a283f3268a9a:apps/api/tests/Feature/Platform/IdempotencyGuardTest.php:generic-api-key:21
+5a9ca4bea089544fc456a040c5ff75506a28f507:apps/api/.env.example:generic-api-key:26
+5e5b58b130e991eaef1af8cc6daf2379f29e8e65:docs/12-api-contract.md:generic-api-key:543
+5e5b58b130e991eaef1af8cc6daf2379f29e8e65:docs/12-api-contract.md:generic-api-key:559
+5e5b58b130e991eaef1af8cc6daf2379f29e8e65:docs/12-api-contract.md:generic-api-key:653
+5e5b58b130e991eaef1af8cc6daf2379f29e8e65:.qoder/plans/2026-11-17-sprint-0-fondasi.md:generic-api-key:2927
+5e5b58b130e991eaef1af8cc6daf2379f29e8e65:.qoder/plans/2026-11-17-sprint-0-fondasi.md:generic-api-key:3181
+5e5b58b130e991eaef1af8cc6daf2379f29e8e65:.codex/plans/2026-11-17-sprint-0-fondasi.md:generic-api-key:2927
+5e5b58b130e991eaef1af8cc6daf2379f29e8e65:.codex/plans/2026-11-17-sprint-0-fondasi.md:generic-api-key:3181
