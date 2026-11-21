@@ -14,7 +14,18 @@ import { NextResponse, type NextRequest } from "next/server";
 const PRIVATE_PREFIXES = ["/cart", "/checkout", "/account"];
 
 export function middleware(req: NextRequest) {
-  const res = NextResponse.next({ request: { headers: new Headers(req.headers) } });
+  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+  let mediaOrigin = "'self'";
+  if (process.env.MEDIA_PUBLIC_ORIGIN) {
+    const media = new URL(process.env.MEDIA_PUBLIC_ORIGIN);
+    if (media.protocol === "http:" || media.protocol === "https:") mediaOrigin = media.origin;
+  }
+  const policy = `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${mediaOrigin}; font-src 'self'; connect-src 'self' ${mediaOrigin}; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`;
+  const headers = new Headers(req.headers);
+  headers.set("Content-Security-Policy", policy);
+  headers.set("x-nonce", nonce);
+  const res = NextResponse.next({ request: { headers } });
+  res.headers.set("Content-Security-Policy", policy);
   if (PRIVATE_PREFIXES.some((prefix) => req.nextUrl.pathname.startsWith(prefix))) {
     res.headers.set("Cache-Control", "no-store, max-age=0");
   }

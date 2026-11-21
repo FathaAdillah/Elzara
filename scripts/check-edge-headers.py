@@ -1,11 +1,24 @@
 #!/usr/bin/env python3
 """Check the real entry point without following redirects (including error responses)."""
 import argparse
+import base64
+from html.parser import HTMLParser
 import urllib.error
 import urllib.request
 
 
-def check(base, host, path, api, https):
+class Scripts(HTMLParser):
+    def __init__(self, body):
+        super().__init__()
+        self.tags = []
+        self.feed(body)
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'script':
+            self.tags.append(dict(attrs))
+
+
+def check(base, host, path, api, https, media_origin=None):
     request = urllib.request.Request(base.rstrip('/') + path, headers={'Host': host})
     opener = urllib.request.build_opener(type('NoRedirect', (urllib.request.HTTPRedirectHandler,), {
         'redirect_request': lambda *args: None,
@@ -16,6 +29,9 @@ def check(base, host, path, api, https):
         response = error
     with response:
         headers = response.headers
+        body = response.read().decode('utf-8', errors='replace')
+        nonce = None
+        scripts = Scripts(body).tags if 'text/html' in headers.get('Content-Type', '') else []
         expected = {
             'X-Content-Type-Options': 'nosniff',
             'X-Frame-Options': 'DENY',
@@ -38,11 +54,26 @@ def check(base, host, path, api, https):
             assert directives['base-uri'] == ["'none'"]
         else:
             assert directives['default-src'] == ["'self'"]
-            assert directives['script-src'] == ["'self'", "'unsafe-inline'"]
+            script_sources = directives['script-src']
+            assert "'self'" in script_sources
+            assert "'unsafe-inline'" not in script_sources and "'unsafe-eval'" not in script_sources
+            nonces = [source[7:-1] for source in script_sources if source.startswith("'nonce-") and source.endswith("'")]
+            if scripts or ('text/html' in headers.get('Content-Type', '') and response.status == 200):
+                assert scripts, (host, path, 'SSR HTML has no scripts')
+                assert len(nonces) == 1, (host, path, 'missing unique script nonce', script_sources)
+                nonce = nonces[0]
+                assert len(base64.b64decode(nonce, validate=True)) >= 16, 'nonce entropy too small'
+                assert all(tag.get('nonce') == nonce for tag in scripts), (host, path, 'script nonce mismatch', scripts)
+                assert 'no-store' in headers.get('Cache-Control', ''), (host, path, 'nonce HTML must not be cached')
+            else:
+                assert script_sources == ["'self'"], (host, path, 'unsafe edge fallback', script_sources)
             assert directives['form-action'] == ["'self'"]
             assert "'self'" in directives['connect-src']
+            if media_origin:
+                assert media_origin in directives['connect-src'] and media_origin in directives['img-src']
         assert response.status < 500, (host, path, response.status)
         print(f'PASS {host}{path} status={response.status} policy={"api/media" if api else "frontend"}')
+        return nonce, scripts
 
 
 def main():
@@ -51,10 +82,18 @@ def main():
     parser.add_argument('--web-host', default='localhost')
     parser.add_argument('--admin-host', default='admin.localhost')
     parser.add_argument('--https-edge', action='store_true', help='TLS or private Dokploy HTTPS listener')
+    parser.add_argument('--media-origin', help='Assert configured media origin in frontend img/connect policies')
     args = parser.parse_args()
     for host in (args.web_host, args.admin_host):
         for path in ('/', '/login', '/not-a-real-page', '/nginx-healthz', '/api/v1/health', '/api/v1/not-a-real-route', '/api/v1/admin/auth/session', '/sanctum/csrf-cookie'):
-            check(args.base_url, host, path, path.startswith(('/api/', '/sanctum/', '/nginx-healthz')), args.https_edge)
+            check(args.base_url, host, path, path.startswith(('/api/', '/sanctum/', '/nginx-healthz')), args.https_edge, args.media_origin)
+        path = '/login' if host == args.admin_host else '/'
+        first, scripts = check(args.base_url, host, path, False, args.https_edge, args.media_origin)
+        second, _ = check(args.base_url, host, path, False, args.https_edge, args.media_origin)
+        assert first and second and first != second, (host, 'nonce reused between requests')
+        print(f'PASS {host} fresh per-request nonce; every SSR script has matching nonce')
+        asset = next(tag['src'] for tag in scripts if tag.get('src', '').startswith('/'))
+        check(args.base_url, host, asset, False, args.https_edge, args.media_origin)
     print('PASS edge headers: both surfaces, redirects, missing routes and API responses')
 
 

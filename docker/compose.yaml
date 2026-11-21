@@ -131,6 +131,7 @@ services:
     environment:
       NODE_ENV: production
       API_INTERNAL_URL: http://nginx:8080
+      MEDIA_PUBLIC_ORIGIN: ${MINIO_PUBLIC_ENDPOINT}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL wajib diisi}
     depends_on:
       api: { condition: service_healthy }
@@ -155,6 +156,7 @@ services:
       NUXT_API_INTERNAL_ORIGIN: http://nginx:8080
       NUXT_ADMIN_ORIGIN: ${ELZARA_ADMIN_ORIGIN:-https://${ELZARA_ADMIN_HOST:-admin.localhost}}
       NUXT_ADMIN_SESSION_PATH: ${ADMIN_SESSION_PATH:-/api/v1/admin/auth/session}
+      NUXT_MEDIA_PUBLIC_ORIGIN: ${MINIO_PUBLIC_ENDPOINT}
     depends_on:
       api: { condition: service_healthy }
     networks: [frontend]

@@ -10,7 +10,6 @@ proxy_hide_header X-Content-Type-Options;
 proxy_hide_header X-Frame-Options;
 proxy_hide_header Referrer-Policy;
 proxy_hide_header Permissions-Policy;
-proxy_hide_header Content-Security-Policy;
 fastcgi_hide_header Strict-Transport-Security;
 fastcgi_hide_header X-Content-Type-Options;
 fastcgi_hide_header X-Frame-Options;

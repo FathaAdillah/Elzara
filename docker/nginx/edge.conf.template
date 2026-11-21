@@ -44,11 +44,16 @@ map "${MINIO_PUBLIC_ENDPOINT}" $media_origin {
 }
 
 map $frontend_upstream $frontend_csp {
-    web_app "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: $media_origin; font-src 'self'; connect-src 'self' $media_origin; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'";
-    admin_app "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: $media_origin; font-src 'self'; connect-src 'self' $media_origin; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'";
+    web_app "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: $media_origin; font-src 'self'; connect-src 'self' $media_origin; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'";
+    admin_app "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: $media_origin; font-src 'self'; connect-src 'self' $media_origin; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'";
+}
+
+map $upstream_http_content_security_policy $frontend_fallback_csp {
+    default "";
+    "" $frontend_csp;
 }
 
 map $uri $edge_csp {
-    default $frontend_csp;
+    default $frontend_fallback_csp;
     ~^/(api/|sanctum/csrf-cookie$|storage/|nginx-healthz$) "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'none'";
 }
