@@ -38,10 +38,8 @@ export function CheckoutPanel() {
       const s = await createCheckout(selected, cart.items_hash); setSession(s);
       const rates = await shippingOptions(s.id); setShipping(rates); setSession(rates.checkout); setChoices(Object.fromEntries((rates.checkout.snapshot.shipping_selection ?? []).map((v) => [v.group_index, v.courier_code + ":" + v.service_code])));
     } catch (e) {
-      if (e instanceof CommerceError && e.problem.code === "CHECKOUT_SNAPSHOT_STALE") {
-        setSession(undefined); setShipping(undefined); setChoices({});
-        setError(e.message);
-      } else { report(e); }
+      setSession(undefined); setShipping(undefined); setChoices({});
+      report(e);
       setCart(await getCart().catch(() => undefined));
     } finally { setBusy(false); }
   }
