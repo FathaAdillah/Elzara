@@ -34,10 +34,15 @@ trap 'exit 130' INT TERM
 "${compose[@]}" run --rm prepare >"$STATE/prepare.log" 2>&1
 "${compose[@]}" create node >>"$STATE/prepare.log" 2>&1
 workspace=$("${compose[@]}" ps -aq node)
-"${compose[@]}" build api >"$STATE/php-build.log" 2>&1
+if [[ "${E2E_REUSE_API_IMAGE:-0}" == 1 ]]; then
+  docker image inspect elzara/e2e-php:local >"$STATE/php-build.log" 2>&1
+else
+  "${compose[@]}" build api >"$STATE/php-build.log" 2>&1
+fi
 "${compose[@]}" up -d --wait postgres redis >"$STATE/services-start.log" 2>&1
 "${compose[@]}" run --rm api install >"$STATE/composer-seed.log" 2>&1
 "${compose[@]}" run --rm node build >"$STATE/web-build.log" 2>&1
 "${compose[@]}" up -d api web proxy >>"$STATE/services-start.log" 2>&1
 "${compose[@]}" run --rm node ready
 "${compose[@]}" run --rm browser test "$@"
+"${compose[@]}" run --rm api verify-order

@@ -42,15 +42,24 @@ Run pertama memerlukan unduhan image dan kompilasi ekstensi PHP; run berikutnya
 memakai cache layer Docker. Jika interrupted paksa, hapus project yang tertinggal
 dengan `docker compose -p <nama-project-di-log> -f e2e/compose.yaml down -v`;
 set `E2E_SOURCE` ke root repo dan `E2E_PLAYWRIGHT_VERSION` sesuai lockfile.
+Jika image API sudah dibangun dari Dockerfile yang sama, gunakan
+`E2E_REUSE_API_IMAGE=1 scripts/e2e-local.sh` untuk memakai image tersebut tanpa
+memeriksa metadata Docker Hub lagi (misalnya saat registry membatasi request).
+Default lokal dan CI tetap membangun image; jangan pakai opsi ini setelah
+Dockerfile API berubah.
 
-## Honest coverage of master
+## Coverage of master
 
 - **RTS:** home → catalog → Lumen Fox Plush → Mint/S variant → anonymous add/login
   redirect → demo login → reselect/add → authenticated cart (also read through
   the API) → checkout address → shipping quote → select JNE → server total.
   Master has no guest-cart replay, so the add must be repeated after login.
-  `Bayar` is asserted disabled. Order placement/fake payment is a separate
-  `test.fixme`, pending PR #38; no dependency on PRs #35–#38.
+  A separate RTS test repeats checkout, reserves stock and completes the Fake
+  payment UI now merged from PRs #35–#38. It asserts the order/payment API
+  responses, success UI and emptied cart. The API container then checks that the
+  same order/invoice are paid, its Fake intent is captured and its stock
+  reservations are committed in PostgreSQL. Fake payment is enabled only in the
+  disposable local API environment; no real payment provider is used.
 - **PO:** `/preorder/e2e-batch` currently only echoes its URL identifier. The test
   checks that shell honestly, then exercises the seeded Nova Keychain PO PDP,
   add-to-cart and pre-order cart grouping. There is **no batch table, endpoint or
@@ -75,5 +84,7 @@ existing fallback images. Each script run uses a fresh DB. The demo account is
 
 CI uploads the report, test results and stack logs **always**, retaining them for
 14 days. Fixme tests are visible as skipped; they are not silently removed.
+The full run expects **4 passed, 2 skipped**. `test-results/rts-order.json` links
+the UI/API result to the post-test database verification.
 Argumen Playwright dapat diteruskan, misalnya
 `scripts/e2e-local.sh --grep RTS`. Tidak ada mode runner-tool/layanan eksternal.

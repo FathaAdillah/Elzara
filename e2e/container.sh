@@ -42,5 +42,8 @@ for (const path of ['/api/v1/products', '/api/v1/categories']) {
 JS
     ;;
   test) cd e2e; exec npm test -- "$@" ;;
+  verify-order)
+    if [ -f e2e/test-results/rts-order.json ]; then php e2e/verify-order.php; fi
+    ;;
   *) echo "Unknown container task: $mode" >&2; exit 2 ;;
 esac

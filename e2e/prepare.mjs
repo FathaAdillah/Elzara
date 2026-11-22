@@ -15,6 +15,7 @@ const environment = {
   REDIS_HOST: 'redis', REDIS_PORT: '6379', REDIS_PREFIX: 'e2e_', CACHE_STORE: 'redis',
   SESSION_DRIVER: 'redis', SESSION_SECURE_COOKIE: 'false', QUEUE_CONNECTION: 'sync',
   MAIL_MAILER: 'array', LOG_CHANNEL: 'stderr', SHIPPING_DRIVER: 'manual', ADMIN_2FA_ENABLED: 'false',
+  CHECKOUT_FAKE_PAYMENT_ENABLED: 'true',
   DEMO_PASSWORD: process.env.DEMO_PASSWORD,
   ELZARA_STOREFRONT_PROXY_KEY: randomBytes(32).toString('hex'),
   API_INTERNAL_URL: 'http://api:8081', NEXT_PUBLIC_API_BASE_URL: '/api/v1',
