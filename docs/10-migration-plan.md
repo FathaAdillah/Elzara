@@ -179,7 +179,7 @@ Blueprint §17 memberi **Phase**, bukan Sprint; ini jembatan angkanya. Doc 11 §
 
 ### 4.3 Alokasi basename Sprint 0 untuk baseline baru
 
-Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasikan sub-band `0040–0069`. Identity memakai `0040–0048` dan memiliki reservasi `0051–0053`. Audit memakai `0049–0050` dan `0054`. Rentang `0055–0069` tetap dicadangkan. Tabel fondasi berikutnya memakai `0070+` supaya FK ke `users` sudah tersedia. Tabel berikut mencatat **29 berkas aktual**, dicocokkan dengan `php artisan migrate:status` di container API pada **2026-11-22: 29 Ran, 0 Pending**. Ini bukti baseline lokal, bukan rollout legacy/staging/production.
+Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasikan sub-band `0040–0069`. Identity memakai `0040–0048` dan `0051–0053`. Audit memakai `0049–0050` dan `0054`. Rentang `0055–0069` tetap dicadangkan. Tabel fondasi berikutnya memakai `0070+` supaya FK ke `users` sudah tersedia. Tabel berikut mencatat **32 berkas aktual Sprint 0**, dibuktikan pada PostgreSQL 16 lokal **2026-11-22: 32 Ran, 0 Pending** dengan path Sprint 0 eksplisit. Seluruh repo juga memuat migrasi domain setelah Sprint 0: migrate tanpa filter menjalankan 55 berkas. Bukti fresh, upgrade baseline dan simulasi legacy ada di `docs/runbooks/operator-flags-backfill.md`; bukan rollout staging/production.
 
 | Nomor | Basename | Isi | Level |
 |---|---|---|---|
@@ -197,6 +197,9 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 | 0048 | `0048_Identity_create_staff_2fa_secrets_table.php` | staff_2fa_secrets; rahasia dan recovery 2FA | L2 |
 | 0049 | `0049_Audit_create_audit_logs_table.php` | audit_logs append-only dengan reason dan request_id | L2 |
 | 0050 | `0050_Audit_create_activity_log_table.php` | activity_log dengan morph paket; tanpa FK | L0 |
+| 0051 | `0051_Identity_expand_users_operator_flags.php` | legacy saja: flag nullable default false, indeks dan CHECK NOT VALID; rilis N | L1 |
+| 0052 | `0052_Identity_validate_users_operator_check.php` | legacy saja: gerbang NULL/bypass dan VALIDATE; flag tetap nullable | L1 |
+| 0053 | `0053_Identity_contract_users_drop_kind.php` | legacy saja: SET NOT NULL, hapus kind/CHECK/indeks lama; nama CHECK kanonik; rilis N+1 terpisah | L1 |
 | 0054 | `0054_Audit_add_attribute_changes_to_activity_log.php` | tambah `attribute_changes jsonb NULL` untuk Activitylog 5.1.5 | L0 |
 | 0070 | `0070_Identity_create_addresses_table.php` | addresses | L2 |
 | 0071 | `0071_Identity_create_customer_profiles_table.php` | customer_profiles | L2 |
@@ -218,9 +221,9 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 - Migrasi maju `0054` menambah kolom nullable tanpa backfill atau penulisan ulang data lama. `0050` tetap beku. Perubahan ini hanya berlaku pada `activity_log`; jejak aksi sensitif tetap berada di `audit_logs`.
 - Migrasi maju `0080` memperluas `idempotency_keys` di PostgreSQL untuk menyimpan respons HTTP asli (Doc 09 §17, Doc 12 §3.4). Ketiga kolom snapshot nullable dan harus terisi bersama bila ada snapshot. Baris dengan `response_ref` lama tanpa snapshot tetap sah; `0080` tidak merekonstruksi respons lama. Guard mencegah eksekusi ulang atas reservasi aktif tanpa snapshot.
 - `0077` sudah membuat `settings`. Keputusan pemilik: `settings.updated_by` adalah FK bigint nullable ke `users(id)`; `NULL` berarti system, termasuk saat bootstrap (Doc 09 §15).
-- Dua berkas memakai nomor `0075`, tetapi **basename lengkap berbeda**, sehingga tidak saling menimpa pada loader Laravel. Ini bukan bukti nomor numerik unik; alokasi berikutnya tetap harus menghindari pengulangan nomor. Reservasi `0051–0053` belum menjadi file: baseline langsung membuat dua boolean, bukan menjalankan backfill flag (§6.2).
-- Seluruh 29 basename di tabel ada dalam status runtime. Hasil lokal ReferenceSeeder dua kali: 10 role, 76 permission, 174 pasangan role-permission; 28 tabel publik dibandingkan, perubahan jumlah baris dan isi pada pemanggilan kedua masing-masing nol (P0.19, 2026-11-22).
-- Untuk basis data yang sudah berisi data, gunakan urutan expand, backfill, validasi, dan contract di bagian 6.2. Alokasi dan berkas di atas adalah baseline baru. Rollout atas basis data lama belum diverifikasi.
+- Dua berkas memakai nomor `0075`, tetapi **basename lengkap berbeda**, sehingga tidak saling menimpa pada loader Laravel. Ini bukan bukti nomor numerik unik; alokasi berikutnya tetap harus menghindari pengulangan nomor. Berkas `0051–0053` bersyarat: tanpa kolom kind lama, up/down dan command backfill tidak mengubah baseline 0042.
+- Seluruh 32 basename Sprint 0 di tabel sudah dijalankan lokal. Bukti historis ReferenceSeeder dua kali pada baseline 29 berkas: 10 role, 76 permission, 174 pasangan role-permission; 28 tabel publik dibandingkan, perubahan jumlah baris dan isi pada pemanggilan kedua masing-masing nol (P0.19, 2026-11-22).
+- Untuk basis data legacy berisi data, berhenti setelah 0051, jalankan `identity:backfill-operator-flags`, lalu 0052 dan 0053 pada rilis terpisah. Simulasi lokal mencakup customer/staff, audit progres, rollback dan re-migrate; deployment legacy nyata belum diklaim. Contoh 1630–1641 di §6.2 adalah resep rollout masa depan, bukan basename implementasi 0051–0053.
 
 ---
 
