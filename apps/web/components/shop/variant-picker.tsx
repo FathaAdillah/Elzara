@@ -32,6 +32,7 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
       : complete
         ? resolveVariant(product.variants, selected)
         : undefined;
+  const unsupportedCurrency = variant !== undefined && variant.price.currency !== "IDR";
   return (
     <section aria-label="Pilih varian" className="space-y-6">
       <div
@@ -134,8 +135,8 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
         </Button>
       )}
       <div className="space-y-3">
-        <Button disabled={adding || !variant || (product.kind === "rts" && variant.available < 1)} block aria-describedby="cart-notice" onClick={async () => {
-          if (!variant) return;
+        <Button disabled={adding || !variant || unsupportedCurrency || (product.kind === "rts" && variant.available < 1)} block aria-describedby="cart-notice" onClick={async () => {
+          if (!variant || unsupportedCurrency) return;
           setAdding(true); setNotice(""); setAdded(false);
           try { await addCartItem(variant.id); setNotice("Ditambahkan ke keranjang."); setAdded(true); }
           catch (e) { setNotice(e instanceof Error ? e.message : "Gagal menambahkan produk."); }
@@ -148,7 +149,7 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
           role="status"
           className="text-xs leading-relaxed text-ink-muted"
         >
-          {notice || "Harga dan stok dikonfirmasi kembali saat checkout."}
+          {notice || (unsupportedCurrency ? "Keranjang hanya mendukung varian dengan harga IDR." : "Harga dan stok dikonfirmasi kembali saat checkout.")}
           {added && <> <Link href="/cart" className="underline">Lihat keranjang</Link></>}
         </p>
       </div>

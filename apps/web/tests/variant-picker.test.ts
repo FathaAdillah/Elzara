@@ -96,4 +96,20 @@ describe("variants without option axes", () => {
     expect(markup).toContain("SKU: —");
     expect(markup).not.toContain('name="variant"');
   });
+
+  it.each(["IDR", "USD", "JPY"])("sets cart eligibility for %s prices", (currency) => {
+    const variant = { ...product.variants[0]!, price: { amount_minor: 100000, currency } };
+    const markup = renderToStaticMarkup(createElement(VariantPicker, {
+      product: { ...product, variants: [variant] },
+    }));
+    const button = markup.match(/<button\b[^>]*>/g)?.find((tag) => tag.includes('aria-describedby="cart-notice"'));
+    expect(button).toBeDefined();
+    if (currency === "IDR") {
+      expect(button).not.toContain('disabled=""');
+      expect(markup).not.toContain("Keranjang hanya mendukung");
+    } else {
+      expect(button).toContain('disabled=""');
+      expect(markup).toContain("Keranjang hanya mendukung varian dengan harga IDR.");
+    }
+  });
 });
