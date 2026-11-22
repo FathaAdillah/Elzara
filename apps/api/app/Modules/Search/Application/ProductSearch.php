@@ -59,8 +59,9 @@ final class ProductSearch
             'sort' => [['_score' => 'desc'], ['id' => 'asc']],
             '_source' => ['id', 'slug', 'name', 'brand', 'brand_name', 'category', 'collections', 'status', 'origin_country', 'fulfillment_modes', 'skus', 'price_min', 'price_max', 'currency_code', 'updated_at'],
         ];
+        $fingerprint = self::fingerprint($params);
         if (isset($params['cursor'])) {
-            $body['search_after'] = self::decodeCursor($params['cursor']);
+            $body['search_after'] = self::decodeCursor($params['cursor'], $fingerprint);
         }
         $this->index->ensure();
         $response = $this->client->request('POST', $this->index->alias().'/_search', $body);
@@ -77,7 +78,7 @@ final class ProductSearch
                 'limit' => $limit,
                 'total' => Scalar::int(is_array($hitsBlock['total'] ?? null) ? ($hitsBlock['total']['value'] ?? 0) : 0),
                 'has_more' => $hasMore,
-                'next_cursor' => $hasMore && is_array($last) && is_array($last['sort'] ?? null) ? self::encodeCursor($last['sort']) : null,
+                'next_cursor' => $hasMore && is_array($last) && is_array($last['sort'] ?? null) ? self::encodeCursor($last['sort'], $fingerprint) : null,
             ],
         ];
     }
@@ -102,16 +103,25 @@ final class ProductSearch
         return $facets;
     }
 
-    /** @param array<array-key, mixed> $sort */
-    private static function encodeCursor(array $sort): string
+    /** @param array<string, mixed> $params */
+    private static function fingerprint(array $params): string
     {
-        $payload = json_encode(array_values($sort), JSON_THROW_ON_ERROR);
+        unset($params['cursor'], $params['limit']);
+        ksort($params);
+
+        return substr(hash('sha256', json_encode($params, JSON_THROW_ON_ERROR)), 0, 16);
+    }
+
+    /** @param array<array-key, mixed> $sort */
+    private static function encodeCursor(array $sort, string $fingerprint): string
+    {
+        $payload = json_encode([...array_values($sort), $fingerprint], JSON_THROW_ON_ERROR);
 
         return rtrim(strtr(base64_encode($payload.'.'.hash_hmac('sha256', $payload, Scalar::string(config('app.key')))), '+/', '-_'), '=');
     }
 
     /** @return list<mixed> */
-    private static function decodeCursor(string $cursor): array
+    private static function decodeCursor(string $cursor, string $fingerprint): array
     {
         $raw = base64_decode(strtr($cursor, '-_', '+/'), true);
         $position = $raw === false ? false : strrpos($raw, '.');
@@ -119,7 +129,7 @@ final class ProductSearch
             $payload = substr($raw, 0, $position);
             if (hash_equals(hash_hmac('sha256', $payload, Scalar::string(config('app.key'))), substr($raw, $position + 1))) {
                 $sort = json_decode($payload, true);
-                if (is_array($sort) && count($sort) === 2) {
+                if (is_array($sort) && count($sort) === 3 && array_pop($sort) === $fingerprint) {
                     return array_values($sort);
                 }
             }

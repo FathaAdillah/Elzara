@@ -11,6 +11,7 @@ use App\Modules\Search\Application\SyncProductSearchIndex;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
@@ -85,6 +86,13 @@ final class ProductSearchTest extends TestCase
         $second = app(ProductSearch::class)->search(['limit' => 3, 'cursor' => $first['meta']['next_cursor']]);
         $this->assertFalse($second['meta']['has_more']);
         $this->assertCount(4, array_unique([...array_column($first['data'], 'id'), ...array_column($second['data'], 'id')]));
+
+        try {
+            app(ProductSearch::class)->search(['limit' => 3, 'q' => 'kaos', 'cursor' => $first['meta']['next_cursor']]);
+            $this->fail('Cursor dari pencarian lain harus ditolak.');
+        } catch (ValidationException) {
+            $this->addToAssertionCount(1);
+        }
     }
 
     public function test_reindex_rebuilds_from_postgres_and_swaps_the_alias(): void
