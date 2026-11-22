@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Concurrency\Catalog;
 
 use App\Modules\Catalog\Application\AdminContext;
+use App\Modules\Catalog\Application\CategoryScope;
 use App\Modules\Catalog\Application\ProductAdminService;
 use App\Platform\Domain\Exception\VersionStale;
 use Illuminate\Database\QueryException;
@@ -31,7 +32,7 @@ final class CatalogVersionLockTest extends TestCase
 
             DB::statement("SET lock_timeout TO '200ms'");
             try {
-                $service->update($product, 1, ['name' => 'Second writer'], $context);
+                $service->update($product, 1, ['name' => 'Second writer'], $context, CategoryScope::global());
                 $this->fail('Penulis kedua harus menunggu kunci baris.');
             } catch (QueryException $failure) {
                 $this->assertSame('55P03', $failure->errorInfo[0]);
@@ -42,7 +43,7 @@ final class CatalogVersionLockTest extends TestCase
 
             $this->expectException(VersionStale::class);
             try {
-                $service->update($product, 1, ['name' => 'Second writer'], $context);
+                $service->update($product, 1, ['name' => 'Second writer'], $context, CategoryScope::global());
             } finally {
                 $this->assertSame('First writer', DB::table('products')->where('id', $product)->value('name'));
                 $this->assertSame(0, DB::table('outbox_events')->where('aggregate_type', 'product')->where('aggregate_id', $product)->count());
