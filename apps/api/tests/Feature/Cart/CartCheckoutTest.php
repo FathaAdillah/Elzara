@@ -255,6 +255,21 @@ final class CartCheckoutTest extends TestCase
             ->orderBy('id')->get();
     }
 
+    public function test_order_audit_preserves_the_full_client_request_id(): void
+    {
+        $this->enableFakePayment();
+        $payload = $this->quoteForOrder($this->checkout()->assertCreated()->json());
+        $requestId = str_repeat('checkout-request', 8);
+        $this->withServerVariables(['HTTP_X_REQUEST_ID' => $requestId]);
+
+        $order = $this->send('POST', '/api/v1/orders', $payload)->assertCreated()
+            ->assertHeader('X-Request-Id', $requestId)->json();
+
+        $audit = $this->orderAudit($order['id'])->sole();
+        $this->assertTrue(Str::isUlid($audit->request_id));
+        $this->assertSame($requestId, json_decode($audit->after, true, flags: JSON_THROW_ON_ERROR)['_context']['request_id']);
+    }
+
     public function test_fake_payment_cannot_be_enabled_in_production(): void
     {
         $this->enableFakePayment();
