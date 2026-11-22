@@ -9,7 +9,9 @@ on:
       - apps/api/**
       - packages/api-contracts/**
       - docker/compose.yaml
+      - docker/compose.local.yaml
       - docker/profiles/**
+      - scripts/test-compose-isolation.py
       - scripts/migrate.sh
       - scripts/codegen.sh
       - scripts/check-contract-drift.sh
@@ -20,7 +22,9 @@ on:
       - apps/api/**
       - packages/api-contracts/**
       - docker/compose.yaml
+      - docker/compose.local.yaml
       - docker/profiles/**
+      - scripts/test-compose-isolation.py
       - scripts/migrate.sh
       - scripts/codegen.sh
       - scripts/check-contract-drift.sh
@@ -42,6 +46,14 @@ env:
   IMAGE: elzara/api
 
 jobs:
+  compose-isolation:
+    name: Compose environment isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/test-compose-isolation.py
+
   lint:
     name: 1. lint (PSR + PHPStan + Deptrac)
     runs-on: ubuntu-latest
@@ -236,7 +248,7 @@ jobs:
     name: 6. migration compatibility check
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: image
+    needs: [image, compose-isolation]
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }

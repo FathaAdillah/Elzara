@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 final class CartCheckoutTest extends TestCase
@@ -270,11 +271,13 @@ final class CartCheckoutTest extends TestCase
         $this->assertSame($requestId, json_decode($audit->after, true, flags: JSON_THROW_ON_ERROR)['_context']['request_id']);
     }
 
-    public function test_fake_payment_cannot_be_enabled_in_production(): void
+    #[TestWith(['staging'])]
+    #[TestWith(['production'])]
+    public function test_fake_payment_cannot_be_enabled_in_deployed_environments(string $environment): void
     {
         $this->enableFakePayment();
         config(['surfaces.admin_origin' => 'https://admin.localhost']);
-        $this->app->detectEnvironment(fn () => 'production');
+        $this->app->detectEnvironment(fn () => $environment);
         $checkout = $this->checkout()->assertCreated()->assertJsonPath('fake_payment_available', false)->json();
         $payload = $this->quoteForOrder($checkout);
         $this->send('POST', '/api/v1/orders', $payload)->assertConflict()->assertJsonPath('code', 'FAKE_PAYMENT_DISABLED');

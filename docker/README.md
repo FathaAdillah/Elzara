@@ -114,6 +114,15 @@ Gunakan satu domain induk untuk storefront dan admin bila memungkinkan. Review
 ADR-007 dan sign-off threat model tetap diperlukan sebelum mengaktifkan auth pada
 topologi dua hostname, termasuk cookie host-only serta CSRF pada masing-masing origin.
 
+Gunakan nama proyek Compose berbeda untuk staging dan production di Dokploy.
+Keduanya tidak boleh memakai nama default `elzara` yang sama pada satu engine.
+Jalankan `python3 scripts/test-compose-isolation.py` untuk memeriksa hasil render
+lokal, basis Dokploy, dan kedua override dengan konfigurasi dummy. Tes ini tidak
+menguji runtime Dokploy. Saat staging tersedia, verifikasi namespace volume dan
+jaringan, pemisahan database dan bucket, domain/TLS, serta akun/kredensial sandbox
+gateway sebelum menjalankan drill expand/backfill/contract dengan image rilis yang
+dipin. Jangan memakai data atau kredensial production untuk drill.
+
 ## Elasticsearch
 
 Service `elasticsearch` memakai image resmi 8.19.25 dan lisensi Basic gratis.

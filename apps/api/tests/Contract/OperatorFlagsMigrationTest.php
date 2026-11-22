@@ -94,6 +94,31 @@ final class OperatorFlagsMigrationTest extends TestCase
         $this->assertSame(1001, DB::table('users')->where('is_operator', true)->count());
     }
 
+    public function test_expanded_schema_keeps_legacy_writes_and_reads_until_cutover(): void
+    {
+        $this->legacy();
+        $this->migration('0051_Identity_expand_users_operator_flags')->up();
+
+        $staff = DB::table('users')->insertGetId([
+            'public_id' => (string) Str::ulid(),
+            'name' => 'Staff created during expand',
+            'email' => 'during-expand@example.test',
+            'kind' => 'staff',
+        ]);
+        $this->assertFalse(DB::table('users')->where('id', $staff)->value('is_operator'));
+        $this->assertSame(0, Artisan::call('identity:backfill-operator-flags'));
+        $this->migration('0052_Identity_validate_users_operator_check')->up();
+        $this->assertSame(
+            DB::table('users')->where('kind', 'staff')->pluck('id')->all(),
+            DB::table('users')->where('is_operator', true)->pluck('id')->all(),
+        );
+
+        $this->migration('0053_Identity_contract_users_drop_kind')->up();
+        $this->assertFalse(Schema::hasColumn('users', 'kind'));
+        $this->assertTrue(DB::table('users')->where('id', $staff)->value('is_operator'));
+        $this->assertFalse(DB::table('users')->where('id', $staff)->value('is_admin'));
+    }
+
     public function test_validation_rejects_null_flags(): void
     {
         $this->invalidGate(false);
