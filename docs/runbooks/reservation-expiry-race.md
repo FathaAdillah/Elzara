@@ -14,7 +14,7 @@
 | `stock reservation expirations` (Blueprint §15) melonjak | metrik | > 3× baseline/jam |
 | `orders.paid_stock_exception` bertambah (B-6) | query §3.1 | ≥ 1 ⇒ SEV-1 (selalu ada calon kerugian) || webhook `paid` datang dalam ±5 menit sebelum `stock_reservations.expires_at` | log/korelasi `webhook_receipts.received_at` vs `expires_at` | ≥ 1 ⇒ awasi, belum insiden |
 | deadlock PostgreSQL + retry naik | metrik Blueprint §15; exception domain `InsufficientStock` / deadlock di log worker (Doc 01 §11) | ≥ 5/menit ⇒ **urutan lock dilanggar** — §3.4 |
-| `payment_status = captured` tapi `stock_reservations.status = expired` | query §3.1 | ≥ 1 ⇒ insiden nyata, §3.3 |
+| `payment_status = paid` tapi `stock_reservations.status = expired` | query §3.1 | ≥ 1 ⇒ insiden nyata, §3.3 |
 | reservation `active` tanpa owner (cart mati / quote basi) | metrik "reservation tanpa owner" (Doc 01 §12) | menumpuk ⇒ worker expiry macet, lihat `queue-stuck.md` |
 | order tertahan `paid` > 24 h | dashboard Doc 01 §11 | ≥ 1 ⇒ sudah melewati tahap "tunggu" |
 
@@ -40,7 +40,7 @@ FROM orders o
 LEFT JOIN payment_intents pi ON pi.order_id = o.id        -- pengikat intent boleh via invoices (ADR-002); belum diverifikasi
 LEFT JOIN stock_reservations sr ON sr.order_id = o.id
 LEFT JOIN webhook_receipts wr ON wr.intent_id = pi.id
-WHERE o.payment_status = 'captured'
+WHERE o.payment_status = 'paid'
   AND (sr.status = 'expired' OR sr.id IS NULL)
 ORDER BY wr.received_at DESC NULLS LAST;
 ```
@@ -155,7 +155,7 @@ docker compose -f docker/compose.yaml -f docker/compose.prod.yaml exec app php a
 
 ### 3.6 Lepas pembekuan
 
-`[ verifikasi ]` sebelum melepas tahan-pemenuhan §3.2: (a) 0 baris `paid_stock_exception` tanpa keputusan, (b) 0 deadlock 30 menit, (c) tidak ada `payment_status = captured` dengan reservasi `expired` yang belum masuk daftar, (d) smoke test satu transisi order hijau (Doc 10 §9 langkah 4).
+`[ verifikasi ]` sebelum melepas tahan-pemenuhan §3.2: (a) 0 baris `paid_stock_exception` tanpa keputusan, (b) 0 deadlock 30 menit, (c) tidak ada `payment_status = paid` dengan reservasi `expired` yang belum masuk daftar, (d) smoke test satu transisi order hijau (Doc 10 §9 langkah 4).
 
 ## 4. Eskalasi
 
