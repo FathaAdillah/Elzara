@@ -1,4 +1,31 @@
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import type { AdminSession } from '#shared/types/admin-session'
+
+function requestSession(url: URL, headers: Record<string, string>): Promise<AdminSession> {
+  return new Promise((resolve, reject) => {
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return reject(new Error('Unsupported API protocol'))
+    const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
+      method: 'GET', headers, signal: AbortSignal.timeout(5000),
+    }, response => {
+      response.on('error', reject)
+      if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+        response.resume()
+        reject(Object.assign(new Error('Session request rejected'), { statusCode: response.statusCode }))
+        return
+      }
+      response.setEncoding('utf8')
+      let body = ''
+      response.on('data', chunk => { body += chunk })
+      response.on('end', () => {
+        try { resolve(JSON.parse(body) as AdminSession) }
+        catch (error) { reject(error) }
+      })
+    })
+    request.on('error', reject)
+    request.end()
+  })
+}
 
 export default defineEventHandler(async (event): Promise<AdminSession> => {
   setResponseHeader(event, 'Cache-Control', 'no-store')
@@ -9,18 +36,12 @@ export default defineEventHandler(async (event): Promise<AdminSession> => {
   const sessionCookie = getCookie(event, 'elzara_admin_session')
   if (!sessionCookie) throw createError({ statusCode: 401 })
   try {
-    const session = await $fetch<AdminSession>(adminSessionPath, {
-      baseURL: apiInternalOrigin,
-      headers: {
-        cookie: `elzara_admin_session=${encodeURIComponent(sessionCookie)}`,
-        origin: adminOrigin,
-        host: new URL(adminOrigin).host,
-        accept: 'application/json',
-        traceparent: event.context.traceparent as string,
-      },
-      redirect: 'error',
-      retry: 0,
-      timeout: 5000,
+    const session = await requestSession(new URL(adminSessionPath, apiInternalOrigin), {
+      cookie: `elzara_admin_session=${encodeURIComponent(sessionCookie)}`,
+      origin: adminOrigin,
+      host: new URL(adminOrigin).host,
+      accept: 'application/json',
+      traceparent: event.context.traceparent as string,
     })
     if (session?.authenticated === true && typeof session.user?.user_id === 'string'
       && typeof session.user.name === 'string' && typeof session.is_admin === 'boolean'
