@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Cart;
 
+use App\Modules\Cart\Application\CartService;
 use App\Modules\Fulfillment\Contracts\InvalidDestination;
 use App\Modules\Fulfillment\Contracts\ProviderUnavailable;
 use App\Modules\Fulfillment\Contracts\ShippingRate;
@@ -12,6 +13,7 @@ use App\Modules\Fulfillment\Contracts\ShippingRateRequest;
 use App\Modules\Identity\Application\ActiveOrderAddressUsage;
 use App\Modules\Identity\Infrastructure\Models\User;
 use App\Platform\Domain\PublicId;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -169,6 +171,25 @@ final class CartCheckoutTest extends TestCase
         $this->travel(31)->days();
         Cache::flush();
         $this->artisan('cart:expire')->expectsOutput('expired=1')->assertSuccessful();
+        $this->travelBack();
+    }
+
+    public function test_mutations_lock_the_cart_and_expiry_preserves_the_refreshed_ttl(): void
+    {
+        $first = $this->add()->assertCreated();
+        $id = PublicId::decode($first->json('id'), 'cart');
+        DB::table('carts')->where('id', $id)->update(['expires_at' => now()->addSecond()]);
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+        $line = $first->json('groups.0.items.0.id');
+        $this->send('PATCH', '/api/v1/cart/items/'.$line, ['quantity' => 2])->assertOk();
+        $this->assertTrue(collect($queries)->contains(fn (string $sql): bool => str_contains($sql, 'from "carts"') && str_ends_with($sql, 'for update')));
+        $this->travel(2)->seconds();
+        $this->assertSame(0, app(CartService::class)->expire());
+        $this->assertDatabaseHas('carts', ['id' => $id, 'status' => 'active']);
+        $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonPath('id', $first->json('id'))->assertJsonPath('groups.0.items.0.quantity', 2);
         $this->travelBack();
     }
 

@@ -85,7 +85,7 @@ final class CartService
         return DB::transaction(function () use ($user, $change, $create): CartView {
             DB::table('users')->where('id', $user)->lockForUpdate()->first();
             CartRecord::query()->where('user_id', $user)->where('status', 'active')->where('expires_at', '<=', now())->update(['status' => 'expired']);
-            $cart = $this->active($user);
+            $cart = CartRecord::query()->where('user_id', $user)->where('status', 'active')->where('expires_at', '>', now())->lockForUpdate()->first();
             if ($cart === null) {
                 abort_unless($create, 404);
                 $cart = CartRecord::query()->create(['user_id' => $user, 'expires_at' => now()->addDays(max(1, Config::integer('cart.ttl_days')))]);
