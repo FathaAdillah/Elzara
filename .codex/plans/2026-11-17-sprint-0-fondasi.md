@@ -4722,7 +4722,7 @@ Per-ADR, satu blok tambahan spesifik. **ADR-008**: **D-S0-7** `MINIO_PUBLIC_ENDP
 URL yang dijangkau browser, berbeda dari endpoint internal `http://minio:9000` yang dipakai container (test
 Task 9 membuktikan keduanya); enam bucket sesuai Doc 01 §9.2, `exports` dengan lifecycle TTL, `audit-archives`
 restricted; **dump backup bukan bucket ketujuh** (Doc 11 §8.7) — kalimat ini ditulis di ADR karena ADR tempat
-orang mencari keputusan; butir CDN/edge **tetap terbuka** (Q-6) dan tidak disebut ditutup. **ADR-010**: tiga
+orang mencari keputusan; keputusan interim CDN/edge berlaku 2026-11-22: origin storage + Cache-Control + caching nginx; Q-6 menjadi revisit zone aktif, bukan blocker. **ADR-010**: tiga
 jalur rilis mandiri (Task 1, Task 20), dua lockfile, `paths:` filter, rollback = deploy ulang tag tanpa
 `migrate:rollback`, Doc 10 M-1…M-13 sebagai lampiran. **ADR-011**: ditutup dengan **default satu gudang**
 (`warehouses` berisi satu baris dari ReferenceSeeder; kunci agregat `(warehouse_id, sku_id)` tetap ada di skema

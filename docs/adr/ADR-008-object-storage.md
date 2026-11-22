@@ -1,6 +1,6 @@
 # ADR-008 — Object storage MinIO: bucket publik/privat dan pemakaian CDN
 
-Tanggal: 2026-11-17 · Status: **Accepted** — dengan satu butir terbuka (CDN/edge mana yang benar-benar dimiliki klien; terkait Doc 11 §6 Q-6) · Menyelesaikan bentrok **B-9** (Doc 11 §3: Blueprint §18 butir 7) · Rujukan induk: Blueprint §11, §16, §19 (ADR-003)
+Tanggal: 2026-11-17 · Status: **Accepted** — keputusan interim berlaku 2026-11-22: origin storage + Cache-Control + caching nginx; CDN ditinjau saat zone aktif dikonfirmasi (Q-6), bukan blocker · Menyelesaikan bentrok **B-9** (Doc 11 §3: Blueprint §18 butir 7) · Rujukan induk: Blueprint §11, §16, §19 (ADR-003)
 
 ## Konteks
 
@@ -16,7 +16,7 @@ Kita juga mewarisi satu jebakan operasional yang disebut Blueprint §11 secara e
 
 ## Keputusan
 
-**K-1. Enam bucket, namanya persis Blueprint §11:** `product-media` (publik, hanya lewat CDN terkontrol), `request-attachments` (privat), `invoice-documents` (privat), `shipment-documents` (privat), `exports` (privat, ber-TTL), `audit-archives` (terbatas). Bucket-bucket ini menggantikan dua nama lama; tidak ada bucket ketujuh tanpa ADR baru.
+**K-1. Enam bucket, namanya persis Blueprint §11:** `product-media` (publik melalui origin storage dengan Cache-Control dan caching nginx; CDN setelah zone aktif dikonfirmasi), `request-attachments` (privat), `invoice-documents` (privat), `shipment-documents` (privat), `exports` (privat, ber-TTL), `audit-archives` (terbatas). Bucket-bucket ini menggantikan dua nama lama; tidak ada bucket ketujuh tanpa ADR baru.
 
 **K-2. Alur unggah adalah presigned, bukan perantara aplikasi:** peramban → validasi autentikasi + tipe/ukuran + batas kuota di `api` → presigned PUT/POST berumur pendek → unggah langsung ke MinIO → **finalize** menuliskan metadata dan kepemilikan objek → pekerjaan async melakukan validasi MIME + **magic-byte** (ekstensi tidak pernah dipercaya), pemindaian antivirus bila penyedia tersedia, pemrosesan gambar, dan moderasi. Konsekuensi arsitektur yang harus diterima: objek boleh eksis beberapa menit tanpa metadata sah (objek yatim), jadi wajib ada pembersih periodik; dan validasi yang berjalan sinkron **tidak bisa** dijadikan pagar keamanan terakhir karena pemindaian terjadi setelahnya.
 
@@ -24,11 +24,11 @@ Kita juga mewarisi satu jebakan operasional yang disebut Blueprint §11 secara e
 
 **K-4. Akses privat hanya lewat URL bertanda tangan berumur pendek** (atau proksi terautentikasi untuk unduhan yang harus bisa dicabut segera). Tidak ada presigned panjang, tidak ada "link aman karena tebak sulit".
 
-**K-5. CDN dipakai untuk media publik saja.** Foto produk, banner, dan aset katalog lewat edge; **tidak pernah** untuk cart, sesi, checkout, halaman tagihan, data pelanggan, maupun respons privat apa pun — sejalan Blueprint §12 dan daftar Definition of Done Blueprint §19 ("CDN/cache tidak membocorkan data pengguna").
+**K-5. CDN dipakai untuk media publik saja.** Foto produk, banner, dan aset katalog lewat origin storage dengan Cache-Control + caching nginx untuk sementara, lalu CDN setelah zone aktif dikonfirmasi; **tidak pernah** untuk cart, sesi, checkout, halaman tagihan, data pelanggan, maupun respons privat apa pun — sejalan Blueprint §12 dan daftar Definition of Done Blueprint §19 ("CDN/cache tidak membocorkan data pengguna").
 
 **K-6. Operasional yang ikut mengikat:** akses konsol MinIO tidak pernah publik; kunci akses terpisah per servis; kebijakan bucket least-privilege; CORS bucket dibatasi ke origin `web` dan `admin` yang sah; versioning untuk dokumen kritis (invoice, audit); lifecycle expiration wajib untuk `exports`; SSE dipakai bila versi MinIO yang kita pilih mendukungnya; kapasitas dipantau sebagai metrik, bukan kejutan.
 
-**K-7. Yang menjadi dasar keputusan (jebakan operasional):** **presigned URL harus menunjuk endpoint yang benar-benar bisa dijangkau peramban.** Hostname internal Docker (`http://minio:9000`) tidak akan selesai di peramban pengguna, berapa pun lamanya masa berlaku URL. Implementasinya: satu origin publik khusus object storage (subdomain ber-TLS di belakang Cloudflare/nginx) yang dipakai browser dan server untuk operasi yang sama, dengan bucket `product-media` dilindungi referer/CDN dan bucket privat hanya menjawab URL bertanda tangan.
+**K-7. Yang menjadi dasar keputusan (jebakan operasional):** **presigned URL harus menunjuk endpoint yang benar-benar bisa dijangkau peramban.** Hostname internal Docker (`http://minio:9000`) tidak akan selesai di peramban pengguna, berapa pun lamanya masa berlaku URL. Implementasinya: satu origin publik khusus object storage (subdomain ber-TLS di belakang Cloudflare/nginx) yang dipakai browser dan server untuk operasi yang sama, dengan bucket `product-media` mengikuti keputusan interim origin storage + Cache-Control + caching nginx dan bucket privat hanya menjawab URL bertanda tangan.
 
 ## Alternatif yang ditolak
 
@@ -37,7 +37,7 @@ Kita juga mewarisi satu jebakan operasional yang disebut Blueprint §11 secara e
 | A | Unggah lewat proxy aplikasi (berkas masuk ke Laravel lalu diteruskan ke MinIO) | Memakan memori/waktu worker untuk berkas besar, menembus timeout, dan membuat upload menjadi pekerjaan sinkron; Blueprint §11 memilih presigned secara eksplisit |
 | B | Menyimpan berkas sebagai `bytea` di PostgreSQL | Metadata dan blob jadi satu siklus hidup yang sama: backup/PITR database membengkak, ekspor laporan besar tidak bisa diberi TTL, dan caching tepi tidak mungkin |
 | C | Bucket tunggal publik + path "rahasia" untuk dokumen privat | Tidak ada keamanan lewat obskuritas; satu kebocoran daftar URL = bocor PII dan bukti bayar; Doc 19 menjadikannya kegagalan definisi-selesai |
-| D | MinIO diekspos langsung ke publik tanpa CDN untuk media katalog | Setiap tampilan halaman produk menekan origin (VPS tunggal, B-15), tanpa cache penghapus, dan TLS/limit harus kita kelola sendiri |
+| D | MinIO diekspos langsung tanpa proxy/cache nginx untuk media katalog | Setiap tampilan halaman produk menekan origin (VPS tunggal, B-15), tanpa cache penghapus, dan TLS/limit harus kita kelola sendiri |
 | E | Layanan object storage terkelola komersial sejak MVP | Alasannya masuk akal (hilang satu komponen yang harus di-ops) tapi Blueprint §11/§14.1 menetapkan MinIO, dan biaya + lock-in tidak sepadan untuk target awal; **catatan jujur**: keputusan ini bisa dibalik kalau beban operasi MinIO terbukti terlalu mahal bagi tim 1–2 dev — itu ADR baru, bukan selisih konfigurasi |
 | F | Satu bucket privat dengan proksi terautentikasi untuk **semua** media (termasuk katalog) | Aman tapi memaksa setiap gambar melayani dari origin; menolak CDN sama dengan menolak satu-satunya lapisan yang melindungi VPS tunggal dari trafik media |
 
@@ -55,6 +55,6 @@ Kita juga mewarisi satu jebakan operasional yang disebut Blueprint §11 secara e
 
 **Jadi tidak mungkin juga:** memindahkan dokumen privat ke bucket publik "sementara untuk testing", karena tidak ada mekanisme di CI yang bisa membuktikan bahwa tidak ada objek privat tertinggal setelahnya.
 
-**Butir terbuka (harus dijawab klien, terkait Q-6):** CDN/edge apa yang benar-benar sudah dimiliki. Blueprint mengandaikan Cloudflare untuk media + WAF + Waiting Room, tapi punya akun Cloudflare ≠ punya fitur CDN/proxy yang aktif untuk zone ini, dan kita tidak boleh memasang `product-media` di belakang CDN yang belum dibayar. Default sementara kami sampai ada jawaban: media publik dilayani lewat origin dengan `Cache-Control` + caching di nginx, lalu dipindah ke CDN begitu zone-nya dikonfirmasi; pemindahan itu tidak mengubah kontrak apa pun karena URL objek dipegang satu kolom di `media`.
+**Keputusan berlaku 2026-11-22 (bukan blocker, revisit Q-6):** CDN/edge apa yang benar-benar sudah dimiliki. Blueprint mengandaikan Cloudflare untuk media + WAF + Waiting Room, tapi punya akun Cloudflare ≠ punya fitur CDN/proxy yang aktif untuk zone ini, dan kita tidak boleh memasang `product-media` di belakang CDN yang belum dibayar. Default interim yang diputuskan berlaku: media publik dilayani lewat origin dengan `Cache-Control` + caching di nginx, lalu dipindah ke CDN begitu zone-nya dikonfirmasi; pemindahan itu tidak mengubah kontrak apa pun karena URL objek dipegang satu kolom di `media`.
 
 **Ruang lingkup tes yang ikut terbuka (Blueprint §16 baris "MinIO unavailable"):** unggah harus gagal dengan aman dan checkout harus tetap jalan ketika media tidak bergantung padanya — artinya modul Orders **tidak boleh** memanggil object storage di jalur transaksi.

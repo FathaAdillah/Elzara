@@ -948,7 +948,7 @@ Yang kita tiru adalah **kategori fitur dan alur bisnis**, bukan ekspresi. Dilara
 | ADR-004 | Accepted (sudah ditulis) | idempotency key + unique constraint + transactional outbox | isinya hidup di §4/§6/§8; ADR-nya sudah ada di `docs/adr/` |
 | ADR-005 | Accepted (sudah ditulis) | TTL reservasi & resolusi pembayaran terlambat | §6.4–§6.5; angka TTL final tetap menunggu gateway (ADR-006) |
 | ADR-006 | Proposed — **diblokir jawaban klien (Q-7)** | gateway pembayaran & semantik settlement | menentukan TTL reservasi vs expiry intent (§6.4); akun & kontrak gateway milik klien (Doc 03 §9) |
-| ADR-008 | Accepted, satu butir terbuka | bucket privat/publik MinIO + CDN; edge/CDN mana yang benar-benar dimiliki klien terkait Q-6 | §9.2 |
+| ADR-008 | Accepted, interim berlaku 2026-11-22 | bucket privat/publik MinIO; origin storage + Cache-Control + caching nginx, CDN setelah zone aktif dikonfirmasi (Q-6 revisit, bukan blocker) | §9.2 |
 | ADR-009 | Proposed — **diblokir angka (Q-4) + plan Cloudflare (Q-6)** | cakupan rute/ambang/bypass Waiting Room | tidak bisa ditutup tanpa hasil k6 dan plan klien; MVP tidak mengaktifkan Waiting Room (§2.4) |
 | ADR-010 | Accepted | monorepo CI/CD + deploy mandiri + strategi migrasi | §11.4; Doc 10 §1 M-1…M-4 jadi Lampiran A |
 | ADR-011 | Accepted, multi-gudang diblokir Q-5 | alokasi stok multi-gudang / partial fulfillment | default MVP satu gudang berlaku sekarang |
