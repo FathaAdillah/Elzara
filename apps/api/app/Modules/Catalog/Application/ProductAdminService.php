@@ -140,8 +140,7 @@ final class ProductAdminService
     public function updateVariant(int $id, int $version, array $data, AdminContext $context, CategoryScope $scope): stdClass
     {
         return DB::transaction(function () use ($id, $version, $data, $context, $scope): stdClass {
-            $before = $this->lock('product_variants', $id, $version, true);
-            $scope->assertCovers(DB::table('products')->where('id', $before->product_id)->lockForUpdate()->value('category_id'));
+            $before = $this->lockVariant($id, $version, $scope);
             $values = self::columns($data, ProductRules::VARIANT_COLUMNS);
             DB::table('product_variants')->where('id', $id)->update([...$values, 'version' => $version + 1, 'updated_at' => Carbon::now()]);
             $variant = $this->variant($id);
@@ -156,13 +155,23 @@ final class ProductAdminService
     public function deleteVariant(int $id, int $version, AdminContext $context, CategoryScope $scope): void
     {
         DB::transaction(function () use ($id, $version, $context, $scope): void {
-            $before = $this->lock('product_variants', $id, $version, true);
-            $scope->assertCovers(DB::table('products')->where('id', $before->product_id)->lockForUpdate()->value('category_id'));
+            $before = $this->lockVariant($id, $version, $scope);
             DB::table('product_variants')->where('id', $id)->update(['deleted_at' => Carbon::now(), 'is_active' => false, 'version' => $version + 1, 'updated_at' => Carbon::now()]);
             $this->audit->record($context->actorId, 'catalog.delete', 'product_variants', $id, Scalar::fields($before), [],
                 $context->reason, $context->requestId, $context->ip, $context->userAgent);
             $this->events->updated(Scalar::int($before->product_id), ['variants'], $context->actorId);
         });
+    }
+
+    /** Locks the parent product before the variant, in the same order as the CSV import, then checks its category. */
+    private function lockVariant(int $id, int $version, CategoryScope $scope): stdClass
+    {
+        $productId = DB::table('product_variants')->where('id', $id)->value('product_id');
+        $categoryId = DB::table('products')->where('id', $productId)->lockForUpdate()->value('category_id');
+        $before = $this->lock('product_variants', $id, $version, true);
+        $scope->assertCovers($categoryId);
+
+        return $before;
     }
 
     /** @return list<stdClass> */
