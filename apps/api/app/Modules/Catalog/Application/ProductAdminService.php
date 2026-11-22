@@ -141,7 +141,7 @@ final class ProductAdminService
     {
         return DB::transaction(function () use ($id, $version, $data, $context, $scope): stdClass {
             $before = $this->lock('product_variants', $id, $version, true);
-            $scope->assertCovers(DB::table('products')->where('id', $before->product_id)->value('category_id'));
+            $scope->assertCovers(DB::table('products')->where('id', $before->product_id)->lockForUpdate()->value('category_id'));
             $values = self::columns($data, ProductRules::VARIANT_COLUMNS);
             DB::table('product_variants')->where('id', $id)->update([...$values, 'version' => $version + 1, 'updated_at' => Carbon::now()]);
             $variant = $this->variant($id);
@@ -157,7 +157,7 @@ final class ProductAdminService
     {
         DB::transaction(function () use ($id, $version, $context, $scope): void {
             $before = $this->lock('product_variants', $id, $version, true);
-            $scope->assertCovers(DB::table('products')->where('id', $before->product_id)->value('category_id'));
+            $scope->assertCovers(DB::table('products')->where('id', $before->product_id)->lockForUpdate()->value('category_id'));
             DB::table('product_variants')->where('id', $id)->update(['deleted_at' => Carbon::now(), 'is_active' => false, 'version' => $version + 1, 'updated_at' => Carbon::now()]);
             $this->audit->record($context->actorId, 'catalog.delete', 'product_variants', $id, Scalar::fields($before), [],
                 $context->reason, $context->requestId, $context->ip, $context->userAgent);
