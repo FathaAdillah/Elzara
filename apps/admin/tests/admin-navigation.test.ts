@@ -15,8 +15,12 @@ test('settings route selects feature flags instead of Dashboard', () => {
   })
 })
 
+test('catalog route selects the catalog item', () => {
+  assert.deepEqual(adminRouteNavigation('/catalog/'), { section: 'catalog', breadcrumbs: [{ label: 'Katalog' }] })
+})
+
 test('dashboard stays selected on home and preview, without matching similarly named routes', () => {
-  for (const path of ['/', '/preview', '/staffing', '/settings/feature-flags-other']) {
+  for (const path of ['/', '/preview', '/staffing', '/settings/feature-flags-other', '/catalogue']) {
     assert.deepEqual(adminRouteNavigation(path), { section: 'dashboard', breadcrumbs: [{ label: 'Dashboard' }] })
   }
 })

@@ -81,6 +81,312 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/catalog/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Daftar kategori (cursor) */
+        get: operations["adminCatalogCategoriesList"];
+        put?: never;
+        /** @description Buat kategori; diaudit */
+        post: operations["adminCatalogCategoriesCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Detail kategori */
+        get: operations["adminCatalogCategoriesGet"];
+        put?: never;
+        post?: never;
+        /** @description Hapus kategori; masih dirujuk -> 409 RESOURCE_IN_USE */
+        delete: operations["adminCatalogCategoriesDelete"];
+        options?: never;
+        head?: never;
+        /** @description Ubah kategori; version basi -> 409 VERSION_STALE */
+        patch: operations["adminCatalogCategoriesUpdate"];
+        trace?: never;
+    };
+    "/admin/catalog/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Daftar brand (cursor) */
+        get: operations["adminCatalogBrandsList"];
+        put?: never;
+        /** @description Buat brand; diaudit */
+        post: operations["adminCatalogBrandsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/brands/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Detail brand */
+        get: operations["adminCatalogBrandsGet"];
+        put?: never;
+        post?: never;
+        /** @description Hapus brand; masih dirujuk -> 409 RESOURCE_IN_USE */
+        delete: operations["adminCatalogBrandsDelete"];
+        options?: never;
+        head?: never;
+        /** @description Ubah brand; version basi -> 409 VERSION_STALE */
+        patch: operations["adminCatalogBrandsUpdate"];
+        trace?: never;
+    };
+    "/admin/catalog/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Daftar koleksi (cursor) */
+        get: operations["adminCatalogCollectionsList"];
+        put?: never;
+        /** @description Buat koleksi; diaudit */
+        post: operations["adminCatalogCollectionsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/collections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Detail koleksi */
+        get: operations["adminCatalogCollectionsGet"];
+        put?: never;
+        post?: never;
+        /** @description Hapus koleksi; masih dirujuk -> 409 RESOURCE_IN_USE */
+        delete: operations["adminCatalogCollectionsDelete"];
+        options?: never;
+        head?: never;
+        /** @description Ubah koleksi; version basi -> 409 VERSION_STALE */
+        patch: operations["adminCatalogCollectionsUpdate"];
+        trace?: never;
+    };
+    "/admin/catalog/price-lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Daftar price list (cursor) */
+        get: operations["adminCatalogPriceListsList"];
+        put?: never;
+        /** @description Buat price list; diaudit */
+        post: operations["adminCatalogPriceListsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/price-lists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Detail price list */
+        get: operations["adminCatalogPriceListsGet"];
+        put?: never;
+        post?: never;
+        /** @description Hapus price list; masih dirujuk -> 409 RESOURCE_IN_USE */
+        delete: operations["adminCatalogPriceListsDelete"];
+        options?: never;
+        head?: never;
+        /** @description Ubah price list; version basi -> 409 VERSION_STALE */
+        patch: operations["adminCatalogPriceListsUpdate"];
+        trace?: never;
+    };
+    "/admin/catalog/price-lists/{id}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Harga per varian dalam price list */
+        get: operations["adminCatalogPriceListEntriesList"];
+        /** @description Ganti seluruh entri price list secara atomik; menaikkan version price list */
+        put: operations["adminCatalogPriceListEntriesReplace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Daftar produk aktif (cursor) */
+        get: operations["adminCatalogProductsList"];
+        put?: never;
+        /** @description Buat produk beserta varian; menulis ProductUpdated ke outbox (antrean imports) */
+        post: operations["adminCatalogProductsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/products/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Ekspor CSV satu baris per varian; sel berawalan = + - @ dinetralkan */
+        get: operations["adminCatalogProductsExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/products/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Import CSV tervalidasi semua-atau-tidak; galat per baris di errors[].pointer /rows/{baris}/{kolom}; butuh catalog.create dan catalog.update */
+        post: operations["adminCatalogProductsImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Detail produk dengan varian dan koleksi */
+        get: operations["adminCatalogProductsGet"];
+        put?: never;
+        post?: never;
+        /** @description Soft delete + status archived; dokumen indeks dihapus lewat ProductUpdated */
+        delete: operations["adminCatalogProductsDelete"];
+        options?: never;
+        head?: never;
+        /** @description Ubah produk; version basi -> 409 VERSION_STALE */
+        patch: operations["adminCatalogProductsUpdate"];
+        trace?: never;
+    };
+    "/admin/catalog/products/{id}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Tambah varian/SKU */
+        post: operations["adminCatalogVariantsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/variants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Soft delete varian */
+        delete: operations["adminCatalogVariantsDelete"];
+        options?: never;
+        head?: never;
+        /** @description Ubah varian; version basi -> 409 VERSION_STALE */
+        patch: operations["adminCatalogVariantsUpdate"];
+        trace?: never;
+    };
+    "/admin/catalog/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Pencarian Elasticsearch: multi_match fuzziness AUTO, prefiks edge n-gram, sinonim eksplisit, filter + facet keyword */
+        get: operations["adminCatalogSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog/search/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Antrekan rebuild penuh indeks dari PostgreSQL lalu swap alias */
+        post: operations["adminCatalogSearchReindex"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/feature-flags": {
         parameters: {
             query?: never;
@@ -769,6 +1075,331 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CatalogCategory: {
+            id: number;
+            version: number;
+            slug: string;
+            name_key: string;
+            parent_id?: number | null;
+            image_alt_key?: string | null;
+            position?: number;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CatalogCategoryCreate: {
+            slug: string;
+            name_key: string;
+            parent_id?: number | null;
+            image_alt_key?: string | null;
+            position?: number;
+            is_active?: boolean;
+            reason?: string;
+        };
+        CatalogCategoryUpdate: {
+            slug?: string;
+            name_key?: string;
+            parent_id?: number | null;
+            image_alt_key?: string | null;
+            position?: number;
+            is_active?: boolean;
+            reason?: string;
+            version: number;
+        };
+        CatalogBrand: {
+            id: number;
+            version: number;
+            slug: string;
+            name: string;
+            country?: string | null;
+            description_key?: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CatalogBrandCreate: {
+            slug: string;
+            name: string;
+            country?: string | null;
+            description_key?: string | null;
+            is_active?: boolean;
+            reason?: string;
+        };
+        CatalogBrandUpdate: {
+            slug?: string;
+            name?: string;
+            country?: string | null;
+            description_key?: string | null;
+            is_active?: boolean;
+            reason?: string;
+            version: number;
+        };
+        CatalogCollection: {
+            id: number;
+            version: number;
+            slug: string;
+            name_key: string;
+            /** @enum {string} */
+            kind: "fandom" | "ip" | "kolaborasi" | "tema";
+            description_key?: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CatalogCollectionCreate: {
+            slug: string;
+            name_key: string;
+            /** @enum {string} */
+            kind?: "fandom" | "ip" | "kolaborasi" | "tema";
+            description_key?: string | null;
+            is_active?: boolean;
+            reason?: string;
+        };
+        CatalogCollectionUpdate: {
+            slug?: string;
+            name_key?: string;
+            /** @enum {string} */
+            kind?: "fandom" | "ip" | "kolaborasi" | "tema";
+            description_key?: string | null;
+            is_active?: boolean;
+            reason?: string;
+            version: number;
+        };
+        CatalogPriceList: {
+            id: number;
+            version: number;
+            code: string;
+            name: string;
+            currency_code: string;
+            /** @enum {string} */
+            kind: "retail" | "wholesale" | "member" | "contract";
+            /** Format: date-time */
+            valid_from?: string | null;
+            /** Format: date-time */
+            valid_to?: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CatalogPriceListCreate: {
+            code: string;
+            name: string;
+            currency_code?: string;
+            /** @enum {string} */
+            kind?: "retail" | "wholesale" | "member" | "contract";
+            /** Format: date-time */
+            valid_from?: string | null;
+            /** Format: date-time */
+            valid_to?: string | null;
+            is_active?: boolean;
+            reason?: string;
+        };
+        CatalogPriceListUpdate: {
+            code?: string;
+            name?: string;
+            currency_code?: string;
+            /** @enum {string} */
+            kind?: "retail" | "wholesale" | "member" | "contract";
+            /** Format: date-time */
+            valid_from?: string | null;
+            /** Format: date-time */
+            valid_to?: string | null;
+            is_active?: boolean;
+            reason?: string;
+            version: number;
+        };
+        CatalogPriceListEntry: {
+            variant_id: number;
+            price: number;
+            currency_code: string;
+        };
+        CatalogPriceListEntriesReplace: {
+            version: number;
+            reason?: string;
+            entries: {
+                variant_id: number;
+                price: number;
+            }[];
+        };
+        CatalogVariantAdmin: {
+            id: number;
+            version: number;
+            product_id: number;
+            sku: string;
+            label: string;
+            /** @description Minor unit (IDR tanpa desimal) */
+            base_price: number;
+            currency_code: string;
+            track_stock: boolean;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CatalogVariantCreate: {
+            sku: string;
+            label: string;
+            /** @description Minor unit (IDR tanpa desimal) */
+            base_price: number;
+            currency_code?: string;
+            track_stock?: boolean;
+            is_active?: boolean;
+            reason?: string;
+        };
+        CatalogVariantUpdate: {
+            sku?: string;
+            label?: string;
+            /** @description Minor unit (IDR tanpa desimal) */
+            base_price?: number;
+            currency_code?: string;
+            track_stock?: boolean;
+            is_active?: boolean;
+            reason?: string;
+            version: number;
+        };
+        CatalogProductAdminSummary: {
+            id: number;
+            version: number;
+            slug: string;
+            name: string;
+            brand_id?: number | null;
+            category_id: number;
+            /** @enum {string} */
+            status: "draft" | "active" | "archived";
+            origin_country: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CatalogProductAdmin: {
+            id: number;
+            version: number;
+            slug: string;
+            name: string;
+            brand_id?: number | null;
+            series?: string | null;
+            category_id: number;
+            /** @enum {string} */
+            status: "draft" | "active" | "archived";
+            origin_country: string;
+            unit_weight_g?: number | null;
+            hs_code?: string | null;
+            description?: string | null;
+            care_notes?: string | null;
+            return_policy_notes?: string | null;
+            meta_title?: string | null;
+            meta_description?: string | null;
+            fulfillment_modes: ("rts" | "po" | "request")[];
+            collection_ids: number[];
+            variants: components["schemas"]["CatalogVariantAdmin"][];
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CatalogProductCreate: {
+            slug: string;
+            name: string;
+            brand_id?: number | null;
+            series?: string | null;
+            category_id: number;
+            /** @enum {string} */
+            status?: "draft" | "active" | "archived";
+            origin_country: string;
+            unit_weight_g?: number | null;
+            hs_code?: string | null;
+            description?: string | null;
+            care_notes?: string | null;
+            return_policy_notes?: string | null;
+            meta_title?: string | null;
+            meta_description?: string | null;
+            fulfillment_modes?: ("rts" | "po" | "request")[];
+            collection_ids?: number[];
+            reason?: string;
+            variants?: components["schemas"]["CatalogVariantCreate"][];
+        };
+        CatalogProductUpdate: {
+            slug?: string;
+            name?: string;
+            brand_id?: number | null;
+            series?: string | null;
+            category_id?: number;
+            /** @enum {string} */
+            status?: "draft" | "active" | "archived";
+            origin_country?: string;
+            unit_weight_g?: number | null;
+            hs_code?: string | null;
+            description?: string | null;
+            care_notes?: string | null;
+            return_policy_notes?: string | null;
+            meta_title?: string | null;
+            meta_description?: string | null;
+            fulfillment_modes?: ("rts" | "po" | "request")[];
+            collection_ids?: number[];
+            reason?: string;
+            version: number;
+        };
+        CatalogCsvImportUpload: {
+            /**
+             * Format: binary
+             * @description CSV UTF-8 maks 5 MB / 5000 baris; header persis: product_slug,product_name,category_slug,brand_slug,series,status,origin_country,fulfillment_modes,description,sku,variant_label,base_price,currency_code,track_stock,is_active
+             */
+            file: string;
+            /** @enum {string} */
+            dry_run?: "true" | "false" | "1" | "0";
+            reason?: string;
+        };
+        CatalogCsvImportResult: {
+            dry_run: boolean;
+            rows: number;
+            products_created: number;
+            products_updated: number;
+            variants_created: number;
+            variants_updated: number;
+        };
+        CatalogSearchHit: {
+            id: number;
+            slug: string;
+            name: string;
+            brand?: string | null;
+            brand_name?: string | null;
+            category?: string;
+            collections?: string[];
+            status: string;
+            origin_country?: string;
+            fulfillment_modes?: string[];
+            skus?: string[];
+            price_min?: number | null;
+            price_max?: number | null;
+            currency_code?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CatalogSearchResult: {
+            data: components["schemas"]["CatalogSearchHit"][];
+            facets: {
+                [key: string]: {
+                    value: string;
+                    count: number;
+                }[];
+            };
+            meta: {
+                limit: number;
+                total: number;
+                has_more: boolean;
+                next_cursor: string | null;
+            };
+        };
         AdminAccessReason: {
             reason: string;
         };
@@ -1263,6 +1894,1468 @@ export interface operations {
                 };
             };
             404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCategoriesList: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
+                cursor?: components["parameters"]["Cursor"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Daftar kategori (cursor) */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCategory"][];
+                        meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCategoriesCreate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogCategoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Buat kategori */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCategory"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCategoriesGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detail kategori */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCategory"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCategoriesDelete: {
+        parameters: {
+            query: {
+                /** @description K6: version terkini; tidak cocok -> 409 VERSION_STALE. */
+                version: number;
+            };
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hapus kategori */
+            204: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCategoriesUpdate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogCategoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Ubah kategori */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCategory"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogBrandsList: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
+                cursor?: components["parameters"]["Cursor"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Daftar brand (cursor) */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogBrand"][];
+                        meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogBrandsCreate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogBrandCreate"];
+            };
+        };
+        responses: {
+            /** @description Buat brand */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogBrand"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogBrandsGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detail brand */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogBrand"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogBrandsDelete: {
+        parameters: {
+            query: {
+                /** @description K6: version terkini; tidak cocok -> 409 VERSION_STALE. */
+                version: number;
+            };
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hapus brand */
+            204: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogBrandsUpdate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogBrandUpdate"];
+            };
+        };
+        responses: {
+            /** @description Ubah brand */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogBrand"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCollectionsList: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
+                cursor?: components["parameters"]["Cursor"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Daftar koleksi (cursor) */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCollection"][];
+                        meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCollectionsCreate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogCollectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Buat koleksi */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCollection"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCollectionsGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detail koleksi */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCollection"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCollectionsDelete: {
+        parameters: {
+            query: {
+                /** @description K6: version terkini; tidak cocok -> 409 VERSION_STALE. */
+                version: number;
+            };
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hapus koleksi */
+            204: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogCollectionsUpdate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogCollectionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Ubah koleksi */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCollection"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogPriceListsList: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
+                cursor?: components["parameters"]["Cursor"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Daftar price list (cursor) */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogPriceList"][];
+                        meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogPriceListsCreate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogPriceListCreate"];
+            };
+        };
+        responses: {
+            /** @description Buat price list */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogPriceList"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogPriceListsGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detail price list */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogPriceList"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogPriceListsDelete: {
+        parameters: {
+            query: {
+                /** @description K6: version terkini; tidak cocok -> 409 VERSION_STALE. */
+                version: number;
+            };
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hapus price list */
+            204: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogPriceListsUpdate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogPriceListUpdate"];
+            };
+        };
+        responses: {
+            /** @description Ubah price list */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogPriceList"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogPriceListEntriesList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Harga per varian dalam price list */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogPriceListEntry"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogPriceListEntriesReplace: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogPriceListEntriesReplace"];
+            };
+        };
+        responses: {
+            /** @description Ganti seluruh entri price list secara atomik */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogPriceListEntry"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogProductsList: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
+                cursor?: components["parameters"]["Cursor"];
+                status?: "draft" | "active" | "archived";
+                category_id?: number;
+                brand_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Daftar produk aktif (cursor) */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogProductAdminSummary"][];
+                        meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogProductsCreate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogProductCreate"];
+            };
+        };
+        responses: {
+            /** @description Buat produk beserta varian */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogProductAdmin"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogProductsExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ekspor CSV satu baris per varian */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogProductsImport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CatalogCsvImportUpload"];
+            };
+        };
+        responses: {
+            /** @description Hasil dry run tanpa menulis */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCsvImportResult"];
+                    };
+                };
+            };
+            /** @description Import CSV tervalidasi semua-atau-tidak */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogCsvImportResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogProductsGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detail produk dengan varian dan koleksi */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogProductAdmin"];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogProductsDelete: {
+        parameters: {
+            query: {
+                /** @description K6: version terkini; tidak cocok -> 409 VERSION_STALE. */
+                version: number;
+            };
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Soft delete + status archived */
+            204: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogProductsUpdate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogProductUpdate"];
+            };
+        };
+        responses: {
+            /** @description Ubah produk */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogProductAdmin"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogVariantsCreate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogVariantCreate"];
+            };
+        };
+        responses: {
+            /** @description Tambah varian/SKU */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogVariantAdmin"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogVariantsDelete: {
+        parameters: {
+            query: {
+                /** @description K6: version terkini; tidak cocok -> 409 VERSION_STALE. */
+                version: number;
+            };
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Soft delete varian */
+            204: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogVariantsUpdate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogVariantUpdate"];
+            };
+        };
+        responses: {
+            /** @description Ubah varian */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CatalogVariantAdmin"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCatalogSearch: {
+        parameters: {
+            query?: {
+                q?: string;
+                /** @description Daftar dipisah koma */
+                brand?: string;
+                /** @description Daftar dipisah koma */
+                category?: string;
+                /** @description Daftar dipisah koma */
+                collections?: string;
+                /** @description Daftar dipisah koma */
+                origin_country?: string;
+                /** @description Daftar dipisah koma */
+                fulfillment_modes?: string;
+                /** @description Daftar dipisah koma */
+                status?: string;
+                price_min?: number;
+                price_max?: number;
+                limit?: number;
+                /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pencarian Elasticsearch: multi_match fuzziness AUTO, prefiks edge n-gram, sinonim eksplisit, filter + facet keyword */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogSearchResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    adminCatalogSearchReindex: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Antrekan rebuild penuh indeks dari PostgreSQL lalu swap alias */
+            202: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    "X-RateLimit-Policy": components["headers"]["RateLimitPolicy"];
+                    "X-Displayed-Timezone": components["headers"]["DisplayedTimezone"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            queued: boolean;
+                            /** @constant */
+                            queue: "imports";
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
             429: components["responses"]["RateLimited"];
         };

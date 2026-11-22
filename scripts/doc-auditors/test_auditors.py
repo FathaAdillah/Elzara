@@ -232,6 +232,15 @@ class AuditorsTest(unittest.TestCase):
         self.append_doc("Ekstraksi modul `Shipping` → `Orders`.")
         self.assert_defect("audit_sweep3.py", "retired active name Shipping")
 
+    def test_sweep_http_path_segment_is_not_a_table(self):
+        self.append_doc("| PATCH | `/admin/catalog/variants/{id}` | Ubah varian |")
+        result = self.run_auditor("audit_sweep3.py")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_sweep_table_name_outside_path_still_flagged(self):
+        self.append_doc("Simpan stok di tabel variants untuk `/admin/catalog/variants/{id}`.")
+        self.assert_defect("audit_sweep3.py", "retired active name variants")
+
     def test_sweep_adr_explanatory_parenthesis(self):
         self.append_doc("Lihat ADR-005 (kedaluwarsa intent mengikuti gateway).")
         result = self.run_auditor("audit_sweep3.py")
