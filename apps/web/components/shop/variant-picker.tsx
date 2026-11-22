@@ -10,7 +10,7 @@ import {
   type ProductDetail,
 } from "@/lib/catalog";
 import { PriceBlock } from "./products";
-import { addCartItem } from "@/lib/commerce-api";
+import { addCartItem } from "@/lib/shop-api";
 
 export function VariantPicker({ product }: { product: ProductDetail }) {
   const [adding, setAdding] = useState(false);

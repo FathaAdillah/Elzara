@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ put: vi.fn(), csrf: vi.fn() }));
 vi.mock("../lib/api", () => ({ api: { PUT: mocks.put } }));
 vi.mock("../lib/session", () => ({ ensureCsrfCookie: mocks.csrf, xsrfHeader: () => ({ "X-XSRF-TOKEN": "token" }) }));
-import { selectShipping } from "../lib/commerce-api";
+import { selectShipping } from "../lib/shop-api";
 import { CommerceError } from "../lib/commerce";
 describe("shipping selection", () => {
   beforeEach(() => { vi.clearAllMocks(); });

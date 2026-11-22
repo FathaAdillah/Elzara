@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@elzara/ui";
-import { getCart, getAddresses, saveAddress, createCheckout, shippingOptions, selectShipping } from "@/lib/commerce-api";
+import { getCart, getAddresses, saveAddress, createCheckout, shippingOptions, selectShipping } from "@/lib/shop-api";
 import { CommerceError, modeLabel, rupiah, type Address, type Cart, type Checkout, type Shipping, type AddressWrite } from "@/lib/commerce";
 const fields: { name: keyof AddressWrite; label: string; max: number }[] = [
   { name: "recipient", label: "Nama penerima", max: 120 }, { name: "phone", label: "Nomor ponsel Indonesia", max: 20 },

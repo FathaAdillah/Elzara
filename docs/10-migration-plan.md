@@ -258,6 +258,7 @@ Ledger tidak memiliki `updated_at`. Migrasi Audit `0049` belum memiliki guard ba
 ### 4.6 Alokasi Fulfillment dan Cart — P1.04
 
 Migrasi provider tarif dan cart/checkout Sprint 3 disusun sesuai dependensi FK;
+nomor Cart tetap memakai band `0400–0599` §4 meskipun implementasinya P1.04 Sprint 3.
 `batch_offer_id` belum memiliki FK sampai PreOrder tersedia (Doc 09), sehingga
 level aktual cart_items saat ini L4, bukan L5 pada graf lengkap Appendix A.
 
@@ -266,9 +267,9 @@ level aktual cart_items saat ini L4, bukan L5 pada graf lengkap Appendix A.
 | 0603 | `0603_Fulfillment_create_courier_services_table.php` | courier_services | L0 |
 | 0604 | `0604_Fulfillment_create_shipping_tariff_rules_table.php` | shipping_tariff_rules | L2 |
 | 0605 | `0605_Fulfillment_create_shipping_rates_cache_table.php` | shipping_rates_cache | L0 |
-| 0606 | `0606_Cart_create_carts_table.php` | carts | L2 |
-| 0607 | `0607_Cart_create_cart_items_table.php` | cart_items | L4 |
-| 0608 | `0608_Cart_create_checkout_sessions_table.php` | checkout_sessions | L3 |
+| 0400 | `0400_Cart_create_carts_table.php` | carts | L2 |
+| 0401 | `0401_Cart_create_checkout_sessions_table.php` | checkout_sessions | L3 |
+| 0402 | `0402_Cart_create_cart_items_table.php` | cart_items | L4 |
 
 ## 5. Aturan anti-tabrakan (bagian yang menjawab "usahakan tidak saling bertabrakan")
 

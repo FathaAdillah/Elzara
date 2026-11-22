@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@elzara/ui";
-import { getCart, updateCartItem, removeCartItem } from "@/lib/commerce-api";
+import { getCart, updateCartItem, removeCartItem } from "@/lib/shop-api";
 import { modeLabel, rupiah, validQuantity, type Cart } from "@/lib/commerce";
 export function CartPanel() {
   const [cart, setCart] = useState<Cart>();
