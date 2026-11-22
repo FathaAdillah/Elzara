@@ -6,6 +6,10 @@ namespace App\Providers;
 
 use App\Modules\Audit\Application\DatabaseAuditRecorder;
 use App\Modules\Audit\Contracts\AuditRecorder;
+use App\Modules\Billing\Application\DatabaseCheckoutInvoices;
+use App\Modules\Billing\Contracts\CheckoutInvoices;
+use App\Modules\Cart\Application\CheckoutService;
+use App\Modules\Cart\Contracts\ReadyStockCheckout;
 use App\Modules\Catalog\Application\CatalogScopes;
 use App\Modules\Catalog\Application\DatabaseProductSearchSource;
 use App\Modules\Catalog\Application\DatabaseSellableVariants;
@@ -26,6 +30,12 @@ use App\Modules\Identity\Application\DeferredActiveOrderAddressUsage;
 use App\Modules\Identity\Application\Queries\RoleRowScopes;
 use App\Modules\Identity\Contracts\CustomerAddresses;
 use App\Modules\Identity\Contracts\RowScopes;
+use App\Modules\Inventory\Application\DatabaseStockReservations;
+use App\Modules\Inventory\Contracts\StockReservations;
+use App\Modules\Payments\Application\DatabaseCheckoutPaymentIntents;
+use App\Modules\Payments\Contracts\CheckoutPaymentIntents;
+use App\Modules\Payments\Contracts\PaymentProvider;
+use App\Modules\Payments\Infrastructure\Providers\FakePaymentProvider;
 use App\Modules\Search\Application\SyncProductSearchIndex;
 use App\Modules\Settings\Application\DatabaseSettingValueQuery;
 use App\Modules\Settings\Application\FeatureFlagService;
@@ -59,6 +69,11 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->bind(ProductSearchSource::class, DatabaseProductSearchSource::class);
         $this->app->bind(RowScopes::class, RoleRowScopes::class);
         $this->app->bind(CategoryScopes::class, CatalogScopes::class);
+        $this->app->bind(ReadyStockCheckout::class, CheckoutService::class);
+        $this->app->bind(StockReservations::class, DatabaseStockReservations::class);
+        $this->app->bind(CheckoutInvoices::class, DatabaseCheckoutInvoices::class);
+        $this->app->bind(CheckoutPaymentIntents::class, DatabaseCheckoutPaymentIntents::class);
+        $this->app->bind(PaymentProvider::class, FakePaymentProvider::class);
     }
 
     public function boot(): void
