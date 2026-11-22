@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FacetPanel } from "../components/shop/catalog-filters";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 describe("filter form navigation identity", () => {
   it("remounts uncontrolled fields when navigation clears the query", () => {
@@ -28,4 +30,21 @@ describe("filter form navigation identity", () => {
 
     expect(FacetPanel(props).key).toBe(FacetPanel(props).key);
   });
+});
+
+describe("active brand and collection filters", () => {
+  it("preserves active filters as successful native GET controls", () => {
+    const markup = renderToStaticMarkup(createElement(FacetPanel, {
+      categories: [], params: { brand: "nova-workshop", collection: "summer", q: "novaa" },
+    }));
+    expect(markup).toContain('type="hidden" name="brand" value="nova-workshop"');
+    expect(markup).toContain('type="hidden" name="collection" value="summer"');
+  });
+
+  it.each([{}, { brand: "", collection: "" }, { brand: ["one", "two"] }])(
+    "omits missing, empty and repeated filters", (params) => {
+      const markup = renderToStaticMarkup(createElement(FacetPanel, { categories: [], params }));
+      expect(markup).not.toContain('type="hidden"');
+    },
+  );
 });

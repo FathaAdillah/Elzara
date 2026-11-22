@@ -33,6 +33,9 @@ export function FacetPanel({
       method="get"
       className="space-y-6"
     >
+      {["brand", "collection"].map((name) => value(name) && (
+        <input key={name} type="hidden" name={name} value={value(name)} />
+      ))}
       <SearchBar value={value("q")} />
       <fieldset className="space-y-4">
         <legend className="mb-4 text-xs font-semibold uppercase tracking-widest text-ink-muted">
