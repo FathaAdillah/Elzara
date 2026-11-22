@@ -1065,8 +1065,13 @@ shipping_tariff_rules                     [Fulfillment]      Doc 06 §3.5: tarif
 shipping_rates_cache                      [Fulfillment]
   cache_key varchar(160) NOT NULL UNIQUE     origin|dest|weight|tier|courier
   amount bigint NOT NULL, provider varchar(24) NOT NULL
+  rates jsonb NOT NULL                       ekstensi P1.04: daftar lengkap layanan, mata uang, dan ETA nullable; satu baris per request. amount = tarif minimum (0 untuk daftar kosong)
   fetched_at timestamptz NOT NULL, expires_at timestamptz NOT NULL
   -- idx rates_expiry (expires_at)
+
+  -- P1.04: dest pada cache_key adalah SHA-256 tujuan lengkap + namespace driver/config (termasuk origin postcode), agar panjang <=160 dan tidak bertabrakan lintas provider.
+  -- Manual: rentang berat [weight_from_g, weight_to_g), tanggal efektif inklusif; provinsi spesifik mengalahkan '*'.
+  -- Tarif = base_amount + ceil((berat - weight_from_g)/500) * per_500g_amount. ETA Manual null; cache default 30 menit.
 
 packages                                  [Fulfillment]      rename parcels (Doc 11 §4.1)
   shipment_id bigint NOT NULL REFERENCES shipments(id) ON DELETE CASCADE
