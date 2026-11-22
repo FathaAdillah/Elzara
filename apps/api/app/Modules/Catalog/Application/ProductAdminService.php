@@ -60,7 +60,7 @@ final class ProductAdminService
         $data['collection_ids'] = DB::table('product_collections')->where('product_id', $id)->orderBy('collection_id')->pluck('collection_id')
             ->map(static fn (mixed $value): int => Scalar::int($value))->all();
         $data['variants'] = DB::table('product_variants')->where('product_id', $id)->whereNull('deleted_at')->orderBy('id')
-            ->get(['id', 'sku', 'label', 'base_price', 'currency_code', 'track_stock', 'is_active', 'version'])->all();
+            ->get(['id', 'product_id', 'sku', 'label', 'base_price', 'currency_code', 'track_stock', 'is_active', 'version'])->all();
 
         return $data;
     }
