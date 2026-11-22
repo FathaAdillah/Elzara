@@ -331,6 +331,27 @@ class AuditorsTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("No such file", result.stdout)
 
+    def test_wrapper_external_override_without_tests(self):
+        external = Path(self.temp.name) / "external"
+        external.mkdir()
+        for name in ("verify_schema.py", "audit_sweep3.py", "audit_blueprint_coverage.py", "check_layout.py", "list_dead_cites.py", "scan_unicode.py"):
+            (external / name).write_text("print('external auditor')\n", encoding="utf-8")
+        (self.repo / "scripts/doc-auditors/test_auditors.py").write_text("print('IN_REPO_TESTS_EXECUTED')\n", encoding="utf-8")
+        env = dict(os.environ, PYTHON=sys.executable, ELZARA_AUDITORS_DIR=str(external))
+        result = subprocess.run(["bash", str(self.repo / "scripts/verify-docs.sh")], env=env, cwd=self.temp.name, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("IN_REPO_TESTS_EXECUTED", result.stdout)
+        self.assertFalse((external / "test_auditors.py").exists())
+
+    def test_wrapper_external_failure_is_not_hidden(self):
+        external = Path(self.temp.name) / "external"
+        external.mkdir()
+        (self.repo / "scripts/doc-auditors/test_auditors.py").write_text("print('IN_REPO_TESTS_EXECUTED')\n", encoding="utf-8")
+        env = dict(os.environ, PYTHON=sys.executable, ELZARA_AUDITORS_DIR=str(external))
+        result = subprocess.run(["bash", str(self.repo / "scripts/verify-docs.sh")], env=env, cwd=self.temp.name, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("IN_REPO_TESTS_EXECUTED", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

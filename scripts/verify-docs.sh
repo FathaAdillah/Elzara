@@ -28,7 +28,7 @@ printf '== scan_unicode.py\n'
 "${PYTHON}" "${AUDITORS}/scan_unicode.py" || status=1
 
 printf '== test_auditors.py\n'
-"${PYTHON}" "${AUDITORS}/test_auditors.py" || status=1
+"${PYTHON}" "${ROOT}/scripts/doc-auditors/test_auditors.py" || status=1
 
 if [ "${status}" -ne 0 ]; then
   echo "minimal satu pemeriksa dokumen menyatakan temuan - lihat keluaran di atas." >&2
