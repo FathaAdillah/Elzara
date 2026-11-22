@@ -83,7 +83,10 @@ test('RTS: place order and complete Fake payment', async ({ page }, testInfo) =>
   expect(order.payment_intent).toMatchObject({ provider: 'fake', status: 'requires_action' });
   expect(order.invoice.type).toBe('balance');
   await expect(page.getByText('Stok dipesan untuk simulasi', { exact: true })).toBeVisible();
-  await expect(page.getByText(`Pesanan ${order.id} ·`, { exact: false })).toBeVisible();
+  await expect(page.getByText(`Pesanan ${order.id}`, { exact: true })).toBeVisible();
+  const total = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.total.amount_minor);
+  await expect(page.getByText(`Total pesanan: ${total}`, { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Ongkir terpilih:/)).toHaveCount(0);
   const captured = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/orders/${order.id}/fake-payment`));
   await page.getByRole('button', { name: 'Simulasikan pembayaran', exact: true }).click();
   const capturedResponse = await captured;
