@@ -222,13 +222,8 @@ jobs:
         run: |
           touch "${RUNNER_TEMP}/ci.env"
           printf 'ELZARA_ENV_FILE=%s\n' "${RUNNER_TEMP}/ci.env" >> "${GITHUB_ENV}"
-      - name: Basis Dokploy dan profil lokal, staging, production dapat dirender
-        run: |
-          docker compose -f docker/compose.yaml config --quiet
-          SMTP_HOST=mailpit SMTP_PORT=1025 docker compose -f docker/compose.local.yaml config --quiet
-          SMTP_HOST=mailpit SMTP_PORT=1025 docker compose -f docker/compose.local.yaml --profile search config --quiet
-          docker compose -f docker/compose.yaml -f docker/profiles/staging.yaml config --quiet
-          docker compose -f docker/compose.yaml -f docker/profiles/production.yaml config --quiet
+      - name: Isolasi konfigurasi lokal, staging, dan production
+        run: python3 scripts/test-compose-isolation.py
       - name: Development memakai HTTP dan Mailpit pada loopback
         env:
           ELZARA_EDGE_URL: http://localhost
@@ -265,13 +260,6 @@ jobs:
           if grep -rn 'horizon:clear' docker scripts; then
             echo "horizon:clear per antrian terlarang (runbook queue-stuck §3.3)"; exit 1
           fi
-      - name: postgres/redis/minio tidak mempublikasikan port ke host (Doc 01 §11.1)
-        run: |
-          rendered=$(docker compose -f docker/compose.yaml -f docker/profiles/production.yaml config --format json)
-          for svc in postgres redis minio; do
-            ports=$(echo "${rendered}" | jq -r ".services.${svc}.ports // empty")
-            if [ -n "${ports}" ]; then echo "service ${svc} mempublikasikan port ke host: ${ports}"; exit 1; fi
-          done
       - name: Elasticsearch Basic berjalan di jaringan internal tanpa port host
         run: |
           docker compose -f docker/compose.yaml --profile search config --format json | jq -e '
