@@ -14,8 +14,9 @@ export function CategoryMenu({ children }: { children: ReactNode }) {
     }
     function dismissEscape(event: KeyboardEvent) {
       if (event.key === "Escape" && menu.current?.open) {
+        const focusWasInside = menu.current.contains(document.activeElement);
         menu.current.open = false;
-        menu.current.querySelector("summary")?.focus();
+        if (focusWasInside) menu.current.querySelector("summary")?.focus();
       }
     }
     document.addEventListener("pointerdown", dismissOutside);
