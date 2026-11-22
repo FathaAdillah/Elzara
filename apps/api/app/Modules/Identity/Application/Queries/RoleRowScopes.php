@@ -17,6 +17,9 @@ final class RoleRowScopes implements RowScopes
         if (! $user instanceof User) {
             return [];
         }
+        if ($user->is_admin) {
+            return null;
+        }
         $allowed = $this->resolver->allowed($ability, $user);
 
         return $allowed === null ? null : ($allowed[$scopeType] ?? []);

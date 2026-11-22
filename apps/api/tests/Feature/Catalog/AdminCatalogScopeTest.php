@@ -135,6 +135,11 @@ final class AdminCatalogScopeTest extends TestCase
         $direct = $this->scopedOperator(['category' => [$this->ids['toys']]]);
         $this->grant($direct, 'catalog.view');
         $this->api('GET', '/api/v1/admin/catalog/products')->assertOk()->assertJsonCount(3, 'data');
+
+        $admin = $this->loginAdmin();
+        DB::table('users')->where('id', $admin->id)->update(['is_admin' => true]);
+        $this->api('GET', '/api/v1/admin/catalog/products')->assertOk()->assertJsonCount(3, 'data');
+        $this->api('PATCH', "/api/v1/admin/catalog/brands/{$this->ids['brand']}", ['name' => 'Renamed', 'version' => 1], true)->assertOk();
     }
 
     /** @param array<string, list<int>> $scopes kosong = role tanpa baris scope (global) */
