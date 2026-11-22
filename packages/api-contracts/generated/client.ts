@@ -503,6 +503,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCart"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cart/items": {
         parameters: {
             query?: never;
@@ -519,6 +535,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cart/items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteCartItem"];
+        options?: never;
+        head?: never;
+        patch: operations["updateCartItem"];
+        trace?: never;
+    };
     "/checkout/sessions": {
         parameters: {
             query?: never;
@@ -528,8 +560,87 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Snapshot checkout; Idempotency-Key wajib (Doc 01 §4 butir 3, ADR-004). */
         post: operations["createCheckoutSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/checkout/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCheckoutSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/checkout/sessions/{id}/shipping-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["checkoutShippingOptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/addresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAddresses"];
+        put?: never;
+        post: operations["createAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/addresses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAddress"];
+        put?: never;
+        post?: never;
+        delete: operations["deleteAddress"];
+        options?: never;
+        head?: never;
+        patch: operations["updateAddress"];
+        trace?: never;
+    };
+    "/me/addresses/{id}/set-default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["setDefaultAddress"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1550,19 +1661,91 @@ export interface components {
             variant_id: string;
             quantity: number;
         };
-        CartRead: {
+        CartQuantityWrite: {
+            quantity: number;
+        };
+        CartLine: {
             id: string;
-            items: (components["schemas"]["CartItemWrite"] & {
-                id: string;
-                line_total: components["schemas"]["Money"];
-            })[];
+            variant_id: string;
+            name: string;
+            quantity: number;
+            unit_price: components["schemas"]["Money"];
+            line_total: components["schemas"]["Money"];
+            price_changed: boolean;
+            unavailable: boolean;
+            weight_g: number | null;
+        };
+        CartGroup: {
+            /** @enum {string} */
+            mode: "rts" | "pre_order" | "request_order";
+            eta: string | null;
+            items: components["schemas"]["CartLine"][];
             subtotal: components["schemas"]["Money"];
+        };
+        CartRead: {
+            id: string | null;
+            groups: components["schemas"]["CartGroup"][];
+            subtotal: components["schemas"]["Money"];
+            /** @constant */
+            currency: "IDR";
+            /** Format: date-time */
+            expires_at: string | null;
+            items_hash: string;
+        };
+        AddressWrite: {
+            recipient: string;
+            /** @description Indonesian mobile: +62, 62 or 08; normalized to E.164 */
+            phone: string;
+            province: string;
+            city: string;
+            district: string;
+            postal_code: string;
+            address_line: string;
+        };
+        AddressRead: components["schemas"]["AddressWrite"] & {
+            id: string;
+            is_default: boolean;
+        };
+        CheckoutSessionWrite: {
+            shipping_address_id: string;
+            expected_items_hash: string;
+        };
+        ShippingRate: {
+            courierCode: string;
+            serviceCode: string;
+            serviceName: string;
+            amountMinor: number;
+            /** @constant */
+            currency: "IDR";
+            etaMinDays: number | null;
+            etaMaxDays: number | null;
+            provider: string;
+        };
+        ShippingGroup: {
+            group_index: number;
+            mode: string;
+            eta: string | null;
+            options: components["schemas"]["ShippingRate"][];
+        };
+        CheckoutSnapshot: {
+            cart: components["schemas"]["CartRead"];
+            address: components["schemas"]["AddressRead"];
+            shipping_options?: components["schemas"]["ShippingGroup"][];
         };
         CheckoutSessionRead: {
             id: string;
+            /** @enum {string} */
+            status: "open" | "locked" | "converted" | "expired";
             /** Format: date-time */
             expires_at: string;
+            subtotal: components["schemas"]["Money"];
+            shipping_estimate: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
+            snapshot: components["schemas"]["CheckoutSnapshot"];
+        };
+        ShippingOptionsRead: {
+            groups: components["schemas"]["ShippingGroup"][];
+            checkout: components["schemas"]["CheckoutSessionRead"];
         };
         OrderRead: {
             id: string;
@@ -3641,14 +3824,39 @@ export interface operations {
             422: components["responses"]["Problem"];
         };
     };
+    getCart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CartRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     addCartItem: {
         parameters: {
             query?: never;
             header: {
-                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
                 "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path?: never;
             cookie?: never;
@@ -3659,10 +3867,9 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Cart setelah mutasi */
+            /** @description Success */
             201: {
                 headers: {
-                    "X-Request-Id": components["headers"]["RequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -3670,34 +3877,101 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    deleteCartItem: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CartRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    updateCartItem: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartQuantityWrite"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CartRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     createCheckoutSession: {
         parameters: {
             query?: never;
             header: {
-                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
                 "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    cart_id: string;
-                };
+                "application/json": components["schemas"]["CheckoutSessionWrite"];
             };
         };
         responses: {
-            /** @description Snapshot checkout + masa berlaku */
+            /** @description Success */
             201: {
                 headers: {
-                    "X-Request-Id": components["headers"]["RequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -3705,8 +3979,263 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getCheckoutSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutSessionRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    checkoutShippingOptions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShippingOptionsRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    listAddresses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AddressRead"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    createAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddressWrite"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    deleteAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    updateAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    recipient?: string;
+                    /** @description Indonesian mobile: +62, 62 or 08; normalized to E.164 */
+                    phone?: string;
+                    province?: string;
+                    city?: string;
+                    district?: string;
+                    postal_code?: string;
+                    address_line?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    setDefaultAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     createOrder: {

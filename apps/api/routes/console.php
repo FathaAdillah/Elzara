@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Cart\Application\CartService;
 use App\Modules\Content\Application\ExpiredUploadCleaner;
 use App\Modules\Content\Application\MediaVersionRelinker;
 use App\Platform\Outbox\OutboxDispatcher;
@@ -41,6 +42,11 @@ Artisan::command('platform:outbox:dispatch {--queue=} {--limit=50}', function (O
 Schedule::command('platform:outbox:dispatch')->everyMinute();
 // ProductUpdated → reindex Search harus terlihat < 60 detik (tasklist P1.02), jadi antrean imports dikuras tiap 10 detik.
 Schedule::command('platform:outbox:dispatch --queue=imports --limit=200')->everyTenSeconds()->withoutOverlapping();
+
+Artisan::command('cart:expire', function (CartService $carts): void {
+    $this->line('expired='.$carts->expire());
+})->purpose('Tandai cart kedaluwarsa');
+Schedule::command('cart:expire')->hourly()->withoutOverlapping();
 
 Artisan::command('content:media:cleanup', function (ExpiredUploadCleaner $cleaner): int {
     $result = $cleaner->run();

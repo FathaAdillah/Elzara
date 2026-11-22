@@ -9,8 +9,11 @@ import {
   type ProductDetail,
 } from "@/lib/catalog";
 import { PriceBlock } from "./products";
+import { addCartItem } from "@/lib/commerce-api";
 
 export function VariantPicker({ product }: { product: ProductDetail }) {
+  const [adding, setAdding] = useState(false);
+  const [notice, setNotice] = useState("");
   const options = product.options ?? [];
   const [selected, setSelected] = useState<Record<string, string>>(
     product.variants[0]?.attributes ?? {},
@@ -129,15 +132,21 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
         </Button>
       )}
       <div className="space-y-3">
-        <Button disabled block aria-describedby="cart-coming-soon">
+        <Button disabled={adding || !variant || (product.kind === "rts" && variant.available < 1)} block aria-describedby="cart-notice" onClick={async () => {
+          if (!variant) return;
+          setAdding(true); setNotice("");
+          try { await addCartItem(variant.id); setNotice("Ditambahkan ke keranjang."); }
+          catch (e) { setNotice(e instanceof Error ? e.message : "Gagal menambahkan produk."); }
+          finally { setAdding(false); }
+        }}>
           Tambah ke keranjang
         </Button>
         <p
-          id="cart-coming-soon"
+          id="cart-notice"
+          role="status"
           className="text-xs leading-relaxed text-ink-muted"
         >
-          Fitur keranjang segera hadir. Harga dan stok akan dikonfirmasi kembali
-          saat checkout.
+          {notice || "Harga dan stok dikonfirmasi kembali saat checkout."}
         </p>
       </div>
       <noscript>

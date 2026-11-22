@@ -9,6 +9,7 @@ use App\Modules\Identity\Infrastructure\Models\User;
 use Database\Seeders\Demo\DemoAccountSeeder;
 use Database\Seeders\Demo\DemoCatalogSeeder;
 use Database\Seeders\Demo\DemoMediaSeeder;
+use Database\Seeders\Demo\DemoShippingSeeder;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
@@ -34,7 +35,7 @@ final class DemoSeederTest extends TestCase
     {
         $this->app['env'] = 'production';
 
-        foreach ([DemoAccountSeeder::class, DemoMediaSeeder::class, DemoCatalogSeeder::class] as $seeder) {
+        foreach ([DemoAccountSeeder::class, DemoMediaSeeder::class, DemoCatalogSeeder::class, DemoShippingSeeder::class] as $seeder) {
             try {
                 (new $seeder)->run();
                 $this->fail("{$seeder} ran in production");
@@ -86,6 +87,9 @@ final class DemoSeederTest extends TestCase
         $this->assertDatabaseCount('products', 10);
         $this->assertDatabaseCount('product_variants', 40);
         $this->assertDatabaseCount('product_media', 10);
+        $this->assertDatabaseCount('courier_services', 2);
+        $this->assertDatabaseCount('shipping_tariff_rules', 2);
+        $this->assertDatabaseHas('products', ['slug' => 'lumen-fox-plush', 'unit_weight_g' => 500]);
         $this->assertDatabaseHas('products', ['slug' => 'nova-keychain', 'fulfillment_modes' => '{po}']);
         $this->assertDatabaseHas('stock_items', ['on_hand' => 0]);
 

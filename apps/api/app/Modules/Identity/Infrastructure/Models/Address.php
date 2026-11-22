@@ -12,6 +12,12 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property int $user_id
  * @property string $recipient
+ * @property string $phone
+ * @property string $province
+ * @property string $city
+ * @property ?string $district
+ * @property string $postal_code
+ * @property string $address_line
  * @property bool $is_default
  * @property bool $is_archived
  */
