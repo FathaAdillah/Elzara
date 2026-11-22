@@ -32,6 +32,9 @@ export function SiteHeader() {
           >
             Pre-order
           </Link>
+          <Link className="inline-flex min-h-touch items-center" href="/cart">
+            Keranjang
+          </Link>
           <Link
             className="inline-flex min-h-touch items-center"
             href="/account"
