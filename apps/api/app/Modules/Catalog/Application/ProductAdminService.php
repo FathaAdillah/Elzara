@@ -21,9 +21,9 @@ final class ProductAdminService
     public function __construct(private readonly AuditRecorder $audit, private readonly ProductEvents $events) {}
 
     /** @return array{data: list<stdClass>, meta: array{limit: int, has_more: bool, next_cursor: ?string, prev_cursor: ?string}} */
-    public function list(Request $request): array
+    public function list(Request $request, CategoryScope $scope): array
     {
-        $query = DB::table('products')->whereNull('deleted_at')
+        $query = $scope->constrain(DB::table('products'), 'category_id')->whereNull('deleted_at')
             ->select(['id', 'slug', 'name', 'brand_id', 'category_id', 'status', 'origin_country', 'version', 'created_at', 'updated_at']);
         $filters = [];
         foreach (['status' => 'string', 'category_id' => 'int', 'brand_id' => 'int'] as $field => $type) {
@@ -48,10 +48,10 @@ final class ProductAdminService
     }
 
     /** @return array<string, mixed> */
-    public function show(int $id): array
+    public function show(int $id, ?CategoryScope $scope = null): array
     {
         $product = DB::table('products')->where('id', $id)->whereNull('deleted_at')->first();
-        if (! $product instanceof stdClass) {
+        if (! $product instanceof stdClass || ($scope !== null && ! $scope->covers($product->category_id))) {
             throw new CatalogRecordMissing('Produk tidak ditemukan.');
         }
         $data = Scalar::fields($product);
@@ -66,8 +66,10 @@ final class ProductAdminService
     }
 
     /** @param array<string, mixed> $data */
-    public function create(array $data, AdminContext $context): int
+    public function create(array $data, AdminContext $context, CategoryScope $scope): int
     {
+        $scope->assertCovers($data['category_id'] ?? null);
+
         return DB::transaction(function () use ($data, $context): int {
             $id = (int) DB::table('products')->insertGetId(self::columns($data, ProductRules::PRODUCT_COLUMNS));
             $this->writeArrays($id, $data);
@@ -84,10 +86,13 @@ final class ProductAdminService
     }
 
     /** @param array<string, mixed> $data */
-    public function update(int $id, int $version, array $data, AdminContext $context): void
+    public function update(int $id, int $version, array $data, AdminContext $context, CategoryScope $scope): void
     {
-        DB::transaction(function () use ($id, $version, $data, $context): void {
-            $this->lock('products', $id, $version, true);
+        DB::transaction(function () use ($id, $version, $data, $context, $scope): void {
+            $scope->assertCovers($this->lock('products', $id, $version, true)->category_id);
+            if (array_key_exists('category_id', $data)) {
+                $scope->assertCovers($data['category_id']);
+            }
             $before = $this->show($id);
             $values = self::columns($data, ProductRules::PRODUCT_COLUMNS);
             DB::table('products')->where('id', $id)->update([...$values, 'version' => $version + 1, 'updated_at' => Carbon::now()]);
@@ -100,10 +105,10 @@ final class ProductAdminService
         });
     }
 
-    public function delete(int $id, int $version, AdminContext $context): void
+    public function delete(int $id, int $version, AdminContext $context, CategoryScope $scope): void
     {
-        DB::transaction(function () use ($id, $version, $context): void {
-            $this->lock('products', $id, $version, true);
+        DB::transaction(function () use ($id, $version, $context, $scope): void {
+            $scope->assertCovers($this->lock('products', $id, $version, true)->category_id);
             $before = $this->show($id);
             DB::table('products')->where('id', $id)->update(['deleted_at' => Carbon::now(), 'status' => 'archived', 'version' => $version + 1, 'updated_at' => Carbon::now()]);
             $this->audit->record($context->actorId, 'catalog.delete', 'products', $id, $before, [],
@@ -113,13 +118,14 @@ final class ProductAdminService
     }
 
     /** @param array<string, mixed> $data */
-    public function createVariant(int $productId, array $data, AdminContext $context): stdClass
+    public function createVariant(int $productId, array $data, AdminContext $context, CategoryScope $scope): stdClass
     {
-        return DB::transaction(function () use ($productId, $data, $context): stdClass {
+        return DB::transaction(function () use ($productId, $data, $context, $scope): stdClass {
             $product = DB::table('products')->where('id', $productId)->whereNull('deleted_at')->lockForUpdate()->first();
             if (! $product instanceof stdClass) {
                 throw new CatalogRecordMissing('Produk tidak ditemukan.');
             }
+            $scope->assertCovers($product->category_id);
             $id = (int) DB::table('product_variants')->insertGetId(['product_id' => $productId, ...self::columns($data, ProductRules::VARIANT_COLUMNS)]);
             $variant = $this->variant($id);
             $this->audit->record($context->actorId, 'catalog.create', 'product_variants', $id, [], Scalar::fields($variant),
@@ -131,10 +137,11 @@ final class ProductAdminService
     }
 
     /** @param array<string, mixed> $data */
-    public function updateVariant(int $id, int $version, array $data, AdminContext $context): stdClass
+    public function updateVariant(int $id, int $version, array $data, AdminContext $context, CategoryScope $scope): stdClass
     {
-        return DB::transaction(function () use ($id, $version, $data, $context): stdClass {
+        return DB::transaction(function () use ($id, $version, $data, $context, $scope): stdClass {
             $before = $this->lock('product_variants', $id, $version, true);
+            $scope->assertCovers(DB::table('products')->where('id', $before->product_id)->value('category_id'));
             $values = self::columns($data, ProductRules::VARIANT_COLUMNS);
             DB::table('product_variants')->where('id', $id)->update([...$values, 'version' => $version + 1, 'updated_at' => Carbon::now()]);
             $variant = $this->variant($id);
@@ -146,10 +153,11 @@ final class ProductAdminService
         });
     }
 
-    public function deleteVariant(int $id, int $version, AdminContext $context): void
+    public function deleteVariant(int $id, int $version, AdminContext $context, CategoryScope $scope): void
     {
-        DB::transaction(function () use ($id, $version, $context): void {
+        DB::transaction(function () use ($id, $version, $context, $scope): void {
             $before = $this->lock('product_variants', $id, $version, true);
+            $scope->assertCovers(DB::table('products')->where('id', $before->product_id)->value('category_id'));
             DB::table('product_variants')->where('id', $id)->update(['deleted_at' => Carbon::now(), 'is_active' => false, 'version' => $version + 1, 'updated_at' => Carbon::now()]);
             $this->audit->record($context->actorId, 'catalog.delete', 'product_variants', $id, Scalar::fields($before), [],
                 $context->reason, $context->requestId, $context->ip, $context->userAgent);
@@ -158,31 +166,35 @@ final class ProductAdminService
     }
 
     /** @return list<stdClass> */
-    public function priceListEntries(int $priceListId): array
+    public function priceListEntries(int $priceListId, CategoryScope $scope): array
     {
         if (! DB::table('price_lists')->where('id', $priceListId)->exists()) {
             throw new CatalogRecordMissing('Price list tidak ditemukan.');
         }
 
+        $query = DB::table('price_list_entries as e')->where('e.price_list_id', $priceListId)->orderBy('e.variant_id');
+        if (! $scope->isGlobal()) {
+            $scope->constrain($query->join('product_variants as v', 'v.id', '=', 'e.variant_id')->join('products as p', 'p.id', '=', 'v.product_id'), 'p.category_id');
+        }
         /** @var list<stdClass> $entries */
-        $entries = DB::table('price_list_entries')->where('price_list_id', $priceListId)->orderBy('variant_id')
-            ->get(['variant_id', 'price', 'currency_code'])->all();
+        $entries = $query->get(['e.variant_id', 'e.price', 'e.currency_code'])->values()->all();
 
         return $entries;
     }
 
     /** @param list<array{variant_id: int, price: int}> $entries */
-    public function replacePriceListEntries(int $priceListId, int $version, array $entries, AdminContext $context): void
+    public function replacePriceListEntries(int $priceListId, int $version, array $entries, AdminContext $context, CategoryScope $scope): void
     {
+        $scope->assertGlobal();
         DB::transaction(function () use ($priceListId, $version, $entries, $context): void {
             $list = $this->lock('price_lists', $priceListId, $version, false);
-            $before = $this->priceListEntries($priceListId);
+            $before = $this->priceListEntries($priceListId, CategoryScope::global());
             DB::table('price_list_entries')->where('price_list_id', $priceListId)->delete();
             foreach ($entries as $entry) {
                 DB::table('price_list_entries')->insert(['price_list_id' => $priceListId, 'variant_id' => $entry['variant_id'], 'price' => $entry['price'], 'currency_code' => $list->currency_code]);
             }
             DB::table('price_lists')->where('id', $priceListId)->update(['version' => $version + 1, 'updated_at' => Carbon::now()]);
-            $this->audit->record($context->actorId, 'catalog.update', 'price_lists', $priceListId, ['entries' => $before], ['entries' => $this->priceListEntries($priceListId)],
+            $this->audit->record($context->actorId, 'catalog.update', 'price_lists', $priceListId, ['entries' => $before], ['entries' => $this->priceListEntries($priceListId, CategoryScope::global())],
                 $context->reason, $context->requestId, $context->ip, $context->userAgent);
         });
     }

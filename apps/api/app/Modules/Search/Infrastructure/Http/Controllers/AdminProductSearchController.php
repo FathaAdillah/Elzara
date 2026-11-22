@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Search\Infrastructure\Http\Controllers;
 
+use App\Modules\Catalog\Contracts\CategoryScopes;
 use App\Modules\Search\Application\ProductSearch;
 use App\Modules\Search\Application\ReindexProductSearch;
 use App\Modules\Search\Application\SearchUnavailable;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Validator;
 
 final class AdminProductSearchController
 {
-    public function __construct(private readonly ProductSearch $search) {}
+    public function __construct(private readonly ProductSearch $search, private readonly CategoryScopes $scopes) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -43,7 +44,7 @@ final class AdminProductSearchController
         }
         /** @var array{q?: string, brand?: list<string>, category?: list<string>, collections?: list<string>, origin_country?: list<string>, fulfillment_modes?: list<string>, status?: list<string>, price_min?: int, price_max?: int, limit?: int, cursor?: string} $data */
         try {
-            $result = $this->search->search($data);
+            $result = $this->search->search($data, $this->scopes->allowedCategoryIds($request->attributes->getInt('admin_actor_id'), 'catalog.view'));
         } catch (SearchUnavailable) {
             abort(503, 'Mesin pencari tidak tersedia.', ['Retry-After' => '5']);
         }
@@ -51,8 +52,9 @@ final class AdminProductSearchController
         return response()->json($result)->header('Cache-Control', 'no-store');
     }
 
-    public function reindex(): JsonResponse
+    public function reindex(Request $request): JsonResponse
     {
+        abort_unless($this->scopes->allowedCategoryIds($request->attributes->getInt('admin_actor_id'), 'catalog.update') === null, 403, 'Reindex memerlukan peran katalog global.');
         ReindexProductSearch::dispatch();
 
         return response()->json(['data' => ['queued' => true, 'queue' => 'imports']], 202);

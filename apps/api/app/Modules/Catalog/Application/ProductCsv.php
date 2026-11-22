@@ -6,6 +6,7 @@ namespace App\Modules\Catalog\Application;
 
 use App\Modules\Audit\Contracts\AuditRecorder;
 use App\Platform\Domain\Scalar;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +34,7 @@ final class ProductCsv
      * @param  resource  $handle
      * @return array{errors: list<array{row: int, column: string, code: string, detail: string}>, summary: array{rows: int, products_created: int, products_updated: int, variants_created: int, variants_updated: int}}
      */
-    public function import($handle, bool $dryRun, AdminContext $context): array
+    public function import($handle, bool $dryRun, AdminContext $context, CategoryScope $scope): array
     {
         [$rows, $errors] = $this->parse($handle);
         $summary = ['rows' => count($rows), 'products_created' => 0, 'products_updated' => 0, 'variants_created' => 0, 'variants_updated' => 0];
@@ -48,7 +49,18 @@ final class ProductCsv
                 $products[$row['product_slug']]['variants'][] = $row;
             }
         }
-        $existingProducts = DB::table('products')->whereIn('slug', array_keys($products))->pluck('id', 'slug');
+        $existingProducts = DB::table('products')->whereIn('slug', array_keys($products))->pluck('category_id', 'slug');
+        if (! $scope->isGlobal()) {
+            $categoryIds = DB::table('categories')->whereIn('slug', array_column($rows, 'category_slug'))->pluck('id', 'slug');
+            foreach ($products as $slug => $product) {
+                $line = $product['lines'][0];
+                if ($existingProducts->has($slug) && ! $scope->covers($existingProducts[$slug])) {
+                    $errors[] = ['row' => $line, 'column' => 'product_slug', 'code' => 'product_out_of_scope', 'detail' => 'Produk berada di kategori di luar cakupan peran Anda.'];
+                } elseif (! $scope->covers($categoryIds[$product['row']['category_slug']] ?? null)) {
+                    $errors[] = ['row' => $line, 'column' => 'category_slug', 'code' => 'category_out_of_scope', 'detail' => 'Kategori di luar cakupan peran Anda.'];
+                }
+            }
+        }
         $skus = array_values(array_filter(array_column($rows, 'sku'), static fn (string $sku): bool => $sku !== ''));
         $existingVariants = DB::table('product_variants as v')->join('products as p', 'p.id', '=', 'v.product_id')->whereIn('v.sku', $skus)
             ->get(['v.sku', 'v.id', 'p.slug'])->keyBy('sku');
@@ -68,7 +80,7 @@ final class ProductCsv
             return ['errors' => $errors, 'summary' => $summary];
         }
 
-        DB::transaction(function () use ($products, $context): void {
+        DB::transaction(function () use ($products, $context, $scope): void {
             $categories = DB::table('categories')->pluck('id', 'slug');
             $brands = DB::table('brands')->pluck('id', 'slug');
             foreach ($products as $slug => $product) {
@@ -80,7 +92,9 @@ final class ProductCsv
                     'description' => self::nullable($row['description']),
                 ];
                 $existing = DB::table('products')->where('slug', $slug)->lockForUpdate()->first();
+                $scope->assertCovers($values['category_id']);
                 if ($existing instanceof stdClass) {
+                    $scope->assertCovers($existing->category_id);
                     $id = Scalar::int($existing->id);
                     DB::table('products')->where('id', $id)->update([...$values, 'deleted_at' => null, 'version' => Scalar::int($existing->version) + 1, 'updated_at' => Carbon::now()]);
                 } else {
@@ -115,7 +129,7 @@ final class ProductCsv
     }
 
     /** @param resource $output */
-    public function export($output): void
+    public function export($output, CategoryScope $scope): void
     {
         fputcsv($output, self::COLUMNS, ',', '"', '');
         DB::table('products as p')->join('categories as c', 'c.id', '=', 'p.category_id')->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
@@ -123,6 +137,7 @@ final class ProductCsv
                 $join->on('v.product_id', '=', 'p.id')->whereNull('v.deleted_at');
             })
             ->whereNull('p.deleted_at')
+            ->when(! $scope->isGlobal(), static fn (Builder $query): Builder => $scope->constrain($query, 'p.category_id'))
             ->select(['p.slug', 'p.name', 'c.slug as category_slug', 'b.slug as brand_slug', 'p.series', 'p.status', 'p.origin_country', 'p.fulfillment_modes',
                 'p.description', 'v.sku', 'v.label', 'v.base_price', 'v.currency_code', 'v.track_stock', 'v.is_active', 'p.id', DB::raw('COALESCE(v.id, 0) AS variant_order')])
             ->orderBy('p.id')->orderBy('variant_order')

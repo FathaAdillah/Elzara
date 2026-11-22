@@ -6,6 +6,7 @@ namespace App\Modules\Catalog\Infrastructure\Http\Controllers;
 
 use App\Modules\Catalog\Application\AdminContext;
 use App\Modules\Catalog\Application\CatalogInput;
+use App\Modules\Catalog\Application\CatalogScopes;
 use App\Modules\Catalog\Application\ProductAdminService;
 use App\Modules\Catalog\Application\ProductRules;
 use Illuminate\Http\JsonResponse;
@@ -16,22 +17,22 @@ use Illuminate\Validation\ValidationException;
 
 final class AdminProductController
 {
-    public function __construct(private readonly ProductAdminService $products) {}
+    public function __construct(private readonly ProductAdminService $products, private readonly CatalogScopes $scopes) {}
 
     public function index(Request $request): JsonResponse
     {
-        return response()->json($this->products->list($request))->header('Cache-Control', 'no-store');
+        return response()->json($this->products->list($request, $this->scopes->for($request, 'catalog.view')))->header('Cache-Control', 'no-store');
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
-        return response()->json(['data' => $this->products->show($id)])->header('Cache-Control', 'no-store');
+        return response()->json(['data' => $this->products->show($id, $this->scopes->for($request, 'catalog.view'))])->header('Cache-Control', 'no-store');
     }
 
     public function store(Request $request): JsonResponse
     {
         $data = CatalogInput::validate($request->all(), ProductRules::product());
-        $id = $this->products->create($data, AdminContext::fromRequest($request, 'Admin membuat produk'));
+        $id = $this->products->create($data, AdminContext::fromRequest($request, 'Admin membuat produk'), $this->scopes->for($request, 'catalog.create'));
 
         return response()->json(['data' => $this->products->show($id)], 201);
     }
@@ -39,14 +40,14 @@ final class AdminProductController
     public function update(Request $request, int $id): JsonResponse
     {
         $data = CatalogInput::validate($request->all(), ProductRules::product($id));
-        $this->products->update($id, self::int($data['version'] ?? null), $data, AdminContext::fromRequest($request, 'Admin mengubah produk'));
+        $this->products->update($id, self::int($data['version'] ?? null), $data, AdminContext::fromRequest($request, 'Admin mengubah produk'), $this->scopes->for($request, 'catalog.update'));
 
         return response()->json(['data' => $this->products->show($id)]);
     }
 
     public function destroy(Request $request, int $id): Response
     {
-        $this->products->delete($id, AdminCatalogEntityController::version($request), AdminContext::fromRequest($request, 'Admin menghapus produk'));
+        $this->products->delete($id, AdminCatalogEntityController::version($request), AdminContext::fromRequest($request, 'Admin menghapus produk'), $this->scopes->for($request, 'catalog.delete'));
 
         return response()->noContent();
     }
@@ -55,26 +56,26 @@ final class AdminProductController
     {
         $data = CatalogInput::validate($request->all(), ProductRules::variant());
 
-        return response()->json(['data' => $this->products->createVariant($id, $data, AdminContext::fromRequest($request, 'Admin membuat varian'))], 201);
+        return response()->json(['data' => $this->products->createVariant($id, $data, AdminContext::fromRequest($request, 'Admin membuat varian'), $this->scopes->for($request, 'catalog.create'))], 201);
     }
 
     public function updateVariant(Request $request, int $id): JsonResponse
     {
         $data = CatalogInput::validate($request->all(), ProductRules::variant($id));
 
-        return response()->json(['data' => $this->products->updateVariant($id, self::int($data['version'] ?? null), $data, AdminContext::fromRequest($request, 'Admin mengubah varian'))]);
+        return response()->json(['data' => $this->products->updateVariant($id, self::int($data['version'] ?? null), $data, AdminContext::fromRequest($request, 'Admin mengubah varian'), $this->scopes->for($request, 'catalog.update'))]);
     }
 
     public function destroyVariant(Request $request, int $id): Response
     {
-        $this->products->deleteVariant($id, AdminCatalogEntityController::version($request), AdminContext::fromRequest($request, 'Admin menghapus varian'));
+        $this->products->deleteVariant($id, AdminCatalogEntityController::version($request), AdminContext::fromRequest($request, 'Admin menghapus varian'), $this->scopes->for($request, 'catalog.delete'));
 
         return response()->noContent();
     }
 
-    public function priceListEntries(int $id): JsonResponse
+    public function priceListEntries(Request $request, int $id): JsonResponse
     {
-        return response()->json(['data' => $this->products->priceListEntries($id)])->header('Cache-Control', 'no-store');
+        return response()->json(['data' => $this->products->priceListEntries($id, $this->scopes->for($request, 'catalog.view'))])->header('Cache-Control', 'no-store');
     }
 
     public function replacePriceListEntries(Request $request, int $id): JsonResponse
@@ -89,9 +90,9 @@ final class AdminProductController
         ]);
         /** @var list<array{variant_id: int, price: int}> $entries */
         $entries = $data['entries'];
-        $this->products->replacePriceListEntries($id, self::int($data['version']), $entries, AdminContext::fromRequest($request, 'Admin mengganti harga price list'));
+        $this->products->replacePriceListEntries($id, self::int($data['version']), $entries, AdminContext::fromRequest($request, 'Admin mengganti harga price list'), $this->scopes->for($request, 'catalog.update'));
 
-        return response()->json(['data' => $this->products->priceListEntries($id)]);
+        return response()->json(['data' => $this->products->priceListEntries($id, $this->scopes->for($request, 'catalog.view'))]);
     }
 
     private static function int(mixed $value): int
