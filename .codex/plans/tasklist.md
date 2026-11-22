@@ -72,7 +72,8 @@ Rujukan terperinci: [plan Sprint 0](2026-11-17-sprint-0-fondasi.md), Task 1-20. 
 ### Sprint 3 | Checkout dan pembayaran
 
 - [ ] **P1.04** Buat cart/session dengan TTL, pengelompokan mode/ETA, validasi alamat dan provider tarif dengan cache.
-- [ ] **P1.05** Buat reservasi kondisional atomik, expiry worker, idempotency key, payment intent dan driver Fake serta gateway yang disetujui.
+- [x] **P1.05** Buat reservasi kondisional atomik, expiry worker, idempotency key, payment intent, dan driver Fake untuk checkout RTS.
+- [ ] **P1.05-gateway** Implementasikan gateway pembayaran yang disetujui. Terblokir oleh keputusan merchant dan settlement (Q-7, [ADR-006](../../docs/adr/ADR-006-gateway-pembayaran.md)).
 - [ ] **P1.06** Verifikasi signature dan dedup webhook, ACK lalu proses async, invoice PDF, halaman order, rekonsiliasi harian dan checkout RTS. Buktikan replay tunggal dan batas 10 reservasi untuk 1.000 checkout dengan stok 10.
 
 ### Sprint 4 | Fulfillment dan retur

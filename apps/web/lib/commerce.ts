@@ -26,6 +26,11 @@ export class CommerceError extends Error {
       SHIPPING_QUOTES_REQUIRED: "Muat pilihan pengiriman terlebih dahulu sebelum memilih kurir.",
       SHIPPING_SELECTION_INCOMPLETE: "Pilih satu layanan pengiriman untuk setiap grup.",
       SHIPPING_SELECTION_INVALID: "Pilihan pengiriman tidak lagi tersedia. Muat ulang pilihan kurir.",
+      SHIPPING_SELECTION_REQUIRED: "Pilih layanan pengiriman sebelum memesan stok.",
+      INSUFFICIENT_STOCK: "Stok tidak cukup. Periksa jumlah barang di keranjang.",
+      PAYMENT_INTENT_EXPIRED: "Waktu pembayaran habis. Buat sesi checkout baru.",
+      FAKE_PAYMENT_DISABLED: "Pembayaran simulasi tidak tersedia.",
+      CHECKOUT_SESSION_CONVERTED: "Sesi ini sudah digunakan untuk membuat pesanan.",
     };
     const fallback = [problem.detail, problem.title].find((text) => text?.trim() && !/^[A-Z][A-Z0-9_]*$/.test(text.trim()));
     super(messages[problem.code ?? ""] ?? (problem.code?.startsWith("SHIPPING_") ? "Pengiriman belum tersedia. Periksa alamat atau coba lagi." : problem.status === 503 ? "Layanan sementara tidak tersedia. Silakan coba lagi." : fallback ?? "Permintaan gagal. Silakan coba lagi."));

@@ -16,6 +16,10 @@ final class CachedShippingRateProvider implements ShippingRateProvider
 
     public function rates(ShippingRateRequest $request): array
     {
+        if ($request->fresh) {
+            return $this->inner->rates($request);
+        }
+
         $destination = json_encode([$request->destinationCountry, $request->province, $request->city, $request->district, $request->postcode], JSON_THROW_ON_ERROR);
         $key = implode('|', [$request->originCountry, hash('sha256', $this->namespace.'|'.$destination), $request->weightGrams, $request->packageTier, $request->courier ?? '*']);
         $cached = DB::table('shipping_rates_cache')->where('cache_key', $key)->where('expires_at', '>', now())->first();

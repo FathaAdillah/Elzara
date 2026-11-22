@@ -9,9 +9,9 @@ async function result<T>(request: Promise<{ data?: T; error?: unknown; response:
   if (!response.ok) throw new CommerceError({ ...(typeof error === "object" && error !== null ? error : {}), status: response.status });
   return data as T;
 }
-async function mutation() {
+async function mutation(key = crypto.randomUUID()) {
   await ensureCsrfCookie();
-  return { credentials: "include" as const, cache: "no-store" as const, params: { header: { ...xsrfHeader(), "Idempotency-Key": crypto.randomUUID() } } };
+  return { credentials: "include" as const, cache: "no-store" as const, params: { header: { ...xsrfHeader(), "Idempotency-Key": key } } };
 }
 const read = { credentials: "include" as const, cache: "no-store" as const };
 export const getCart = () => result(api.GET("/cart", read));
@@ -28,4 +28,11 @@ export async function shippingOptions(id: string) {
 export async function selectShipping(id: string, selections: { group_index: number; courier_code: string; service_code: string }[]) {
   const options = await mutation();
   return result(api.PUT("/checkout/sessions/{id}/shipping-selection", { ...options, params: { ...options.params, path: { id } }, body: { selections } }));
+}
+export async function placeCheckoutOrder(checkout_session_id: string, shipping_address_id: string, key: string) {
+  return result(api.POST("/orders", { ...await mutation(key), body: { checkout_session_id, shipping_address_id } }));
+}
+export async function simulatePayment(order: string, payment_intent_id: string, key: string) {
+  const options = await mutation(key);
+  return result(api.POST("/orders/{order}/fake-payment", { ...options, params: { ...options.params, path: { order } }, body: { payment_intent_id } }));
 }

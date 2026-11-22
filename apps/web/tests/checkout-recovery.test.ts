@@ -4,10 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   state: [] as unknown[], cursor: 0,
   createCheckout: vi.fn(), getCart: vi.fn(), shippingOptions: vi.fn(),
+  placeCheckoutOrder: vi.fn(), simulatePayment: vi.fn(),
 }));
 vi.mock("react", async (original) => ({
   ...await original<typeof import("react")>(),
   useEffect: vi.fn(),
+  useRef(initial: unknown) {
+    const index = mocks.cursor++;
+    if (!(index in mocks.state)) mocks.state[index] = { current: initial };
+    return mocks.state[index];
+  },
   useState(initial: unknown) {
     const index = mocks.cursor++;
     if (!(index in mocks.state)) mocks.state[index] = initial;
@@ -18,6 +24,7 @@ vi.mock("@elzara/ui", () => ({ Button: "button" }));
 vi.mock("../lib/shop-api", () => ({
   createCheckout: mocks.createCheckout, getCart: mocks.getCart, shippingOptions: mocks.shippingOptions,
   getAddresses: vi.fn(), saveAddress: vi.fn(), selectShipping: vi.fn(),
+  placeCheckoutOrder: mocks.placeCheckoutOrder, simulatePayment: mocks.simulatePayment,
 }));
 import { CheckoutPanel } from "../components/shop/checkout";
 import { CommerceError } from "../lib/commerce";
@@ -63,5 +70,22 @@ describe("checkout recovery", () => {
     const after = text(render());
     expect(after).not.toContain("452.000");
     expect(after).toContain(error.message);
+  });
+  it("reuses the reservation key after an ambiguous network failure and then simulates payment", async () => {
+    Object.assign(mocks.state[3] as object, { status: "open", fake_payment_available: true });
+    mocks.placeCheckoutOrder.mockRejectedValueOnce(new Error("Koneksi terputus.")).mockResolvedValueOnce({
+      id: "ord_test", total: { amount_minor: 500000 }, reservation_expires_at: "2026-11-22T10:00:00Z",
+      repriced: true, payment_intent: { id: "pi_test" },
+    });
+    mocks.simulatePayment.mockResolvedValueOnce({ order_id: "ord_test", status: "paid" });
+    const press = (label: string) => elements(render()).find((node) => text(node) === label && node.props.onClick)?.props.onClick?.();
+    press("Reservasi stok untuk simulasi");
+    await vi.waitFor(() => expect(text(render())).toContain("Koneksi terputus."));
+    press("Reservasi stok untuk simulasi");
+    await vi.waitFor(() => expect(text(render())).toContain("Harga atau ongkir berubah"));
+    expect(mocks.placeCheckoutOrder.mock.calls).toHaveLength(2);
+    expect(mocks.placeCheckoutOrder.mock.calls[0]).toEqual(mocks.placeCheckoutOrder.mock.calls[1]);
+    press("Simulasikan pembayaran");
+    await vi.waitFor(() => expect(text(render())).toContain("Pembayaran simulasi berhasil"));
   });
 });

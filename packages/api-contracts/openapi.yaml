@@ -2412,7 +2412,7 @@ paths:
       tags: [Orders]
       x-elzara-auth: customer
       security: [{ webSession: [] }]
-      description: "Idempoten penuh: key + payload sama = response identik dengan header Idempotency-Replayed (Doc 12 §3.4)."
+      description: "Reservasi dan intent checkout RTS. Saat ini hanya Fake di lingkungan pengembangan dengan opt-in; tidak menagih uang. Key + payload sama mengulang respons identik."
       parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/RequestIdIn" }, { $ref: "#/components/parameters/XsrfToken" }]
       requestBody:
         required: true
@@ -2423,7 +2423,7 @@ paths:
               required: [checkout_session_id, shipping_address_id]
               properties:
                 checkout_session_id: { type: string, pattern: "^cs_[0-9A-Za-z]{20,32}$" }
-                shipping_address_id: { type: string, pattern: "^adr_[0-9A-Za-z]{20,32}$" }
+                shipping_address_id: { type: string, pattern: "^addr_[0-9A-Za-z]{20,32}$" }
                 note: { type: ["string", "null"], maxLength: 1000 }
       responses:
         "201":
@@ -2438,8 +2438,10 @@ paths:
             Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/OrderRead" }
+              schema: { $ref: "#/components/schemas/CheckoutOrderCreated" }
+        "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
@@ -2462,6 +2464,49 @@ paths:
                       type: { type: string, const: 'urn:elzara:problem:server:checkout-disabled' }
                       code: { type: string, const: CHECKOUT_DISABLED }
                       retryable: { type: boolean, const: true }
+
+  /orders/{order}/fake-payment:
+    post:
+      operationId: captureFakePayment
+      tags: [Orders]
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      description: "Simulasikan pembayaran intent Fake milik pelanggan sebelum TTL. Tidak tersedia di production."
+      parameters:
+        - { name: order, in: path, required: true, schema: { type: string, pattern: "^ord_[0-9A-Za-z]{20,32}$" } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/RequestIdIn" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_intent_id]
+              properties:
+                payment_intent_id: { type: string, pattern: "^pi_[0-9A-Za-z]{20,32}$" }
+      responses:
+        "200":
+          description: Pembayaran simulasi berhasil
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order_id, status]
+                properties:
+                  order_id: { type: string }
+                  status: { type: string, const: paid }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Problem" }
 
   /me/orders/{id}:
     get:
@@ -4123,6 +4168,7 @@ components:
     CheckoutSessionRead: {
       "type": "object",
       "required": [
+        "fake_payment_available",
         "id",
         "status",
         "expires_at",
@@ -4132,6 +4178,7 @@ components:
         "snapshot"
       ],
       "properties": {
+        "fake_payment_available": { "type": "boolean" },
         "id": {
           "type": "string",
           "pattern": "^cs_[0-9A-Za-z]{20,32}$"
@@ -4181,6 +4228,40 @@ components:
         }
       }
     }
+    CheckoutOrderCreated:
+      allOf:
+        - { $ref: "#/components/schemas/OrderRead" }
+        - type: object
+          required: [reservation_expires_at, invoice, payment_intent, repriced, changes_from_snapshot]
+          properties:
+            reservation_expires_at: { type: string, format: date-time }
+            invoice:
+              type: object
+              required: [id, type, due_at, total]
+              properties:
+                id: { type: string }
+                type: { type: string, const: balance }
+                due_at: { type: string, format: date-time }
+                total: { $ref: "#/components/schemas/Money" }
+            payment_intent:
+              type: object
+              required: [id, status, provider, expires_at]
+              properties:
+                id: { type: string }
+                status: { type: string, const: requires_action }
+                provider: { type: string, const: fake }
+                expires_at: { type: string, format: date-time }
+            repriced: { type: boolean }
+            changes_from_snapshot:
+              type: array
+              items:
+                type: object
+                required: [kind, from, to]
+                properties:
+                  kind: { type: string, enum: [variant_price, shipping] }
+                  variant_id: { type: string }
+                  from: { type: integer }
+                  to: { type: integer }
     OrderRead:
       type: object
       required: [id, status, total, created_at]
