@@ -4,6 +4,8 @@
 
 declare(strict_types=1);
 
+use App\Platform\Infrastructure\Database\EnumCheckConstraint;
+use App\Platform\StateMachine\Axis;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -37,8 +39,10 @@ return new class extends Migration
         });
 
         DB::statement('ALTER TABLE orders ADD CONSTRAINT ck_orders_checkout_amounts CHECK (subtotal >= 0 AND shipping_total >= 0 AND total >= 0)');
-        DB::statement("ALTER TABLE orders ADD CONSTRAINT ck_orders_order_status CHECK (order_status IN ('awaiting_payment','paid','processing','shipped','delivered','completed','on_hold','refund_requested','refund_pending','refunded','disputed','expired','cancelled'))");
-        DB::statement("ALTER TABLE orders ADD CONSTRAINT ck_orders_payment_status CHECK (payment_status IN ('unpaid','partially_paid','paid','overdue','refund_pending','refunded','disputed'))");
+        $checks = new EnumCheckConstraint(DB::connection());
+        foreach (Axis::cases() as $axis) {
+            $checks->addAxis('orders', $axis);
+        }
     }
 
     public function down(): void
