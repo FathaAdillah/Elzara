@@ -75,6 +75,44 @@ final class ApiConventionsTest extends TestCase
         $this->getJson('/api/v1/missing')->assertNotFound()->assertHeader('X-RateLimit-Policy');
     }
 
+    public function test_storefront_server_calls_are_limited_per_forwarded_shopper(): void
+    {
+        $key = str_repeat('k', 40);
+        config(['api.rate_limits.public' => 2, 'api.storefront_proxy_key' => $key]);
+        Route::get('api/v1/shopper-probe', fn () => ['ok' => true])->middleware('rate:public');
+        $storefront = fn (array $headers) => $this->flushHeaders()->withServerVariables(['REMOTE_ADDR' => '172.18.0.5'])
+            ->withHeaders($headers)->getJson('/api/v1/shopper-probe');
+        $asShopper = fn (string $ip) => $storefront([RatePolicy::STOREFRONT_KEY_HEADER => $key, RatePolicy::SHOPPER_IP_HEADER => $ip]);
+
+        $asShopper('203.0.113.10')->assertOk();
+        $asShopper('203.0.113.10')->assertOk();
+        $asShopper('203.0.113.10')->assertStatus(429);
+        $asShopper('198.51.100.20')->assertOk()->assertHeader('X-RateLimit-Remaining', '1');
+        $asShopper('2001:db8::7')->assertOk()->assertHeader('X-RateLimit-Remaining', '1');
+
+        // Without the key the shopper header is ignored: the storefront IP keeps one bucket.
+        $storefront([RatePolicy::SHOPPER_IP_HEADER => '192.0.2.1'])->assertOk();
+        $storefront([RatePolicy::STOREFRONT_KEY_HEADER => str_repeat('x', 40), RatePolicy::SHOPPER_IP_HEADER => '192.0.2.2'])->assertOk();
+        $storefront([RatePolicy::SHOPPER_IP_HEADER => '192.0.2.3'])->assertStatus(429);
+        $storefront([RatePolicy::STOREFRONT_KEY_HEADER => $key, RatePolicy::SHOPPER_IP_HEADER => 'not-an-ip'])->assertStatus(429);
+        $storefront([RatePolicy::STOREFRONT_KEY_HEADER => $key])->assertStatus(429);
+    }
+
+    public function test_forwarded_shopper_ip_needs_a_configured_strong_key(): void
+    {
+        $request = fn (string $presented) => tap(Request::create('/api/v1/products', server: ['REMOTE_ADDR' => '172.18.0.5']), function (Request $request) use ($presented) {
+            $request->headers->set(RatePolicy::STOREFRONT_KEY_HEADER, $presented);
+            $request->headers->set(RatePolicy::SHOPPER_IP_HEADER, '203.0.113.10');
+        });
+        foreach (['', 'short-key'] as $configured) {
+            config(['api.storefront_proxy_key' => $configured]);
+            $this->assertSame('public|ip:172.18.0.5', RatePolicy::key($request($configured), 'public'));
+        }
+        config(['api.storefront_proxy_key' => str_repeat('k', 32)]);
+        $this->assertSame('public|ip:203.0.113.10', RatePolicy::key($request(str_repeat('k', 32)), 'public'));
+        $this->assertSame('public|ip:172.18.0.5', RatePolicy::key($request(str_repeat('k', 31)), 'public'));
+    }
+
     public function test_operator_and_web_buckets_are_per_account_not_ip(): void
     {
         config(['api.rate_limits.admin' => 1, 'api.rate_limits.web' => 1]);

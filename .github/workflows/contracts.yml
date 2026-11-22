@@ -190,6 +190,7 @@ jobs:
       AWS_DEFAULT_REGION: elzara-1
       ELZARA_S3_ACCESS_KEY: ci-only
       ELZARA_S3_SECRET_KEY: ci-only
+      ELZARA_STOREFRONT_PROXY_KEY: ci-only-storefront-proxy-key-0000000000
       SMTP_HOST: smtp.example.com
       SMTP_PORT: "587"
       HORIZON_PREFIX: elzara-ci

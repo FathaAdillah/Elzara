@@ -60,6 +60,8 @@
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $edge_scheme;
+        # Shopper IP for storefront SSR API calls (apps/web/lib/shopper-identity.ts); overwritten, never client-supplied.
+        proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
         proxy_read_timeout 60s;
