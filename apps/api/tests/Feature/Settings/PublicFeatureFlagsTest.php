@@ -9,7 +9,6 @@ use App\Modules\Settings\Infrastructure\Models\FeatureFlag;
 use App\Modules\Settings\Infrastructure\Models\FeatureFlagOverride;
 use Illuminate\Auth\GenericUser;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -48,8 +47,7 @@ final class PublicFeatureFlagsTest extends TestCase
         $this->postJson('/api/v1/orders', [])->assertStatus(503);
 
         $this->actingAs(new GenericUser(['id' => $id]));
-        Bus::fake();
         $this->getJson('/api/v1/feature-flags')->assertJsonPath('data.0.enabled', true);
-        $this->postJson('/api/v1/orders', ['items' => [['id' => 1]]])->assertStatus(202);
+        $this->postJson('/api/v1/orders', [])->assertUnauthorized();
     }
 }

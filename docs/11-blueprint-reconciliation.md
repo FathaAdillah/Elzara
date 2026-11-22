@@ -51,7 +51,7 @@ Blueprint bernomor ADR 001–010 dengan makna berbeda dari ADR kita. Aturan K-3 
 | 3 idempotency + unique + transactional outbox | **baru → tulis ADR-004** | B-7; `idempotency_keys`/`inbox_events` |
 | 4 reservation TTL + late-payment resolution | **baru → ADR-005** | B-6 |
 | 5 gateway & settlement/reconciliation semantics | sebagian (ADR-002, Doc 01 U5) | **ADR-006** saat driver dipilih; blocker klien (Doc 03 §9) |
-| 6 BFF Next vs browser→API langsung | **diputus pemilik 2026-11-18** | ADR-007 amandemen: cookie sesi Sanctum same-site (Bentuk C); persetujuan kontrol sesi dikonfirmasi pada 2026-11-20. Lokasi artefak dan Q-2 IdP masih terbuka |
+| 6 BFF Next vs browser→API langsung | **diputus pemilik 2026-11-18** | ADR-007 amandemen: cookie sesi Sanctum same-site (Bentuk C); persetujuan kontrol sesi dikonfirmasi pada 2026-11-20. Sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6); Q-2 terjawab oleh pemilik proyek 2026-11-22: klien tidak punya IdP/SSO sendiri, tidak ada provider OIDC |
 | 7 MinIO bucket privat/publik + CDN | **baru → ADR-008** | B-9 |
 | 8 Waiting Room coverage/threshold/bypass | **baru → ADR-009** | B-8; butuh angka load test |
 | 9 monorepo CI/CD + independent deploys + strategi migrasi | sebagian (Doc 10) | **ADR-010** — Doc 10 §1 M-1…M-4 jadi lampirannya |
@@ -170,7 +170,7 @@ Ini register mengikat untuk gelombang development berikutnya. Dokumen lain **men
 - **Hybrid web:** email+password, Google (`laravel/socialite` driver bawaan), X (`socialiteproviders/twitter`, OAuth 2.0 — driver `twitter` bawaan Socialite memakai OAuth 1.0a yang sudah ditinggalkan X). Registrasi mengikuti jalur yang sama.
 - Tabel baru **`user_identities`** (`provider`, `provider_user_id`, `user_id`, unik per provider) menyimpan identitas sosial. Penggabungan akun hanya lewat **email terverifikasi**, bukan email mentah dari provider — kalau tidak, siapa pun yang mendaftar di provider dengan email korban bisa mengambil alih akun.
 - Konsekuensi skema dari aturan itu (ditemukan saat gelombang knowledge 2026-11-18): `otp_challenges.purpose` yang lama hanya `login | reset_password | verify_phone` **tidak punya jalur verifikasi email**, jadi tambah **`verify_email`** pada daftar purpose. Tanpa nilai ini, "email terverifikasi" tidak bisa diproduksi oleh sistem kita sendiri dan aturan penggabungan akun hanya jadi slogan. `users.email_verified_at` sudah ada dan tetap satu-satunya tempat fakta itu disimpan.
-- ADR-007: mekanisme diputuskan pemilik 2026-11-18; **Q-2 menyempit** menjadi "apakah klien punya IdP/SSO sendiri", bukan lagi "BFF atau token".
+- ADR-007: mekanisme diputuskan pemilik 2026-11-18; Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC. Sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6).
 
 **D. Dependensi — versi dibaca dari registry 2026-11-18, bukan dari ingatan.**
 
@@ -267,7 +267,7 @@ Rekomendasi saya: **J-a untuk cakupan, J-c untuk tanggal pertama** — yaitu lun
 | # | Pertanyaan | Kenapa tidak bisa dijawab dev sendiri |
 |---|---|---|
 | Q-1 | Jadwal: J-a / J-b / J-c? | Komitmen waktu ke klien |
-| Q-2 | Auth model: OIDC/token vs session+BFF (Blueprint §7 "sesuai threat model") | Bergantung jawaban Q-4 dan kebijakan SSO klien; ADR-007 |
+| Q-2 | **Terjawab 2026-11-22 (pemilik proyek): tidak — klien tidak punya IdP/SSO sendiri** | Mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC; sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6) (ADR-007 D-6a) |
 | Q-3 | Finance: perlu `payables`/`expenses`/cash-bank dalam platform, atau export ke pembukuan klien? | Menambah satu modul ERP; bukan cakupan Doc 00 §Non-goals |
 | Q-4 | Kapasitas teruji berapa RPS/concurrent? (prasyarat Waiting Room & SLO) | Baru bisa dijawab setelah k6 jalan di staging |
 | Q-5 | Multi-warehouse sejak MVP atau satu gudang? (ADR-011) | Menentukan `stock_items` key & aturan allocation |

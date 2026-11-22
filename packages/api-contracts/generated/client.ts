@@ -673,8 +673,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Idempoten penuh: key + payload sama = response identik dengan header Idempotency-Replayed (Doc 12 §3.4). */
+        /** @description Reservasi dan intent checkout RTS. Saat ini hanya Fake di lingkungan pengembangan dengan opt-in; tidak menagih uang. Key + payload sama mengulang respons identik. */
         post: operations["createOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{order}/fake-payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Simulasikan pembayaran intent Fake milik pelanggan sebelum TTL. Tidak tersedia di production. */
+        post: operations["captureFakePayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1760,6 +1777,7 @@ export interface components {
             shipping_options?: components["schemas"]["ShippingGroup"][];
         };
         CheckoutSessionRead: {
+            fake_payment_available: boolean;
             id: string;
             /** @enum {string} */
             status: "open" | "locked" | "converted" | "expired";
@@ -1773,6 +1791,35 @@ export interface components {
         ShippingOptionsRead: {
             groups: components["schemas"]["ShippingGroup"][];
             checkout: components["schemas"]["CheckoutSessionRead"];
+        };
+        CheckoutOrderCreated: components["schemas"]["OrderRead"] & {
+            /** Format: date-time */
+            reservation_expires_at: string;
+            invoice: {
+                id: string;
+                /** @constant */
+                type: "balance";
+                /** Format: date-time */
+                due_at: string;
+                total: components["schemas"]["Money"];
+            };
+            payment_intent: {
+                id: string;
+                /** @constant */
+                status: "requires_action";
+                /** @constant */
+                provider: "fake";
+                /** Format: date-time */
+                expires_at: string;
+            };
+            repriced: boolean;
+            changes_from_snapshot: {
+                /** @enum {string} */
+                kind: "variant_price" | "shipping";
+                variant_id?: string;
+                from: number;
+                to: number;
+            }[];
         };
         OrderRead: {
             id: string;
@@ -4340,10 +4387,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OrderRead"];
+                    "application/json": components["schemas"]["CheckoutOrderCreated"];
                 };
             };
+            400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
             429: components["responses"]["RateLimited"];
@@ -4369,6 +4418,54 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    captureFakePayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Dipakai apa adanya bila valid; bila kosong server membuat ULID (Doc 12 §3.2). */
+                "X-Request-Id"?: components["parameters"]["RequestIdIn"];
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+            };
+            path: {
+                order: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    payment_intent_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Pembayaran simulasi berhasil */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        order_id: string;
+                        /** @constant */
+                        status: "paid";
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Problem"];
         };
     };
     getMyOrder: {

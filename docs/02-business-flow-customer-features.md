@@ -382,7 +382,7 @@ Register mengikat: Doc 11 §4.4 A/C/I; alasan di ADR-012 (RBAC/identitas/depende
 
 **Batas admin (tidak bisa ditawar):** sesi web tidak pernah diterima guard `admin`. Customer biasa (`is_operator = false`) tidak punya jalur ke `/admin` sama sekali. Akun operator **tidak otomatis masuk admin dari storefront**: masuk admin wajib login terpisah di guard `admin` dengan email+password + 2FA wajib (`staff_2fa_secrets`, 10 recovery code ter-hash — Doc 06 §1.1). Cookie admin `elzara_admin_session` terpisah; XSS di storefront tidak menjadi akses admin. Bypass `is_admin` hanya berlaku di guard admin dan wajib berjejak `audit_logs` (`rbac.bypass`) — tidak pernah di web (Doc 06 §1.6).
 
-**Yang tetap tidak berubah:** guest checkout (M2) dengan klaim order lewat email+nomor (§10.3); checkout/login sebagai prasyarat keranjang, favorit, dan akun; privasi request/quote (§5); hak hapus akun dengan legal-hold transaksi (§10.4). Persetujuan kontrol sesi dikonfirmasi pada 2026-11-20. Lokasi artefak tertulis masih terbuka, begitu pula Q-2 yang menyempit menjadi "apakah klien punya IdP/SSO sendiri" (ADR-007 (BFF/sesi) D-6a) — kalau ya, provider OIDC ditambahkan pada jalur login yang sama, bukan mengganti mekanisme sesi.
+**Yang tetap tidak berubah:** guest checkout (M2) dengan klaim order lewat email+nomor (§10.3); checkout/login sebagai prasyarat keranjang, favorit, dan akun; privasi request/quote (§5); hak hapus akun dengan legal-hold transaksi (§10.4). Persetujuan kontrol sesi dikonfirmasi pada 2026-11-20. Sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6); Q-2 sudah dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri, sesi Sanctum dua guard tetap dan tidak ada provider OIDC (ADR-007 (BFF/sesi) D-6a).
 
 ---
 
@@ -514,7 +514,7 @@ Tetap dari versi lama: tarif manual per kurir/zona kalau tanpa API, 2FA admin, a
 
 Tiga yang paling menentukan jadwal: **B-PO-13**, **B-PO-14**, **B-PO-11**. Yang berubah arah karena Blueprint: **B-PO-8** dan **B-PO-13** (plus B-PO-4 yang kini punya jalur baku).
 
-Daftar pertanyaan teknis-jadwal (Cloudflare Waiting Room, gateway settlement, multi-warehouse, ledger keuangan, kapasitas teruji, pilihan jadwal) tidak diulang di sini — itu **Doc 11 §6 Q-1…Q-7** dan jalur paralel klien di Doc 03 §9. Khusus "model auth": mekanismenya sudah diputus 2026-11-18 (cookie sesi Sanctum + hybrid sosial, §10.8); Q-2 kini menyempit menjadi "apakah klien punya IdP/SSO sendiri" (ADR-007 (BFF/sesi) D-6a), bukan lagi memilih bentuk auth.
+Daftar pertanyaan teknis-jadwal (Cloudflare Waiting Room, gateway settlement, multi-warehouse, ledger keuangan, kapasitas teruji, pilihan jadwal) tidak diulang di sini — itu **Doc 11 §6 Q-1…Q-7** dan jalur paralel klien di Doc 03 §9. Khusus "model auth": mekanismenya sudah diputus 2026-11-18 (cookie sesi Sanctum + hybrid sosial, §10.8); Q-2 sudah dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; sesi Sanctum dua guard tetap, tidak ada provider OIDC (ADR-007 (BFF/sesi) D-6a).
 
 ---
 

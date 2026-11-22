@@ -16,6 +16,7 @@ final readonly class ShippingRateRequest
         public string $packageTier,
         public ?string $courier = null,
         public string $destinationCountry = 'ID',
+        public bool $fresh = false,
     ) {
         if (! preg_match('/\A[A-Z]{2}\z/', $originCountry) || ! preg_match('/\A[A-Z]{2}\z/', $destinationCountry)
             || trim($province) === '' || strlen($province) > 60 || trim($city) === '' || strlen($city) > 60
