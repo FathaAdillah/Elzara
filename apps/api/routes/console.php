@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Cart\Application\CartService;
 use App\Modules\Content\Application\ExpiredUploadCleaner;
 use App\Modules\Content\Application\MediaVersionRelinker;
+use App\Modules\Orders\Application\Commands\ResolveFakeCheckout;
 use App\Platform\Outbox\OutboxDispatcher;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -47,6 +48,11 @@ Artisan::command('cart:expire', function (CartService $carts): void {
     $this->line('expired='.$carts->expire());
 })->purpose('Tandai cart kedaluwarsa');
 Schedule::command('cart:expire')->hourly()->withoutOverlapping();
+
+Artisan::command('inventory:expire-checkout-reservations', function (ResolveFakeCheckout $checkout): void {
+    $this->line('expired='.$checkout->expire(250));
+})->purpose('Lepas stok checkout kedaluwarsa dan tutup intent pembayaran');
+Schedule::command('inventory:expire-checkout-reservations')->everyMinute()->withoutOverlapping();
 
 Artisan::command('content:media:cleanup', function (ExpiredUploadCleaner $cleaner): int {
     $result = $cleaner->run();

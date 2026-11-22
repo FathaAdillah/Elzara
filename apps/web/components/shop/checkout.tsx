@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@elzara/ui";
-import { getCart, getAddresses, saveAddress, createCheckout, shippingOptions, selectShipping } from "@/lib/shop-api";
+import { getCart, getAddresses, saveAddress, createCheckout, shippingOptions, selectShipping, placeCheckoutOrder, simulatePayment } from "@/lib/shop-api";
 import { CommerceError, modeLabel, rupiah, type Address, type Cart, type Checkout, type Shipping, type AddressWrite } from "@/lib/commerce";
 const fields: { name: keyof AddressWrite; label: string; max: number }[] = [
   { name: "recipient", label: "Nama penerima", max: 120 }, { name: "phone", label: "Nomor ponsel Indonesia", max: 20 },
@@ -19,6 +19,11 @@ export function CheckoutPanel() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [order, setOrder] = useState<Awaited<ReturnType<typeof placeCheckoutOrder>>>();
+  const [paid, setPaid] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const orderKey = useRef<{ session: string; key: string }>(undefined);
+  const paymentKey = useRef<string>(undefined);
   useEffect(() => { Promise.all([getCart(), getAddresses()]).then(([c, a]) => { setCart(c); setAddresses(a.data); setSelected(a.data.find((v) => v.is_default)?.id ?? a.data[0]?.id ?? ""); }).catch((e: Error) => setError(e.message)); }, []);
   function report(e: unknown) {
     setError(e instanceof Error ? e.message : "Permintaan gagal.");
@@ -33,7 +38,7 @@ export function CheckoutPanel() {
     } catch (e) { report(e); } finally { setBusy(false); }
   }
   async function quote() {
-    if (!cart) return; setBusy(true); setError(""); setShipping(undefined);
+    if (!cart) return; setBusy(true); setError(""); setShipping(undefined); setOrder(undefined); setExpired(false); paymentKey.current = undefined;
     try {
       const s = await createCheckout(selected, cart.items_hash); setSession(s);
       const rates = await shippingOptions(s.id); setShipping(rates); setSession(rates.checkout); setChoices(Object.fromEntries((rates.checkout.snapshot.shipping_selection ?? []).map((v) => [v.group_index, v.courier_code + ":" + v.service_code])));
@@ -54,8 +59,29 @@ export function CheckoutPanel() {
     try {
       const updated = await selectShipping(session.id, selections);
       setSession(updated);
+      orderKey.current = undefined;
       setChoices(Object.fromEntries((updated.snapshot.shipping_selection ?? []).map((v) => [v.group_index, v.courier_code + ":" + v.service_code])));
     } catch (e) { report(e); } finally { setBusy(false); }
+  }
+  async function reserve() {
+    if (!session?.total || !selected || order) return;
+    if (orderKey.current?.session !== session.id) orderKey.current = { session: session.id, key: crypto.randomUUID() };
+    setBusy(true); setError("");
+    try {
+      setOrder(await placeCheckoutOrder(session.id, selected, orderKey.current.key));
+    } catch (e) { report(e); } finally { setBusy(false); }
+  }
+  async function pay() {
+    if (!order || paid) return;
+    paymentKey.current ??= crypto.randomUUID();
+    setBusy(true); setError("");
+    try {
+      await simulatePayment(order.id, order.payment_intent.id, paymentKey.current);
+      setPaid(true);
+    } catch (e) {
+      if (e instanceof CommerceError && e.problem.code === "PAYMENT_INTENT_EXPIRED") setExpired(true);
+      report(e);
+    } finally { setBusy(false); }
   }
   return <div className="grid gap-8 lg:grid-cols-2">
     <div className="space-y-6">
@@ -63,11 +89,11 @@ export function CheckoutPanel() {
       <fieldset className="space-y-3"><legend className="mb-3 text-lg font-semibold">Alamat pengiriman</legend>
         {addresses.length === 0 && <p className="text-sm">Tambahkan alamat untuk melanjutkan.</p>}
         {addresses.map((a) => <label key={a.id} className="flex min-h-touch items-start gap-3 rounded-card border border-control-border p-4">
-          <input type="radio" name="address" value={a.id} checked={selected === a.id} disabled={busy} onChange={() => { setSelected(a.id); setSession(undefined); setShipping(undefined); }} className="mt-1 accent-brand-text" />
+          <input type="radio" name="address" value={a.id} checked={selected === a.id} disabled={busy || !!order} onChange={() => { setSelected(a.id); setSession(undefined); setShipping(undefined); }} className="mt-1 accent-brand-text" />
           <span><strong>{a.recipient}</strong> · {a.phone}{a.is_default ? " · Utama" : ""}<br />{a.address_line}, {a.district}, {a.city}, {a.province} {a.postal_code}</span>
         </label>)}
       </fieldset>
-      <details className="rounded-card border border-divider p-5" open={addresses.length === 0}><summary className="cursor-pointer font-semibold">Tambah alamat</summary>
+      {!order && <details className="rounded-card border border-divider p-5" open={addresses.length === 0}><summary className="cursor-pointer font-semibold">Tambah alamat</summary>
         <form onSubmit={(e) => void addAddress(e)} className="mt-4 space-y-4">
           {fields.map((f) => <label key={f.name} className="block space-y-1 text-sm"><span>{f.label}</span>
             <input name={f.name} required maxLength={f.max} type={f.name === "phone" ? "tel" : "text"} aria-invalid={!!fieldErrors[f.name]} aria-describedby={fieldErrors[f.name] ? "error-" + f.name : undefined} className="min-h-touch w-full rounded-control border border-control-border bg-canvas p-3" />
@@ -75,8 +101,8 @@ export function CheckoutPanel() {
           </label>)}
           <Button type="submit" disabled={busy}>Simpan alamat</Button>
         </form>
-      </details>
-      <Button disabled={busy || !selected || !cart?.groups.length} onClick={() => void quote()}>{busy ? "Memproses…" : "Buat sesi & lihat ongkir"}</Button>
+      </details>}
+      <Button disabled={busy || !selected || !cart?.groups.length || (!!order && !expired)} onClick={() => void quote()}>{busy ? "Memproses…" : "Buat sesi & lihat ongkir"}</Button>
     </div>
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Ringkasan server</h2>
@@ -88,16 +114,24 @@ export function CheckoutPanel() {
         <legend className="px-1 font-medium">Kurir · {modeLabel[g.mode]}</legend>
         {g.options.length === 0 && <p>Tidak ada layanan untuk grup ini. Coba alamat lain.</p>}
         {g.options.map((r) => { const key = r.courierCode + ":" + r.serviceCode; return <label key={key} className="flex min-h-touch items-center gap-3">
-          <input type="radio" name={"shipping-" + g.group_index} value={key} checked={choices[g.group_index] === key} disabled={busy || shipping.groups.some((group) => group.options.length === 0)} onChange={() => void choose(g.group_index, r.courierCode, r.serviceCode)} className="accent-brand-text" />
+          <input type="radio" name={"shipping-" + g.group_index} value={key} checked={choices[g.group_index] === key} disabled={busy || !!order || shipping.groups.some((group) => group.options.length === 0)} onChange={() => void choose(g.group_index, r.courierCode, r.serviceCode)} className="accent-brand-text" />
           <span>{r.courierCode.toUpperCase()} · {r.serviceName} · {rupiah(r.amountMinor)}<br /><small>ETA: {r.etaMinDays === null ? "belum tersedia" : r.etaMinDays + "–" + r.etaMaxDays + " hari"}</small></span>
         </label>; })}
       </fieldset>)}
       <div className="space-y-2 rounded-card bg-brand-ink p-5">
         <p>Subtotal: {rupiah(session?.subtotal.amount_minor ?? cart?.subtotal.amount_minor ?? 0)}</p>
         {session && <>{session.shipping_estimate && session.total ? <><p>Ongkir terpilih: {rupiah(session.shipping_estimate.amount_minor)}</p><p className="font-semibold">Total: {rupiah(session.total.amount_minor)}</p></> : <p role="status">Ongkir dan total belum tersedia sampai semua grup memiliki layanan pengiriman.</p>}<p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
-        <p className="text-sm">Ongkir dan total dihitung server dari pilihan kurir yang tersimpan. Pembayaran hadir di P1.05. Belum ada reservasi stok.</p>
+        {!session?.fake_payment_available && <p className="text-sm">Pembayaran belum tersedia.</p>}
       </div>
-      <Button block disabled>Bayar</Button>
+      {order ? <>
+        <div role="status" className="rounded-card border border-divider p-5">
+          <p className="font-semibold">{paid ? "Pembayaran simulasi berhasil" : expired ? "Pembayaran simulasi kedaluwarsa" : "Stok dipesan untuk simulasi"}</p>
+          <p>Pesanan {order.id} · {rupiah(order.total.amount_minor)}</p>
+          {!paid && !expired && <p className="text-sm">Reservasi hingga {new Date(order.reservation_expires_at).toLocaleString("id-ID")}. Tidak ada uang yang ditagih.</p>}
+          {order.repriced && <p className="text-sm">Harga atau ongkir berubah. Periksa total terbaru sebelum melanjutkan.</p>}
+        </div>
+        {!paid && !expired && <Button block disabled={busy} onClick={() => void pay()}>Simulasikan pembayaran</Button>}
+      </> : <Button block disabled={busy || !session?.fake_payment_available || !session.total || session.status !== "open" || session.snapshot.cart.groups.some((g) => g.mode !== "rts")} onClick={() => void reserve()}>Reservasi stok untuk simulasi</Button>}
     </div>
   </div>;
 }

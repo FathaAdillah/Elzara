@@ -12,6 +12,7 @@ use App\Modules\Fulfillment\Contracts\ShippingRateProvider;
 use App\Modules\Fulfillment\Contracts\ShippingRateRequest;
 use App\Modules\Identity\Application\ActiveOrderAddressUsage;
 use App\Modules\Identity\Infrastructure\Models\User;
+use App\Modules\Settings\Infrastructure\Models\FeatureFlag;
 use App\Platform\Domain\PublicId;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -87,6 +88,133 @@ final class CartCheckoutTest extends TestCase
         $hash = $this->send('GET', '/api/v1/cart')->json('items_hash');
 
         return $this->send('POST', '/api/v1/checkout/sessions', ['shipping_address_id' => $a, 'expected_items_hash' => $hash]);
+    }
+
+    public function test_place_order_reprices_replays_and_captures_once(): void
+    {
+        $this->enableFakePayment();
+        $checkout = $this->checkout()->assertCreated()->assertJsonPath('fake_payment_available', true)->json();
+        $payload = $this->quoteForOrder($checkout);
+        DB::table('product_variants')->where('id', $this->variant)->update(['base_price' => 120000]);
+        DB::table('shipping_tariff_rules')->update(['base_amount' => 13000]);
+
+        $key = (string) Str::uuid();
+        $response = $this->send('POST', '/api/v1/orders', $payload, $key)->assertCreated()
+            ->assertJsonPath('total.amount_minor', 133000)->assertJsonPath('repriced', true)
+            ->assertJsonPath('changes_from_snapshot.0.from', 100000)->assertJsonPath('changes_from_snapshot.1.to', 13000)
+            ->assertJsonPath('payment_intent.provider', 'fake');
+        $order = $response->json();
+        $expires = $order['reservation_expires_at'];
+        $this->assertSame($expires, $order['invoice']['due_at']);
+        $this->assertSame($expires, $order['payment_intent']['expires_at']);
+        $this->assertSame($response->getContent(), $this->send('POST', '/api/v1/orders', $payload, $key)
+            ->assertCreated()->assertHeader('Idempotency-Replayed', 'true')->assertHeader('Cache-Control', 'no-store, private')->getContent());
+        $this->send('POST', '/api/v1/orders', $payload + ['note' => 'different'], $key)->assertConflict()
+            ->assertJsonPath('type', 'urn:elzara:problem:idempotency:key-payload-mismatch');
+        $this->send('POST', '/api/v1/orders', $payload)->assertConflict()->assertJsonPath('code', 'CHECKOUT_SESSION_CONVERTED');
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payment_intents', 1);
+        $this->assertDatabaseHas('stock_items', ['variant_id' => $this->variant, 'reserved' => 1, 'available_to_sell' => 4]);
+
+        $path = '/api/v1/orders/'.$order['id'].'/fake-payment';
+        $body = ['payment_intent_id' => $order['payment_intent']['id']];
+        $this->send('POST', $path, $body, csrf: false)->assertStatus(419);
+        $this->send('POST', $path, ['payment_intent_id' => 'pi_'.Str::ulid()])->assertNotFound();
+        $paymentKey = (string) Str::uuid();
+        $this->send('POST', $path, $body, $paymentKey)->assertOk()->assertJsonPath('status', 'paid');
+        $this->send('POST', $path, $body, $paymentKey)->assertOk()->assertHeader('Idempotency-Replayed', 'true');
+        $this->send('POST', $path, $body)->assertOk()->assertJsonPath('status', 'paid');
+        $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonCount(0, 'groups');
+        $this->travel(3)->minutes();
+        $this->artisan('inventory:expire-checkout-reservations')->expectsOutput('expired=0')->assertSuccessful();
+        $this->assertDatabaseHas('orders', ['code' => $order['id'], 'order_status' => 'paid', 'payment_status' => 'paid']);
+        $this->assertDatabaseHas('invoices', ['code' => $order['invoice']['id'], 'status' => 'paid']);
+        $this->assertDatabaseHas('payment_intents', ['code' => $order['payment_intent']['id'], 'status' => 'captured']);
+        $this->assertDatabaseHas('stock_reservations', ['variant_id' => $this->variant, 'status' => 'committed']);
+        $this->assertDatabaseHas('stock_items', ['variant_id' => $this->variant, 'reserved' => 1, 'on_hand' => 5]);
+    }
+
+    public function test_payment_only_consumes_purchased_quantity_once(): void
+    {
+        $this->enableFakePayment();
+        $payload = $this->quoteForOrder($this->checkout()->assertCreated()->json());
+        $order = $this->send('POST', '/api/v1/orders', $payload)->assertCreated()->json();
+        $this->add(2)->assertCreated();
+
+        $path = '/api/v1/orders/'.$order['id'].'/fake-payment';
+        $body = ['payment_intent_id' => $order['payment_intent']['id']];
+        $this->send('POST', $path, $body)->assertOk();
+        $this->send('POST', $path, $body)->assertOk();
+        $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonPath('groups.0.items.0.quantity', 2);
+    }
+
+    public function test_expiry_releases_inventory_and_leaves_the_cart_retryable(): void
+    {
+        $this->enableFakePayment();
+        $payload = $this->quoteForOrder($this->checkout()->assertCreated()->json());
+        $order = $this->send('POST', '/api/v1/orders', $payload)->assertCreated()->json();
+        $this->travel(3)->minutes();
+        Cache::flush();
+        $this->send('POST', '/api/v1/orders/'.$order['id'].'/fake-payment', ['payment_intent_id' => $order['payment_intent']['id']])
+            ->assertConflict()->assertJsonPath('code', 'PAYMENT_INTENT_EXPIRED');
+        $this->artisan('inventory:expire-checkout-reservations')->expectsOutput('expired=1')->assertSuccessful();
+        $this->artisan('inventory:expire-checkout-reservations')->expectsOutput('expired=0')->assertSuccessful();
+        $this->assertDatabaseHas('stock_items', ['variant_id' => $this->variant, 'reserved' => 0, 'available_to_sell' => 5]);
+        $this->assertDatabaseHas('stock_reservations', ['variant_id' => $this->variant, 'status' => 'expired']);
+        $this->assertDatabaseHas('orders', ['code' => $order['id'], 'order_status' => 'expired']);
+        $this->assertDatabaseHas('invoices', ['code' => $order['invoice']['id'], 'status' => 'void']);
+        $this->assertDatabaseHas('payment_intents', ['code' => $order['payment_intent']['id'], 'status' => 'expired']);
+        $this->assertSame(1, DB::table('outbox_events')->where('event_name', 'ReservationExpired')->count());
+        $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonPath('groups.0.items.0.quantity', 1);
+    }
+
+    public function test_insufficient_stock_rolls_back_the_whole_checkout(): void
+    {
+        $this->enableFakePayment();
+        $product = DB::table('product_variants')->where('id', $this->variant)->value('product_id');
+        $other = DB::table('product_variants')->insertGetId(['product_id' => $product, 'sku' => 'cart-other', 'label' => 'Other', 'base_price' => 50000]);
+        $warehouse = DB::table('warehouses')->where('code', 'CART')->value('id');
+        DB::table('stock_items')->insert(['warehouse_id' => $warehouse, 'variant_id' => $other, 'on_hand' => 1]);
+        $this->send('POST', '/api/v1/cart/items', ['variant_id' => PublicId::encode('var', $other), 'quantity' => 1])->assertCreated();
+        $payload = $this->quoteForOrder($this->checkout()->assertCreated()->json());
+        DB::table('stock_items')->where('variant_id', $other)->update(['quarantined' => 1]);
+
+        $key = (string) Str::uuid();
+        $this->send('POST', '/api/v1/orders', $payload, $key)->assertUnprocessable()->assertJsonPath('code', 'INSUFFICIENT_STOCK');
+        $this->send('POST', '/api/v1/orders', $payload, $key)->assertUnprocessable()->assertHeader('Idempotency-Replayed', 'true');
+        $this->assertDatabaseHas('checkout_sessions', ['code' => $payload['checkout_session_id'], 'status' => 'open']);
+        $this->assertDatabaseHas('stock_items', ['variant_id' => $this->variant, 'reserved' => 0]);
+        foreach (['orders', 'order_items', 'stock_reservations', 'stock_movements', 'invoices', 'payment_intents'] as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
+        $this->assertSame(0, DB::table('outbox_events')->where('event_name', 'StockReserved')->count());
+    }
+
+    public function test_fake_payment_cannot_be_enabled_in_production(): void
+    {
+        $this->enableFakePayment();
+        $this->app->detectEnvironment(fn () => 'production');
+        $checkout = $this->checkout()->assertCreated()->assertJsonPath('fake_payment_available', false)->json();
+        $payload = $this->quoteForOrder($checkout);
+        $this->send('POST', '/api/v1/orders', $payload)->assertConflict()->assertJsonPath('code', 'FAKE_PAYMENT_DISABLED');
+        $this->send('POST', '/api/v1/orders/ord_'.Str::ulid().'/fake-payment', ['payment_intent_id' => 'pi_'.Str::ulid()])
+            ->assertConflict()->assertJsonPath('code', 'FAKE_PAYMENT_DISABLED');
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    private function enableFakePayment(): void
+    {
+        config(['checkout.fake_payment_enabled' => true, 'checkout.warehouse_code' => 'CART', 'checkout.reservation_ttl_minutes' => 2]);
+        FeatureFlag::create(['code' => 'checkout.enabled', 'description' => 'Checkout', 'default_enabled' => true]);
+    }
+
+    private function quoteForOrder(array $checkout): array
+    {
+        DB::table('courier_services')->insert(['courier_code' => 'jne', 'service_code' => 'REG', 'name' => 'Regular']);
+        DB::table('shipping_tariff_rules')->insert(['courier_code' => 'jne', 'service_code' => 'REG', 'package_tier' => 'paket_besar', 'weight_from_g' => 0, 'base_amount' => 10000, 'effective_from' => now()->toDateString(), 'created_by' => $this->user]);
+        $this->send('POST', '/api/v1/checkout/sessions/'.$checkout['id'].'/shipping-options')->assertOk();
+
+        return ['checkout_session_id' => $checkout['id'], 'shipping_address_id' => $checkout['snapshot']['address']['id']];
     }
 
     public function test_add_merge_update_remove_stock_and_repricing(): void
