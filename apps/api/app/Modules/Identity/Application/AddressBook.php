@@ -102,7 +102,7 @@ final class AddressBook implements CustomerAddresses
         return DB::transaction(function () use ($userId, $id): AddressData {
             DB::table('users')->where('id', $userId)->lockForUpdate()->first();
             $address = $this->model($userId, $id);
-            Address::query()->where('user_id', $userId)->update(['is_default' => false]);
+            Address::query()->where('user_id', $userId)->whereKeyNot($address->id)->update(['is_default' => false]);
             $address->is_default = true;
             $address->save();
 

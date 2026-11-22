@@ -164,6 +164,10 @@ final class CartCheckoutTest extends TestCase
         $b = $this->address(['phone' => '6281234567890'])->assertCreated()->assertJsonPath('is_default', false)->json('id');
         $this->send('PATCH', '/api/v1/me/addresses/'.$b, ['recipient' => 'Ayu'])->assertOk()->assertJsonPath('recipient', 'Ayu');
         $this->send('POST', '/api/v1/me/addresses/'.$b.'/set-default')->assertOk()->assertJsonPath('is_default', true);
+        $this->send('POST', '/api/v1/me/addresses/'.$b.'/set-default')->assertOk()->assertJsonPath('is_default', true);
+        $this->send('GET', '/api/v1/me/addresses/'.$b)->assertOk()->assertJsonPath('is_default', true);
+        $this->assertDatabaseCount('addresses', 2);
+        $this->assertSame(1, DB::table('addresses')->where('user_id', $this->user)->where('is_default', true)->count());
         $this->send('DELETE', '/api/v1/me/addresses/'.$b)->assertNoContent();
         $this->send('GET', '/api/v1/me/addresses/'.$b)->assertNotFound();
         $this->send('GET', '/api/v1/me/addresses')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $a)->assertJsonPath('data.0.is_default', true);
