@@ -34,6 +34,7 @@ export function SiteNavigation({ mobile = false }: { mobile?: boolean }) {
         <Link
           key={item.href}
           href={item.href}
+          aria-label={item.label}
           aria-current={
             item.href === "/"
               ? pathname === "/"
