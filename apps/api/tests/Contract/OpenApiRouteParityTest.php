@@ -7,6 +7,7 @@ namespace Tests\Contract;
 use App\Modules\Identity\Infrastructure\Http\RequireAdminPermission;
 use App\Modules\Identity\Infrastructure\Http\RequireCustomerSession;
 use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
+use App\Modules\Orders\Infrastructure\Http\Controllers\PlaceOrderController;
 use App\Modules\Settings\Infrastructure\Http\Middleware\EnsureCheckoutEnabled;
 use App\Modules\Settings\Infrastructure\Http\RequireUuidIdempotencyKey;
 use Illuminate\Http\Request;
@@ -50,6 +51,21 @@ final class OpenApiRouteParityTest extends TestCase
             }
         }
         $this->assertSame('#/components/responses/Problem', $spec['paths']['/products/{slug}']['get']['responses'][404]['$ref']);
+    }
+
+    public function test_create_order_operation_requires_a_key_and_documents_replay_and_conflict(): void
+    {
+        $spec = Yaml::parseFile(base_path('../../packages/api-contracts/openapi.yaml'));
+        $operation = $spec['paths']['/orders']['post'];
+        $route = Route::getRoutes()->match(Request::create('/api/v1/orders', 'POST'));
+
+        $this->assertSame('createOrder', $operation['operationId']);
+        $this->assertSame(PlaceOrderController::class.'@store', $route->getActionName());
+        $this->assertTrue($spec['components']['parameters']['IdempotencyKey']['required']);
+        $this->assertSame('#/components/headers/IdempotencyReplayed', $operation['responses'][201]['headers']['Idempotency-Replayed']['$ref']);
+        foreach ([400, 409] as $status) {
+            $this->assertSame('#/components/responses/Problem', $operation['responses'][$status]['$ref']);
+        }
     }
 
     public function test_social_callback_declares_conflicts_as_problem_details(): void

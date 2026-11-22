@@ -7,6 +7,7 @@ namespace App\Platform\Outbox;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 final class OutboxWriter
 {
@@ -16,8 +17,12 @@ final class OutboxWriter
     public function record(DomainEvent $event): int
     {
         QueueRouting::for($event->eventName);
+        $database = $this->db();
+        if ($database->transactionLevel() === 0) {
+            throw new LogicException('Event outbox harus ditulis dalam transaksi yang menyebabkan event.');
+        }
 
-        return (int) $this->db()->table('outbox_events')->insertGetId([
+        return (int) $database->table('outbox_events')->insertGetId([
             'event_name' => $event->eventName,
             'aggregate_type' => $event->aggregateType,
             'aggregate_id' => $event->aggregateId,

@@ -51,12 +51,15 @@ final class CartCheckoutTest extends TestCase
         DB::table('stock_items')->insert(['warehouse_id' => $w, 'variant_id' => $this->variant, 'on_hand' => 5]);
     }
 
-    private function send(string $method, string $path, array $payload = [], ?string $key = null, bool $csrf = true): TestResponse
+    private function send(string $method, string $path, array $payload = [], ?string $key = null, bool $csrf = true, bool $idempotency = true): TestResponse
     {
         foreach (Route::getRoutes() as $route) {
             $route->flushController();
         }
-        $headers = ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json', 'HTTP_HOST' => 'localhost', 'HTTP_ORIGIN' => 'https://localhost', 'HTTPS' => 'on', 'HTTP_IDEMPOTENCY_KEY' => $key ?? (string) Str::uuid()];
+        $headers = ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json', 'HTTP_HOST' => 'localhost', 'HTTP_ORIGIN' => 'https://localhost', 'HTTPS' => 'on'];
+        if ($idempotency) {
+            $headers['HTTP_IDEMPOTENCY_KEY'] = $key ?? (string) Str::uuid();
+        }
         if ($csrf && isset($this->jar['XSRF-TOKEN'])) {
             $headers['HTTP_X_XSRF_TOKEN'] = $this->jar['XSRF-TOKEN'];
         }
@@ -101,6 +104,9 @@ final class CartCheckoutTest extends TestCase
         DB::table('shipping_tariff_rules')->update(['base_amount' => 13000]);
 
         $key = (string) Str::uuid();
+        $this->send('POST', '/api/v1/orders', $payload, idempotency: false)->assertBadRequest()
+            ->assertJsonPath('type', 'urn:elzara:problem:idempotency:key-required');
+        $this->send('POST', '/api/v1/orders', $payload + ['total' => 1])->assertUnprocessable();
         $response = $this->send('POST', '/api/v1/orders', $payload, $key)->assertCreated()
             ->assertJsonPath('total.amount_minor', 133000)->assertJsonPath('repriced', true)
             ->assertJsonPath('changes_from_snapshot.0.from', 100000)->assertJsonPath('changes_from_snapshot.1.to', 13000)
@@ -109,14 +115,28 @@ final class CartCheckoutTest extends TestCase
         $expires = $order['reservation_expires_at'];
         $this->assertSame($expires, $order['invoice']['due_at']);
         $this->assertSame($expires, $order['payment_intent']['expires_at']);
-        $this->assertSame($response->getContent(), $this->send('POST', '/api/v1/orders', $payload, $key)
-            ->assertCreated()->assertHeader('Idempotency-Replayed', 'true')->assertHeader('Cache-Control', 'no-store, private')->getContent());
+        $replay = $this->send('POST', '/api/v1/orders', $payload, $key)
+            ->assertCreated()->assertHeader('Idempotency-Replayed', 'true')->assertHeader('Cache-Control', 'no-store, private');
+        $this->assertSame($response->getContent(), $replay->getContent());
+        $this->assertSame($response->headers->get('X-Request-Id'), $replay->headers->get('X-Request-Id'));
         $this->send('POST', '/api/v1/orders', $payload + ['note' => 'different'], $key)->assertConflict()
             ->assertJsonPath('type', 'urn:elzara:problem:idempotency:key-payload-mismatch');
         $this->send('POST', '/api/v1/orders', $payload)->assertConflict()->assertJsonPath('code', 'CHECKOUT_SESSION_CONVERTED');
         $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('invoices', 1);
         $this->assertDatabaseCount('payment_intents', 1);
+        $this->assertDatabaseCount('stock_reservations', 1);
         $this->assertDatabaseHas('stock_items', ['variant_id' => $this->variant, 'reserved' => 1, 'available_to_sell' => 4]);
+        $placed = DB::table('outbox_events')->where('event_name', 'OrderPlaced')->get()->sole();
+        $orderId = DB::table('orders')->where('code', $order['id'])->value('id');
+        $this->assertSame($orderId, $placed->aggregate_id);
+        $this->assertSame($response->headers->get('X-Request-Id'), $placed->request_id);
+        $this->assertNull($placed->dispatched_at);
+        $eventPayload = json_decode($placed->payload, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertEquals([
+            'order_id' => $orderId, 'order_type' => 'ready_stock', 'customer_id' => $this->user,
+            'grand_total' => 133000, 'currency' => 'IDR', 'item_count' => 1, 'expires_at' => $expires,
+        ], $eventPayload);
 
         $path = '/api/v1/orders/'.$order['id'].'/fake-payment';
         $body = ['payment_intent_id' => $order['payment_intent']['id']];
@@ -205,6 +225,7 @@ final class CartCheckoutTest extends TestCase
             $this->assertDatabaseCount($table, 0);
         }
         $this->assertSame(0, DB::table('outbox_events')->where('event_name', 'StockReserved')->count());
+        $this->assertSame(0, DB::table('outbox_events')->where('event_name', 'OrderPlaced')->count());
     }
 
     public function test_failure_after_reserving_rolls_back_order_and_transition_audit(): void
