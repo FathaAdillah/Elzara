@@ -33,12 +33,14 @@ def main():
     with tempfile.TemporaryDirectory(prefix='elzara-edge-') as directory:
         root = Path(directory)
         shutil.copytree(args.config_dir, root / 'nginx')
-        (root / 'stub.conf').write_text('''server {
+        for app in ('web', 'admin'):
+            (root / f'stub-{app}.conf').write_text(f'''server {{
     listen 3000;
-    location = /_nuxt/missing.js { return 404; }
-    location = /real-ip { return 200 "$http_x_real_ip"; }
-    location / { return 200 "stub\\n"; }
-}
+    location = /_nuxt/missing.js {{ return 404; }}
+    location = /real-ip {{ return 200 "$http_x_real_ip"; }}
+    location = /whoami {{ return 200 "{app}"; }}
+    location / {{ return 200 "stub\\n"; }}
+}}
 ''')
         (root / 'index.php').write_text('<?php http_response_code(200); echo "api stub";')
         (root / 'certs').mkdir()
@@ -53,9 +55,13 @@ def main():
                 run('docker', 'run', '-d', '--name', container, '--network', name, *options)
                 return container
 
-            start('stub', '--network-alias', 'web', '--network-alias', 'admin',
-                  '--network-alias', 'minio', '-v', f'{root}/stub.conf:/etc/nginx/conf.d/default.conf:ro',
-                  'nginx:1.27-alpine')
+            def start_stub(app):
+                aliases = ['--network-alias', app] + (['--network-alias', 'minio'] if app == 'web' else [])
+                return start('stub-' + app, *aliases,
+                             '-v', f'{root}/stub-{app}.conf:/etc/nginx/conf.d/default.conf:ro', 'nginx:1.27-alpine')
+
+            start_stub('web')
+            start_stub('admin')
             start('api', '--network-alias', 'api', '-v', f'{root}/index.php:/app/public/index.php:ro',
                   'php:8.4-fpm-alpine')
             edge = start('edge', '-p', '127.0.0.1::8080',
@@ -121,6 +127,38 @@ def main():
                 print(f'{"PASS" if ok else "FAIL"} {label}: {body!r}', flush=True)
                 if not ok:
                     failures.append(label)
+
+            def routed():
+                return fetch('/whoami', 'web.localhost')[2], fetch('/whoami', 'admin.localhost')[2]
+
+            def address(app):
+                return run('docker', 'inspect', '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
+                           name + '-stub-' + app)
+
+            ok = routed() == ('web', 'admin')
+            print(f'{"PASS" if ok else "FAIL"} host routing: {routed()}', flush=True)
+            if not ok:
+                failures.append('host routing')
+
+            # Recreating the apps in reverse order hands each one the other's old IP; the edge must
+            # re-resolve the service names instead of routing each host to the other app.
+            before = address('web'), address('admin')
+            for app in ('web', 'admin'):
+                container = name + '-stub-' + app
+                run('docker', 'rm', '-f', container)
+                containers.remove(container)
+            start_stub('admin')
+            start_stub('web')
+            swapped = (address('admin'), address('web')) == before
+            for attempt in range(60):
+                if routed() == ('web', 'admin'):
+                    break
+                time.sleep(0.5)
+            ok = routed() == ('web', 'admin')
+            print(f'{"PASS" if ok else "FAIL"} host routing after app recreation '
+                  f'({"swapped IPs" if swapped else "new IPs"}): {routed()}', flush=True)
+            if not ok:
+                failures.append('host routing after app recreation')
 
             # Validate all entrypoints against the rendered production template.
             for variant in ('dev', 'tls', 'dokploy'):
