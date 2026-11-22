@@ -72,17 +72,28 @@ describe("checkout recovery", () => {
     expect(after).toContain(error.message);
   });
   it("reuses the reservation key after an ambiguous network failure and then simulates payment", async () => {
-    Object.assign(mocks.state[3] as object, { status: "open", fake_payment_available: true });
+    Object.assign(mocks.state[3] as object, {
+      status: "open", fake_payment_available: true,
+      snapshot: { cart: { groups: [{ mode: "rts", items: [{ id: "item_test", name: "Produk uji", quantity: 1, line_total: { amount_minor: 400000 } }] }] } },
+    });
+    mocks.state[4] = { groups: [{ group_index: 0, mode: "rts", options: [{ courierCode: "jne", serviceCode: "REG", serviceName: "Reguler", amountMinor: 52000, etaMinDays: null }] }] };
     mocks.placeCheckoutOrder.mockRejectedValueOnce(new Error("Koneksi terputus.")).mockResolvedValueOnce({
       id: "ord_test", total: { amount_minor: 500000 }, reservation_expires_at: "2026-11-22T10:00:00Z",
       repriced: true, payment_intent: { id: "pi_test" },
     });
     mocks.simulatePayment.mockResolvedValueOnce({ order_id: "ord_test", status: "paid" });
     const press = (label: string) => elements(render()).find((node) => text(node) === label && node.props.onClick)?.props.onClick?.();
+    expect(text(render())).toContain("452.000");
+    expect(text(render())).toContain("JNE · Reguler");
     press("Reservasi stok untuk simulasi");
     await vi.waitFor(() => expect(text(render())).toContain("Koneksi terputus."));
     press("Reservasi stok untuk simulasi");
     await vi.waitFor(() => expect(text(render())).toContain("Harga atau ongkir berubah"));
+    const reserved = text(render());
+    expect(reserved).toContain("Produk uji × 1");
+    expect(reserved).toMatch(/Total pesanan: .*500\.000/);
+    for (const quote of ["400.000", "52.000", "452.000"]) expect(reserved).not.toContain(quote);
+    expect(reserved).not.toContain("JNE · Reguler");
     expect(mocks.placeCheckoutOrder.mock.calls).toHaveLength(2);
     expect(mocks.placeCheckoutOrder.mock.calls[0]).toEqual(mocks.placeCheckoutOrder.mock.calls[1]);
     press("Simulasikan pembayaran");

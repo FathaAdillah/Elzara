@@ -108,27 +108,31 @@ export function CheckoutPanel() {
       <h2 className="text-lg font-semibold">Ringkasan server</h2>
       {(session?.snapshot.cart.groups ?? cart?.groups ?? []).map((g, i) => <div key={i} className="rounded-card border border-divider p-4">
         <h3 className="font-medium">{modeLabel[g.mode]} · ETA {g.eta ?? "belum tersedia"}</h3>
-        {g.items.map((line) => <p key={line.id} className="mt-2 flex justify-between gap-4 text-sm"><span>{line.name} × {line.quantity}</span><span>{rupiah(line.line_total.amount_minor)}</span></p>)}
+        {g.items.map((line) => <p key={line.id} className="mt-2 flex justify-between gap-4 text-sm"><span>{line.name} × {line.quantity}</span>{!order && <span>{rupiah(line.line_total.amount_minor)}</span>}</p>)}
       </div>)}
-      {shipping?.groups.map((g) => <fieldset key={g.group_index} className="space-y-3 rounded-card border border-divider p-4">
+      {!order && shipping?.groups.map((g) => <fieldset key={g.group_index} className="space-y-3 rounded-card border border-divider p-4">
         <legend className="px-1 font-medium">Kurir · {modeLabel[g.mode]}</legend>
         {g.options.length === 0 && <p>Tidak ada layanan untuk grup ini. Coba alamat lain.</p>}
         {g.options.map((r) => { const key = r.courierCode + ":" + r.serviceCode; return <label key={key} className="flex min-h-touch items-center gap-3">
-          <input type="radio" name={"shipping-" + g.group_index} value={key} checked={choices[g.group_index] === key} disabled={busy || !!order || shipping.groups.some((group) => group.options.length === 0)} onChange={() => void choose(g.group_index, r.courierCode, r.serviceCode)} className="accent-brand-text" />
+          <input type="radio" name={"shipping-" + g.group_index} value={key} checked={choices[g.group_index] === key} disabled={busy || shipping.groups.some((group) => group.options.length === 0)} onChange={() => void choose(g.group_index, r.courierCode, r.serviceCode)} className="accent-brand-text" />
           <span>{r.courierCode.toUpperCase()} · {r.serviceName} · {rupiah(r.amountMinor)}<br /><small>ETA: {r.etaMinDays === null ? "belum tersedia" : r.etaMinDays + "–" + r.etaMaxDays + " hari"}</small></span>
         </label>; })}
       </fieldset>)}
       <div className="space-y-2 rounded-card bg-brand-ink p-5">
-        <p>Subtotal: {rupiah(session?.subtotal.amount_minor ?? cart?.subtotal.amount_minor ?? 0)}</p>
-        {session && <>{session.shipping_estimate && session.total ? <><p>Ongkir terpilih: {rupiah(session.shipping_estimate.amount_minor)}</p><p className="font-semibold">Total: {rupiah(session.total.amount_minor)}</p></> : <p role="status">Ongkir dan total belum tersedia sampai semua grup memiliki layanan pengiriman.</p>}<p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
-        {!session?.fake_payment_available && <p className="text-sm">Pembayaran belum tersedia.</p>}
+        {order ? <>
+          <p className="font-semibold">Total pesanan: {rupiah(order.total.amount_minor)}</p>
+          {order.repriced && <p className="text-sm">Harga atau ongkir berubah. Periksa total terbaru sebelum melanjutkan.</p>}
+        </> : <>
+          <p>Subtotal: {rupiah(session?.subtotal.amount_minor ?? cart?.subtotal.amount_minor ?? 0)}</p>
+          {session && <>{session.shipping_estimate && session.total ? <><p>Ongkir terpilih: {rupiah(session.shipping_estimate.amount_minor)}</p><p className="font-semibold">Total: {rupiah(session.total.amount_minor)}</p></> : <p role="status">Ongkir dan total belum tersedia sampai semua grup memiliki layanan pengiriman.</p>}<p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
+          {!session?.fake_payment_available && <p className="text-sm">Pembayaran belum tersedia.</p>}
+        </>}
       </div>
       {order ? <>
         <div role="status" className="rounded-card border border-divider p-5">
           <p className="font-semibold">{paid ? "Pembayaran simulasi berhasil" : expired ? "Pembayaran simulasi kedaluwarsa" : "Stok dipesan untuk simulasi"}</p>
-          <p>Pesanan {order.id} · {rupiah(order.total.amount_minor)}</p>
+          <p>Pesanan {order.id}</p>
           {!paid && !expired && <p className="text-sm">Reservasi hingga {new Date(order.reservation_expires_at).toLocaleString("id-ID")}. Tidak ada uang yang ditagih.</p>}
-          {order.repriced && <p className="text-sm">Harga atau ongkir berubah. Periksa total terbaru sebelum melanjutkan.</p>}
         </div>
         {!paid && !expired && <Button block disabled={busy} onClick={() => void pay()}>Simulasikan pembayaran</Button>}
       </> : <Button block disabled={busy || !session?.fake_payment_available || !session.total || session.status !== "open" || session.snapshot.cart.groups.some((g) => g.mode !== "rts")} onClick={() => void reserve()}>Reservasi stok untuk simulasi</Button>}
