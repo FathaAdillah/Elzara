@@ -2,20 +2,33 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Identity\Infrastructure\Http;
+namespace App\Modules\Identity\Application;
 
 use App\Modules\Identity\Infrastructure\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class AdminSession
 {
+    public const AUTH_COOKIE = 'elzara_admin_session';
+
+    public const CHALLENGE_COOKIE = 'elzara_admin_challenge';
+
     private const LOCAL_PASSWORD_ONLY = 'admin.local_password_only';
 
     public function allowsLocalPasswordOnly(User $user): bool
     {
+        if (app()->environment('production')) {
+            return false;
+        }
+
+        if (config('auth.admin_2fa_enabled', true) === false) {
+            return true;
+        }
+
         $email = config('auth.local_admin_password_only_email');
 
         return app()->environment('local') && is_string($email) && $email !== ''
@@ -49,8 +62,11 @@ final class AdminSession
             throw $exception;
         }
 
-        $session->setName(SelectAdminSession::AUTH_COOKIE);
-        $request->attributes->set('expire_admin_cookie', SelectAdminSession::CHALLENGE_COOKIE);
+        $session->setName(self::AUTH_COOKIE);
+        $request->attributes->set('expire_admin_cookie', self::CHALLENGE_COOKIE);
+        if ($localPasswordOnly) {
+            Log::warning('Admin two-factor authentication bypass is active.', ['user_id' => $user->getKey()]);
+        }
     }
 
     public function activeUser(Request $request): User
@@ -59,7 +75,7 @@ final class AdminSession
 
         $user = Auth::guard('admin')->user();
         if (! $user instanceof User) {
-            $request->attributes->set('expire_admin_cookie', SelectAdminSession::AUTH_COOKIE);
+            $request->attributes->set('expire_admin_cookie', self::AUTH_COOKIE);
             abort(401);
         }
 
@@ -99,7 +115,18 @@ final class AdminSession
         Auth::guard('admin')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        $request->attributes->set('expire_admin_cookie', SelectAdminSession::AUTH_COOKIE);
+        $request->attributes->set('expire_admin_cookie', self::AUTH_COOKIE);
+    }
+
+    /** @return array{authenticated: true, permissions: array<int, mixed>, is_admin: bool, user: array{user_id: string, name: string, email: string, email_verified_at: ?string, timezone: string}} */
+    public function userRead(User $user): array
+    {
+        return [
+            'authenticated' => true,
+            'permissions' => $user->getAllPermissions()->where('guard_name', 'admin')->pluck('name')->unique()->sort()->values()->all(),
+            'is_admin' => $user->is_admin,
+            'user' => StorefrontAccounts::userRead($user),
+        ];
     }
 
     private function hash(Request $request): string

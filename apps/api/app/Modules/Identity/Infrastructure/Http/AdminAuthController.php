@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Identity\Infrastructure\Http;
 
-use App\Modules\Identity\Infrastructure\Models\User;
-use App\Modules\Identity\Infrastructure\Security\StaffTwoFactor;
+use App\Modules\Identity\Application\AdminAuthentication;
+use App\Modules\Identity\Application\AdminSession;
 use App\Platform\Http\StrictValidation;
 use App\Platform\Http\WireTime;
 use Illuminate\Http\JsonResponse;
@@ -22,9 +22,7 @@ final class AdminAuthController
 
     private const MAX_FACTOR_ATTEMPTS = 5;
 
-    private const DUMMY_PASSWORD = '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
-
-    public function __construct(private readonly StaffTwoFactor $factors, private readonly AdminSession $sessions) {}
+    public function __construct(private readonly AdminAuthentication $authentication, private readonly AdminSession $sessions) {}
 
     public function login(Request $request): JsonResponse
     {
@@ -43,20 +41,16 @@ final class AdminAuthController
         }
         RateLimiter::hit($rateKey, 60);
 
-        $user = User::query()->where('email', $email)->first();
-        $passwordHash = $user?->getAuthPassword();
-        $matches = password_verify($data['password'], $passwordHash ?? self::DUMMY_PASSWORD);
-        abort_unless($user !== null && $passwordHash !== null && $matches, 401);
-        abort_unless($user->canAccessAdmin(), 403);
+        $user = $this->authentication->authenticate($email, $data['password']);
 
         if ($this->sessions->allowsLocalPasswordOnly($user)) {
             RateLimiter::clear($rateKey);
             $this->sessions->open($request, $user, localPasswordOnly: true);
 
-            return $this->userResponse($user, ['two_factor_required' => false]);
+            return response()->json($this->sessions->userRead($user) + ['two_factor_required' => false])->header('Cache-Control', 'no-store');
         }
 
-        abort_unless($this->factors->isConfirmed($user), 403);
+        $this->authentication->requireConfirmedFactor($user);
         RateLimiter::clear($rateKey);
         $session->regenerate(true);
         $nonce = bin2hex(random_bytes(24));
@@ -98,18 +92,17 @@ final class AdminAuthController
         $session->put(self::PENDING, $pending);
         abort_unless(hash_equals($pending['digest'], hash('sha256', $data['challenge_id'])), 401);
 
-        $user = User::query()->find($pending['user_id']);
-        abort_unless($user !== null && $user->canAccessAdmin() && $this->factors->consume($user, $data['code']), 401);
+        $user = $this->authentication->verifyFactor($pending['user_id'], $data['code']);
 
         $session->forget(self::PENDING);
         $this->sessions->open($request, $user);
 
-        return $this->userResponse($user);
+        return response()->json($this->sessions->userRead($user))->header('Cache-Control', 'no-store');
     }
 
     public function session(Request $request): JsonResponse
     {
-        return $this->userResponse($this->sessions->activeUser($request));
+        return response()->json($this->sessions->userRead($this->sessions->activeUser($request)))->header('Cache-Control', 'no-store');
     }
 
     public function logout(Request $request): Response
@@ -117,22 +110,5 @@ final class AdminAuthController
         $this->sessions->close($request, $this->sessions->activeUser($request));
 
         return response()->noContent()->header('Cache-Control', 'no-store');
-    }
-
-    /** @param array{two_factor_required?: false} $loginState */
-    private function userResponse(User $user, array $loginState = []): JsonResponse
-    {
-        return response()->json([
-            'authenticated' => true,
-            'permissions' => $user->getAllPermissions()->where('guard_name', 'admin')->pluck('name')->unique()->sort()->values()->all(),
-            'is_admin' => $user->is_admin,
-            'user' => [
-                'user_id' => $user->public_id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'email_verified_at' => $user->email_verified_at === null ? null : WireTime::format($user->email_verified_at),
-                'timezone' => $user->timezone,
-            ],
-        ] + $loginState)->header('Cache-Control', 'no-store');
     }
 }

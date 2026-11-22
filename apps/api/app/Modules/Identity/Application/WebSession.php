@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Identity\Infrastructure\Http;
+namespace App\Modules\Identity\Application;
 
 use App\Modules\Identity\Infrastructure\Models\User;
 use App\Platform\Http\CursorPagination;

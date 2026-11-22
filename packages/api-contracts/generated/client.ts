@@ -805,7 +805,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Callback OAuth. Identitas sosial disimpan di user_identities (provider, provider_user_id) unik per provider. Penggabungan akun HANYA lewat email terverifikasi, bukan email mentah dari provider (Doc 11 §4.4 C). Sukses: sesi web dibuka + redirect ke app; state/code tidak valid -> 401 problem, bukan redirect diam-diam. */
+        /** @description Callback OAuth. Identitas sosial disimpan di user_identities (provider, provider_user_id) unik per provider. Penggabungan akun HANYA lewat email terverifikasi, bukan email mentah dari provider (Doc 11 §4.4 C). Penautan tidak aman atau identitas yang sudah tertaut ke akun lain -> 409 Problem Details. Sukses: sesi web dibuka + redirect ke app; state/code tidak valid -> 401 problem, bukan redirect diam-diam. */
         get: operations["handleSocialCallback"];
         put?: never;
         post?: never;
@@ -4314,6 +4314,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
             429: components["responses"]["RateLimited"];
         };

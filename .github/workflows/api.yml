@@ -62,6 +62,9 @@ jobs:
       - name: Architecture test B1-B6
         run: composer deptrac
         working-directory: apps/api
+      - name: Architecture test B2 layer directions
+        run: composer deptrac:b2
+        working-directory: apps/api
 
   unit:
     name: 2. unit
@@ -178,7 +181,7 @@ jobs:
             -v "$PWD/docker/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro" \
             -v "$PWD/docker/nginx/security.inc:/etc/nginx/elzara/security.inc:ro" nginx:1.27-alpine
           docker exec storage-edge nginx -t
-      - run: php artisan test --testsuite=Feature,Contract
+      - run: php artisan test --testsuite=Feature,Contract,Schema
         working-directory: apps/api
       - name: Suite konkurensi ikut integration, bukan pekerjaan manual (K-4)
         run: php artisan test --testsuite=Concurrency

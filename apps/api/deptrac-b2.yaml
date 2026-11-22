@@ -1,0 +1,20 @@
+deptrac:
+    paths: [./app/Modules]
+    layers:
+        - name: Http
+          collectors:
+              - { type: directory, value: 'app/Modules/[^/]+/Infrastructure/Http/.*' }
+        - name: Application
+          collectors:
+              - { type: directory, value: 'app/Modules/[^/]+/Application/.*' }
+        - name: Domain
+          collectors:
+              - { type: directory, value: 'app/Modules/[^/]+/Domain/.*' }
+        - name: Infrastructure
+          collectors:
+              - { type: directory, value: 'app/Modules/[^/]+/Infrastructure/(?!Http/).*' }
+    ruleset:
+        Http: [Application]
+        Application: [Domain, Infrastructure]
+        Infrastructure: [Application, Domain]
+        Domain: []

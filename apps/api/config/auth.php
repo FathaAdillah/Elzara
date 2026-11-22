@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Identity\Infrastructure\Models\User;
 
 return [
+    'admin_2fa_enabled' => filter_var(env('ADMIN_2FA_ENABLED', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true,
     'local_admin_password_only_email' => env('ELZARA_LOCAL_ADMIN_PASSWORD_ONLY_EMAIL'),
     'defaults' => ['guard' => 'web', 'passwords' => 'users'],
     'guards' => [
