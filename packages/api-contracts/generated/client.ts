@@ -1751,8 +1751,8 @@ export interface components {
         };
         CheckoutSnapshot: {
             shipping_selection?: components["schemas"]["ShippingSelection"][];
-            shipping_estimate?: number;
-            total?: number;
+            shipping_estimate?: number | null;
+            total?: number | null;
             cart: components["schemas"]["CartRead"];
             address: components["schemas"]["AddressRead"];
             shipping_options?: components["schemas"]["ShippingGroup"][];
@@ -1764,8 +1764,8 @@ export interface components {
             /** Format: date-time */
             expires_at: string;
             subtotal: components["schemas"]["Money"];
-            shipping_estimate: components["schemas"]["Money"];
-            total: components["schemas"]["Money"];
+            shipping_estimate: components["schemas"]["Money"] | null;
+            total: components["schemas"]["Money"] | null;
             snapshot: components["schemas"]["CheckoutSnapshot"];
         };
         ShippingOptionsRead: {

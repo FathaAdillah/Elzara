@@ -4110,8 +4110,8 @@ components:
       ],
       "properties": {
         "shipping_selection": {"type": "array", "items": {"$ref": "#/components/schemas/ShippingSelection"}},
-        "shipping_estimate": {"type": "integer", "minimum": 0},
-        "total": {"type": "integer", "minimum": 0},
+        "shipping_estimate": {"type": ["integer", "null"], "minimum": 0},
+        "total": {"type": ["integer", "null"], "minimum": 0},
         "cart": {
           "$ref": "#/components/schemas/CartRead"
         },
@@ -4159,10 +4159,10 @@ components:
           "$ref": "#/components/schemas/Money"
         },
         "shipping_estimate": {
-          "$ref": "#/components/schemas/Money"
+          "anyOf": [{"$ref": "#/components/schemas/Money"}, {"type": "null"}]
         },
         "total": {
-          "$ref": "#/components/schemas/Money"
+          "anyOf": [{"$ref": "#/components/schemas/Money"}, {"type": "null"}]
         },
         "snapshot": {
           "$ref": "#/components/schemas/CheckoutSnapshot"

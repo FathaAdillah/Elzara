@@ -312,9 +312,29 @@ final class CartCheckoutTest extends TestCase
     public function test_empty_rates_and_missing_weight(): void
     {
         $id = $this->checkout()->assertCreated()->json('id');
-        $this->send('POST', '/api/v1/checkout/sessions/'.$id.'/shipping-options')->assertOk()->assertJsonPath('groups.0.options', [])->assertJsonPath('checkout.shipping_estimate.amount_minor', 0);
+        $this->send('GET', '/api/v1/checkout/sessions/'.$id)->assertOk()->assertJsonPath('shipping_estimate', null)->assertJsonPath('total', null);
+        $this->send('POST', '/api/v1/checkout/sessions/'.$id.'/shipping-options')->assertOk()->assertJsonPath('groups.0.options', [])->assertJsonPath('checkout.shipping_estimate', null)->assertJsonPath('checkout.total', null)->assertJsonPath('checkout.snapshot.total', null);
         DB::table('products')->where('slug', 'cart-test')->update(['unit_weight_g' => null]);
         $id = $this->checkout()->assertCreated()->json('id');
         $this->send('POST', '/api/v1/checkout/sessions/'.$id.'/shipping-options')->assertStatus(422)->assertJsonPath('code', 'SHIPPING_WEIGHT_MISSING');
+    }
+
+    public function test_a_group_without_rates_makes_the_entire_estimate_incomplete(): void
+    {
+        $product = DB::table('products')->insertGetId(['slug' => 'unshippable-po', 'name' => 'PO', 'category_id' => DB::table('categories')->where('slug', 'cart-test')->value('id'), 'status' => 'active', 'origin_country' => 'ID', 'fulfillment_modes' => '{po}', 'unit_weight_g' => 100]);
+        $variant = DB::table('product_variants')->insertGetId(['product_id' => $product, 'sku' => 'unshippable-po', 'label' => 'PO', 'base_price' => 10]);
+        $this->send('POST', '/api/v1/cart/items', ['variant_id' => PublicId::encode('var', $variant), 'quantity' => 1])->assertCreated();
+        $id = $this->checkout()->assertCreated()->json('id');
+        $this->app->bind(ShippingRateProvider::class, fn () => new class implements ShippingRateProvider
+        {
+            public function rates(ShippingRateRequest $request): array
+            {
+                return $request->weightGrams === 100 ? [] : [new ShippingRate('jne', 'REG', 'Regular', 9000, 'IDR', null, null, 'fake')];
+            }
+        });
+        $url = '/api/v1/checkout/sessions/'.$id;
+        $this->send('POST', $url.'/shipping-options')->assertOk()->assertJsonCount(2, 'groups')->assertJsonCount(1, 'checkout.snapshot.shipping_selection')
+            ->assertJsonPath('checkout.shipping_estimate', null)->assertJsonPath('checkout.total', null)->assertJsonPath('checkout.snapshot.shipping_estimate', null)->assertJsonPath('checkout.snapshot.total', null);
+        $this->send('GET', $url)->assertOk()->assertJsonPath('shipping_estimate', null)->assertJsonPath('total', null);
     }
 }

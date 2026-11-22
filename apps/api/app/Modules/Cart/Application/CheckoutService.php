@@ -39,7 +39,7 @@ final class CheckoutService
                     }
                 }
             }
-            $snapshot = json_decode(json_encode(['cart' => $view, 'address' => $address], JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+            $snapshot = json_decode(json_encode(['cart' => $view, 'address' => $address, 'shipping_selection' => [], 'shipping_estimate' => null, 'total' => null], JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
             $session = CheckoutSession::query()->create(['code' => 'cs_'.Str::ulid(), 'user_id' => $user, 'cart_id' => $this->cart->active($user)?->id, 'subtotal' => $view->subtotal->amount_minor, 'snapshot' => $snapshot, 'expires_at' => now()->addMinutes(max(1, Config::integer('checkout.session_ttl_minutes')))]);
 
             return $session->refresh();
@@ -60,7 +60,9 @@ final class CheckoutService
     /** @return array<string,mixed> */
     public function read(CheckoutSession $s): array
     {
-        return ['id' => $s->code, 'status' => $s->status, 'expires_at' => $s->expires_at->toIso8601String(), 'subtotal' => new Money($s->subtotal), 'shipping_estimate' => new Money($s->shipping_estimate), 'total' => new Money($s->subtotal + $s->shipping_estimate), 'snapshot' => $s->snapshot];
+        $estimate = $s->snapshot['shipping_estimate'] ?? null;
+
+        return ['id' => $s->code, 'status' => $s->status, 'expires_at' => $s->expires_at->toIso8601String(), 'subtotal' => new Money($s->subtotal), 'shipping_estimate' => is_int($estimate) ? new Money($estimate) : null, 'total' => is_int($estimate) ? new Money($s->subtotal + $estimate) : null, 'snapshot' => $s->snapshot];
     }
 
     /** @return array<string,mixed> */
@@ -112,10 +114,11 @@ final class CheckoutService
             }
             $snapshot['shipping_options'] = $quoted;
             $snapshot['shipping_selection'] = $selection;
-            $snapshot['shipping_estimate'] = $estimate;
-            $snapshot['total'] = $session->subtotal + $estimate;
+            $complete = count($selection) === count($quoted);
+            $snapshot['shipping_estimate'] = $complete ? $estimate : null;
+            $snapshot['total'] = $complete ? $session->subtotal + $estimate : null;
             $session->snapshot = $snapshot;
-            $session->shipping_estimate = $estimate;
+            $session->shipping_estimate = $complete ? $estimate : 0;
             $session->save();
 
             return ['groups' => $quoted, 'checkout' => $this->read($session)];

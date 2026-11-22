@@ -40,7 +40,7 @@ export function CheckoutPanel() {
     } catch (e) { report(e); setCart(await getCart().catch(() => undefined)); } finally { setBusy(false); }
   }
   async function choose(groupIndex: number, courierCode: string, serviceCode: string) {
-    if (!session || !shipping || busy) return;
+    if (!session || !shipping || shipping.groups.some((g) => g.options.length === 0) || busy) return;
     const next = { ...choices, [groupIndex]: courierCode + ":" + serviceCode };
     const selections = shipping.groups.flatMap((g) => {
       const rate = g.options.find((r) => r.courierCode + ":" + r.serviceCode === next[g.group_index]);
@@ -84,13 +84,13 @@ export function CheckoutPanel() {
         <legend className="px-1 font-medium">Kurir · {modeLabel[g.mode]}</legend>
         {g.options.length === 0 && <p>Tidak ada layanan untuk grup ini. Coba alamat lain.</p>}
         {g.options.map((r) => { const key = r.courierCode + ":" + r.serviceCode; return <label key={key} className="flex min-h-touch items-center gap-3">
-          <input type="radio" name={"shipping-" + g.group_index} value={key} checked={choices[g.group_index] === key} disabled={busy} onChange={() => void choose(g.group_index, r.courierCode, r.serviceCode)} className="accent-brand-text" />
+          <input type="radio" name={"shipping-" + g.group_index} value={key} checked={choices[g.group_index] === key} disabled={busy || shipping.groups.some((group) => group.options.length === 0)} onChange={() => void choose(g.group_index, r.courierCode, r.serviceCode)} className="accent-brand-text" />
           <span>{r.courierCode.toUpperCase()} · {r.serviceName} · {rupiah(r.amountMinor)}<br /><small>ETA: {r.etaMinDays === null ? "belum tersedia" : r.etaMinDays + "–" + r.etaMaxDays + " hari"}</small></span>
         </label>; })}
       </fieldset>)}
       <div className="space-y-2 rounded-card bg-brand-ink p-5">
         <p>Subtotal: {rupiah(session?.subtotal.amount_minor ?? cart?.subtotal.amount_minor ?? 0)}</p>
-        {session && <><p>Ongkir terpilih: {rupiah(session.shipping_estimate.amount_minor)}</p><p className="font-semibold">Total: {rupiah(session.total.amount_minor)}</p><p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
+        {session && <>{session.shipping_estimate && session.total ? <><p>Ongkir terpilih: {rupiah(session.shipping_estimate.amount_minor)}</p><p className="font-semibold">Total: {rupiah(session.total.amount_minor)}</p></> : <p role="status">Ongkir dan total belum tersedia sampai semua grup memiliki layanan pengiriman.</p>}<p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
         <p className="text-sm">Ongkir dan total dihitung server dari pilihan kurir yang tersimpan. Pembayaran hadir di P1.05. Belum ada reservasi stok.</p>
       </div>
       <Button block disabled>Bayar</Button>
