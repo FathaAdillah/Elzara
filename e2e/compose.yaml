@@ -1,0 +1,75 @@
+x-workspace: &workspace
+  working_dir: /workspace
+  volumes:
+    - workspace:/workspace
+  entrypoint: [sh, /workspace/e2e/container.sh]
+
+services:
+  prepare:
+    image: node:22
+    working_dir: /workspace
+    volumes:
+      - ${E2E_SOURCE:?Run scripts/e2e-local.sh}:/source:ro
+      - workspace:/workspace
+    environment:
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-E2e-demo-password!42}
+    entrypoint: [sh, -ec]
+    command:
+      - |
+        tar -C /source --exclude=.git --exclude=node_modules --exclude=vendor --exclude=.next --exclude='.env*' --exclude=logs --exclude=playwright-report --exclude=test-results -cf - . | tar -xf -
+        node e2e/prepare.mjs
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: elzara_e2e
+      POSTGRES_USER: elzara
+      POSTGRES_PASSWORD: elzara
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -h 127.0.0.1 -U elzara -d elzara_e2e]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  api:
+    <<: *workspace
+    image: elzara/e2e-php:local
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      target: composer-tools
+    command: [api]
+
+  node:
+    <<: *workspace
+    image: node:22
+
+  web:
+    <<: *workspace
+    image: node:22
+    command: [web]
+
+  proxy:
+    <<: *workspace
+    image: node:22
+    command: [proxy]
+
+  browser:
+    <<: *workspace
+    image: mcr.microsoft.com/playwright:v${E2E_PLAYWRIGHT_VERSION:?Missing locked Playwright version}-noble
+    network_mode: service:proxy
+    init: true
+    shm_size: 1gb
+    environment:
+      CI: ${CI:-}
+
+volumes:
+  workspace:

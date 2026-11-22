@@ -10,10 +10,10 @@ use App\Modules\Catalog\Application\ProductAdminService;
 use App\Platform\Domain\Exception\VersionStale;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
+use Tests\Support\Concurrency\ConcurrencyTestCase;
 
 /** K6: dua admin mengedit produk yang sama; penulis kedua menunggu kunci baris lalu ditolak 409, bukan menimpa. */
-final class CatalogVersionLockTest extends TestCase
+final class CatalogVersionLockTest extends ConcurrencyTestCase
 {
     public function test_competing_admin_waits_for_the_row_lock_then_gets_version_stale(): void
     {
