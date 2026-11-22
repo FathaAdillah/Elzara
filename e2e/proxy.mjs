@@ -13,11 +13,12 @@ http.createServer((req, res) => {
     headers['x-elzara-storefront-key'] = key;
     headers['x-elzara-shopper-ip'] = req.socket.remoteAddress;
   }
-  const upstream = http.request({ hostname: '127.0.0.1', port: api ? 8081 : 3000, path: req.url, method: req.method, headers }, (response) => {
+  const hostname = api ? process.env.E2E_PROXY_API_HOST : process.env.E2E_PROXY_WEB_HOST;
+  const upstream = http.request({ hostname: hostname ?? '127.0.0.1', port: api ? 8081 : 3000, path: req.url, method: req.method, headers }, (response) => {
     res.writeHead(response.statusCode ?? 502, response.headers);
     response.pipe(res);
   });
   upstream.on('error', () => { res.writeHead(502); res.end('Upstream unavailable'); });
   req.on('aborted', () => upstream.destroy());
   req.pipe(upstream);
-}).listen(3080, '127.0.0.1', () => console.log('E2E proxy ready on http://127.0.0.1:3080'));
+}).listen(3080, process.env.E2E_PROXY_BIND ?? '127.0.0.1', () => console.log('E2E proxy ready on port 3080'));
