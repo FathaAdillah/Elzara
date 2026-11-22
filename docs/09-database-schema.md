@@ -1834,7 +1834,12 @@ audit_logs                                [Audit]         append-only (S-6) — 
   before jsonb, after jsonb              diff, bukan salinan penuh
   reason varchar(320) NOT NULL           wajib untuk aksi berisiko (Doc 01 §3.3 AuditThis)
   ip inet, user_agent varchar(255), occurred_at timestamptz NOT NULL DEFAULT now()
-  request_id varchar(26) NOT NULL               ULID yang sama dengan header X-Request-Id (Doc 12 §3.2)
+  request_id varchar(26) NOT NULL               ID audit; pemetaan X-Request-Id dijelaskan di bawah (Doc 12 §3.2)
+  -- AttachRequestId menerima tepat satu header X-Request-Id dengan pola
+  --   [A-Za-z0-9._-]{1,128}; header tidak sah/tidak ada diganti ULID.
+  -- DatabaseAuditRecorder meneruskan ID <=26 karakter apa adanya (tanpa validasi
+  --   format ULID). ID >26 karakter diganti ULID pada kolom ini; ID klien asli
+  --   disimpan pada after._context.request_id. Header respons tetap ID klien.
   --
   CHECK ck_audit_logs_reason (length(trim(reason)) > 0)
   idx audit_target (target_type, target_id, occurred_at DESC)

@@ -184,11 +184,11 @@ Kontras ≥4,5:1 teks / ≥3:1 non-teks untuk **setiap** preset (dicek dengan to
 
 - **Baca publik** (katalog, PDP, koleksi/drop, pencarian): diambil di **server component** `web` memanggil `GET /api/v1/...` lewat client generate; hasil boleh di-cache edge/ISR (§8).
 - **Mutasi** (cart, checkout, order, quotation accept): lewat client generate dengan `Idempotency-Key` (Blueprint §7). Harga/diskon/stok/ongkir **dihitung ulang server-side** dari checkout snapshot; browser tidak pernah jadi sumber total (Blueprint §7).
-- **Data akun & admin**: lewat endpoint terautentikasi; **mekanisme sesi Sanctum same-site dua guard sudah diputuskan (ADR-007); artefak sign-off pemilik proyek dan klien masih ditunggu, lihat §7.**
+- **Data akun & admin**: lewat endpoint terautentikasi; **mekanisme sesi Sanctum same-site dua guard sudah diputuskan (ADR-007); sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6), lihat §7.**
 
 ## 7. Mekanisme sesi dan alternatif awal (ADR-007)
 
-Mekanisme sesi Sanctum same-site dua guard sudah diputuskan pemilik pada 2026-11-18 (ADR-007 D-1a–D-6a), tanpa BFF wajib dan tanpa token browser. Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri, tidak ada provider OIDC; artefak sign-off pemilik proyek dan klien masih ditunggu. Bentuk A/B di bawah adalah perbandingan alternatif awal, bukan keputusan terbuka atau implementasi yang berlaku.
+Mekanisme sesi Sanctum same-site dua guard sudah diputuskan pemilik pada 2026-11-18 (ADR-007 D-1a–D-6a), tanpa BFF wajib dan tanpa token browser. Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri, tidak ada provider OIDC; sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6). Bentuk A/B di bawah adalah perbandingan alternatif awal, bukan keputusan terbuka atau implementasi yang berlaku.
 
 **Bentuk A — browser → API langsung (token-based).**
 - Browser `web`/`admin` memanggil `api.example.com` dengan short-lived access token (+ refresh).

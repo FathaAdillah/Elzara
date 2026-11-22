@@ -1,6 +1,6 @@
 # ADR-007 — BFF Next.js versus akses API langsung dari browser (model sesi dan otorisasi)
 
-Tanggal: 2026-11-17 · Status: **Accepted untuk mekanisme (amandemen pemilik 2026-11-18, lihat bawah) — persetujuan kontrol sesi dikonfirmasi pada 2026-11-20; lokasi artefak bertanda tangan pemilik proyek dan klien masih ditunggu; Q-2 terjawab 2026-11-22: klien tidak punya IdP/SSO sendiri** · Menyelesaikan bentrok **B-1/B-2** sisi akses (Doc 11 §3: Blueprint §18 butir 6, "baru → ADR-007; wajib sebelum Sprint 1") · Rujukan induk: Blueprint §7 konvensi, §12, §13 (ADR-003) · Register mengikat: Doc 11 §4.4 C/I; alasan pemilihan paket ada di ADR-012
+Tanggal: 2026-11-17 · Status: **Accepted untuk mekanisme (amandemen pemilik 2026-11-18, lihat bawah) — persetujuan kontrol sesi dikonfirmasi pada 2026-11-20; sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6); Q-2 terjawab 2026-11-22: klien tidak punya IdP/SSO sendiri** · Menyelesaikan bentrok **B-1/B-2** sisi akses (Doc 11 §3: Blueprint §18 butir 6, "baru → ADR-007; wajib sebelum Sprint 1") · Rujukan induk: Blueprint §7 konvensi, §12, §13 (ADR-003) · Register mengikat: Doc 11 §4.4 C/I; alasan pemilihan paket ada di ADR-012
 
 ## Konteks
 
@@ -40,7 +40,7 @@ Pemilik proyek memilih **`laravel/sanctum` dengan `statefulApi` (cookie sesi), b
 
 **D-5a — Konsekuensi pada kontrak dan tepi:** larangan "belum boleh ada `securitySchemes`" dicabut (Doc 11 §4.4 I) — `openapi.yaml` wajib memuat skema cookie + CSRF dan `security` per operasi, `x-elzara-auth` tetap sebagai penanda kategori, dan operasi admin menambah `x-elzara-permission`. Karena same-origin, konfigurasi CORS lintas origin **tidak dibuat**; yang tetap wajib adalah CSP per app, rate limit di edge **dan** `RateLimiter` di API untuk login/OTP/reset, serta `X-Actor-Type: web | admin | system` yang diisi server dari guard.
 
-**D-6a — Persetujuan dan perubahan topologi:** (1) persetujuan pemilik proyek dan klien atas cookie sesi, CSRF, 2FA, dan pemisahan guard dikonfirmasi dalam percakapan proyek pada 2026-11-20. Lokasi artefak bertanda tangan masih menunggu kiriman, lihat `docs/threat-model.md` §6; (2) **Q-2 terjawab oleh pemilik proyek pada 2026-11-22: tidak — klien tidak punya IdP/SSO sendiri**; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC; (3) kalau produksi kelak memindahkan admin ke subdomain terpisah (`admin.example.com`), **keputusan ini harus dibuka kembali** untuk menilai origin API, cakupan cookie, dan aturan CSRF pada topologi produksi.
+**D-6a — Persetujuan dan perubahan topologi:** (1) persetujuan pemilik proyek dan klien atas cookie sesi, CSRF, 2FA, dan pemisahan guard dikonfirmasi dalam percakapan proyek pada 2026-11-20. Sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6), lihat `docs/threat-model.md` §6; (2) **Q-2 terjawab oleh pemilik proyek pada 2026-11-22: tidak — klien tidak punya IdP/SSO sendiri**; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC; (3) kalau produksi kelak memindahkan admin ke subdomain terpisah (`admin.example.com`), **keputusan ini harus dibuka kembali** untuk menilai origin API, cakupan cookie, dan aturan CSRF pada topologi produksi.
 
 ## Alternatif yang ditolak
 
@@ -53,7 +53,7 @@ Pemilik proyek memilih **`laravel/sanctum` dengan `statefulApi` (cookie sesi), b
 
 ## Konsekuensi
 
-**Bukti persetujuan:** `docs/threat-model.md` §6 mencatat konfirmasi pemilik proyek dan klien serta lokasi artefak yang masih ditunggu. Q-2 sudah dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; sesi Sanctum dua guard tetap, tidak ada provider OIDC (D-6a).
+**Bukti persetujuan:** `docs/threat-model.md` §6 mencatat konfirmasi pemilik proyek dan klien serta rujukan sign-off Fatharoni di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6). Q-2 sudah dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; sesi Sanctum dua guard tetap, tidak ada provider OIDC (D-6a).
 
 **Konsekuensi Bentuk C yang berlaku sekarang:** tidak ada proses BFF tambahan yang harus di-deploy, tetapi **dua guard + dua nama cookie + CSRF** menjadi pekerjaan nyata Sprint 1 di `api`, dan kedua app Next.js wajib memanggil `sanctum/csrf-cookie` sebelum mutasi. CSP dirumuskan per app; rate limit login/OTP/reset wajib di edge dan di API. Kalau kelak admin dipindah ke subdomain terpisah, keputusan ini dibuka kembali (D-6a) — itu perubahan topologi, bukan setelan.
 

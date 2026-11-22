@@ -171,7 +171,7 @@ Mekanisme sesi **diputuskan pemilik 2026-11-18** (ADR-007 (BFF/sesi), amandemen;
 - **CSRF wajib pada setiap mutasi**, termasuk admin. Cookie `XSRF-TOKEN` sengaja tidak HttpOnly karena dibaca JavaScript untuk header `X-XSRF-TOKEN`; endpoint `sanctum/csrf-cookie` dipanggil sebelum mutasi pertama. Itu bagian dari desain Sanctum, bukan kelalaian.
 - `personal_access_tokens` **tidak dibuat**; tidak ada bearer token di browser (ADR-007 (BFF/sesi) D-3a). Kredensial server-to-server (webhook gateway, worker internal) memakai tanda tangan/HMAC atau jaringan internal, bukan cookie sesi.
 - Header log `X-Actor-Type` berubah dari `customer | staff | system` (lama) menjadi **`web | admin | system`**, diisi server dari guard/sesi yang dipakai, **tidak pernah dipercaya dari klien** (Doc 11 §4.4 I). Operator yang berbelanja di storefront adalah aktor `web`.
-- Pemilik proyek dan klien dilaporkan menyetujui kontrol cookie sesi, CSRF, 2FA, dan pemisahan guard pada 2026-11-20. Lokasi artefak tertulis masih ditunggu (ADR-007 (BFF/sesi) D-6a; `docs/threat-model.md` §6). Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC.
+- Pemilik proyek dan klien dilaporkan menyetujui kontrol cookie sesi, CSRF, 2FA, dan pemisahan guard pada 2026-11-20. Sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6) (ADR-007 (BFF/sesi) D-6a; `docs/threat-model.md` §6). Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC.
 
 ## 2. Kerangka screen (nav admin)
 
