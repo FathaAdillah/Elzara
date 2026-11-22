@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Search\Infrastructure;
+namespace App\Modules\Search\Application;
 
 use RuntimeException;
 

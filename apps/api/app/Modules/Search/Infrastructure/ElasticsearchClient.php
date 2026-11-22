@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Search\Infrastructure;
 
+use App\Modules\Search\Application\SearchUnavailable;
 use App\Platform\Domain\Scalar;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;

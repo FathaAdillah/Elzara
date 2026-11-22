@@ -6,7 +6,7 @@ namespace App\Modules\Search\Infrastructure\Http\Controllers;
 
 use App\Modules\Search\Application\ProductSearch;
 use App\Modules\Search\Application\ReindexProductSearch;
-use App\Modules\Search\Infrastructure\SearchUnavailable;
+use App\Modules\Search\Application\SearchUnavailable;
 use App\Platform\Domain\Scalar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
