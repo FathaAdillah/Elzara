@@ -28,7 +28,8 @@ export function CategoryTiles({ categories }: { categories: Category[] }) {
           className={`store-category-tile store-category-tone-${index % 4}`}
         >
           <span className="store-category-art">
-            {storefront.categoryImages[category.slug] ? (
+            {Object.hasOwn(storefront.categoryImages, category.slug) &&
+            storefront.categoryImages[category.slug] ? (
               <Image
                 src={storefront.categoryImages[category.slug]!}
                 alt=""
