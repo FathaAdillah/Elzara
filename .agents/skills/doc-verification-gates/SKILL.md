@@ -18,7 +18,7 @@ dari ingatan** — setiap klaim adalah keluaran script yang baru dijalankan.
 | skema | `verify_schema.py` | jumlah blok tabel == tally §19, graf FK asiklik, nama lama tidak tersisa (termasuk pivot lama `role_user`/`permission_role`), tabel §20 terdokumentasi (termasuk `staff_users` dan `personal_access_tokens`), **[4b] keputusan pemilik 2026-11-18**: enam tabel §4.4 ada dan `users` memuat `is_operator`/`is_admin`/CHECK/indeks baru tanpa `kind` |
 | G berdiri sendiri | `scan_unicode.py` | karakter CJK/Cyrillic yang nyamar di prosa Indonesia (mode kegagalan berulang di proyek ini); sejak scaffold dipasang ia memindai **seluruh berkas teks repo**, bukan hanya `docs/` |
 | F | `list_dead_cites.py` | rujukan `Doc NN §M` yang menunjuk bagian tidak ada |
-| I | `check_layout.py` | pohon Doc 01 §3.1 = direktori nyata; tidak ada nama `commerce-*` sisa; tujuh nama antrian dan enam bucket di `docker/` **dan** di kode cocok kanon; dua lockfile dan nol workspace; basename migrasi M-3; 18 jalur Blueprint ada di `openapi.yaml`; 22 modul sama di Doc 01 = Doc 09 = disk |
+| I | `check_layout.py` | pohon Doc 01 §3.1 = direktori nyata; tidak ada nama `commerce-*` sisa; tujuh nama antrian dan enam bucket di `docker/` **dan** di kode cocok kanon; dua lockfile dan nol workspace; basename migrasi M-3; 17 jalur bisnis Blueprint + `/health` operasional (18 path CI) ada di `openapi.yaml`; 22 modul sama di Doc 01 = Doc 09 = disk |
 
 Script direkonstruksi dari Doc 11 §8.8 dan hidup di `scripts/doc-auditors/`.
 Skrip asli tidak tersedia; batas rekonstruksi dan aturan dugaan ada di README

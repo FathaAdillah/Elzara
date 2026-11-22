@@ -32,7 +32,9 @@ fixture Blueprint sintetis hanya menguji parser, bukan membuktikan isi sumber as
   Tata letak berkas asli belum dapat diuji. Pengecualian tabel hanya tiga nama
   tertulis Doc 11 §4.3/§8.5, yang wajib tetap dijelaskan Doc 09 §20.
 - Inventaris endpoint CI memuat health operasional selain 17 path bisnis pada
-  tabel Doc 12 §2.1. Keduanya dinyatakan terpisah dalam dokumen itu.
+  tabel Doc 12 §2.1. S3 membandingkan tepat 17 path bisnis tersebut, termasuk
+  pada mode sumber; `/health` tidak boleh menggantikan salah satunya. COVER
+  dan gate I tetap memeriksa keseluruhan 18 path CI.
 - Gate I memakai pembaca subset YAML block-style untuk inventory `paths`, bukan
   parser YAML umum. Pemeriksa ini tidak memverifikasi implementasi fitur.
 

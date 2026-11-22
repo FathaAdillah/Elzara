@@ -19,7 +19,7 @@ TABLELESS_MODULES = {"Search", "Reporting"}
 MENU_GROUP_COUNT = 14
 SUBMENU_COUNT = 87
 BLUEPRINT_TABLE_COUNT = 60
-# Blueprint §7 as transcribed in Doc 12 §2.1 and contracts.yml subset gate.
+# Doc 12 §2.1 / contracts.yml: CI's 18 paths include operational /health.
 BLUEPRINT_PATHS = (
     "/health", "/products", "/products/{slug}", "/preorder-batches",
     "/preorder-batches/{id}", "/cart/items", "/checkout/sessions", "/orders",
@@ -28,6 +28,8 @@ BLUEPRINT_PATHS = (
     "/me/quotations/{id}", "/quotations/{id}/accept",
     "/admin/preorder-batches/{id}/close", "/admin/purchase-orders", "/admin/shipments",
 )
+# Doc 12 §2.1: 17 business paths; /health is expressly additional, not §7.
+BLUEPRINT_BUSINESS_PATHS = tuple(path for path in BLUEPRINT_PATHS if path != "/health")
 # Doc 11 §4.1 renames, §4.4 B retired pivots, §8.5 retired modules.
 # "product_options" and "proof_files" explicitly stay; never blacklist them.
 DEAD_TABLE_NAMES = {

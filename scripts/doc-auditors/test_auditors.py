@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from common import ROOT
-from expectations import BLUEPRINT_PATHS, BLUEPRINT_TABLE_COUNT, BLUEPRINT_TABLE_EXCEPTIONS, GATE_H_TABLE_COUNT, IGNORED_DIRS, MENUS, SCHEMA_TABLES
+from expectations import BLUEPRINT_BUSINESS_PATHS, BLUEPRINT_TABLE_COUNT, BLUEPRINT_TABLE_EXCEPTIONS, GATE_H_TABLE_COUNT, IGNORED_DIRS, MENUS, SCHEMA_TABLES
 
 
 class AuditorsTest(unittest.TestCase):
@@ -300,7 +300,7 @@ class AuditorsTest(unittest.TestCase):
         text = "# Blueprint fixture\n## 4 Admin menu\n| Group | Submenus |\n|---|---|\n"
         text += "\n".join(f"| {group} | {names} |" for group, names in MENUS.items())
         text += "\n## 6 Tables\n" + "\n".join(f"- `{name}`" for name in tables)
-        text += "\n## 7 Endpoints\n" + "\n".join(f"- GET `{path}`" for path in BLUEPRINT_PATHS)
+        text += "\n## 7 Endpoints\n" + "\n".join(f"- GET `{path}`" for path in BLUEPRINT_BUSINESS_PATHS)
         path = Path(self.temp.name) / "blueprint.md"
         path.write_text(text, encoding="utf-8")
         return path
@@ -318,7 +318,7 @@ class AuditorsTest(unittest.TestCase):
     def test_coverage_blueprint_source_defects(self):
         source = self.blueprint_fixture()
         original = source.read_text()
-        for old, new, marker in (("Overview, Sales KPI", "Overview, Incorrect KPI", "S1"), ("`staff_users`", "`unknown_blueprint_table`", "S2 missing table"), ("GET `/health`", "GET `/unknown-path`", "S3 missing endpoint"), ("## 6 Tables", "## 9 Tables", "section 6 missing")):
+        for old, new, marker in (("Overview, Sales KPI", "Overview, Incorrect KPI", "S1"), ("`staff_users`", "`unknown_blueprint_table`", "S2 missing table"), ("GET `/products`", "GET `/unknown-path`", "S3"), ("GET `/products`", "GET `/health`", "S3"), ("## 7 Endpoints", "## 7 Endpoints\n- GET `/health`", "S3"), ("## 6 Tables", "## 9 Tables", "section 6 missing")):
             with self.subTest(defect=marker):
                 source.write_text(original.replace(old, new), encoding="utf-8")
                 result = self.run_blueprint(source)

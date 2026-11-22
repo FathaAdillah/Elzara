@@ -9,7 +9,7 @@ from pathlib import Path
 
 from common import ROOT, cells, finding, read, run, section
 from doc_rules import body, doc_paths, rows
-from expectations import ADR_NUMBERS, BLUEPRINT_PATHS, BLUEPRINT_TABLE_COUNT, BLUEPRINT_TABLE_EXCEPTIONS, BUCKETS, CANDIDATES, CONTRADICTIONS, DOC_FILES, EVENTS, MENUS, MENU_GROUP_COUNT, QUEUES, ROLES, RUNBOOKS, SCHEMA_TABLES, STATUS_AXES, SUBMENU_COUNT
+from expectations import ADR_NUMBERS, BLUEPRINT_BUSINESS_PATHS, BLUEPRINT_PATHS, BLUEPRINT_TABLE_COUNT, BLUEPRINT_TABLE_EXCEPTIONS, BUCKETS, CANDIDATES, CONTRADICTIONS, DOC_FILES, EVENTS, MENUS, MENU_GROUP_COUNT, QUEUES, ROLES, RUNBOOKS, SCHEMA_TABLES, STATUS_AXES, SUBMENU_COUNT
 from verify_schema import ownership
 
 
@@ -110,12 +110,12 @@ def check():
         paths = re.findall(r"(?:`|\s)(/[a-zA-Z0-9_/{}/-]+)(?=`|\s|\|)", blueprint_section(source, 7))
         if len(required_tables) != BLUEPRINT_TABLE_COUNT:
             fail(source_path, 1, f"S2 expected {BLUEPRINT_TABLE_COUNT} tables, got {len(required_tables)}")
-        if len(paths) != len(BLUEPRINT_PATHS) or len(set(paths)) != len(paths):
-            fail(source_path, 1, "S3 endpoint inventory count/duplicates differ")
+        if Counter(paths) != Counter(BLUEPRINT_BUSINESS_PATHS):
+            fail(source_path, 1, "S3 Blueprint business endpoint inventory differs")
     else:
         menus = {group: names.split(", ") for group, names in MENUS.items()}
         required_tables = SCHEMA_TABLES
-        paths = BLUEPRINT_PATHS
+        paths = BLUEPRINT_BUSINESS_PATHS
     if len(menus) != MENU_GROUP_COUNT or sum(map(len, menus.values())) != SUBMENU_COUNT:
         fail(blueprint or admin_path, 1, "S1 expected 14 groups / 87 submenus")
     if menus != documented:
