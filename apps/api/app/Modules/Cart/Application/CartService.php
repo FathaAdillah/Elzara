@@ -115,7 +115,7 @@ final class CartService
                 $groups[$key]->items[] = $line;
                 $groups[$key]->subtotal = new Money($groups[$key]->subtotal->amount_minor + $line->line_total->amount_minor);
                 $total += $line->line_total->amount_minor;
-                $hash[] = [$line->variant_id, $line->quantity, $price];
+                $hash[] = [$line->variant_id, $line->quantity, $price, $mode, $eta];
             }
         }
 

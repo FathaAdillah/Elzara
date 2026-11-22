@@ -141,6 +141,17 @@ final class CartCheckoutTest extends TestCase
         $this->add(4)->assertStatus(422)->assertJsonPath('code', 'CART_ITEM_UNAVAILABLE');
     }
 
+    public function test_fulfillment_changes_invalidate_the_checkout_hash(): void
+    {
+        $this->add()->assertCreated();
+        $address = $this->address()->assertCreated()->json('id');
+        $hash = $this->send('GET', '/api/v1/cart')->json('items_hash');
+        $this->assertSame($hash, $this->send('GET', '/api/v1/cart')->json('items_hash'));
+        DB::table('products')->where('slug', 'cart-test')->update(['fulfillment_modes' => '{po}']);
+        $this->assertNotSame($hash, $this->send('GET', '/api/v1/cart')->json('items_hash'));
+        $this->send('POST', '/api/v1/checkout/sessions', ['shipping_address_id' => $address, 'expected_items_hash' => $hash])->assertStatus(409)->assertJsonPath('code', 'CHECKOUT_SNAPSHOT_STALE');
+    }
+
     public function test_sliding_expiry_read_empty_new_add_and_command(): void
     {
         $a = $this->add()->assertCreated()->json('id');
