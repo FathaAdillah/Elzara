@@ -105,9 +105,9 @@ final class AdminCatalogScopeTest extends TestCase
     {
         $this->scopedOperator(['category' => [$this->ids['apparel']]]);
         $csv = $this->csv([
-            ['crew-tee', 'Crew Tee', 'apparel', '', '', 'active', 'ID', '', '', 'CREW-1', 'One', '100000', 'IDR', 'true', 'true'],
-            ['robot', 'Robot', 'toys', '', '', 'active', 'ID', '', '', 'ROBOT-1', 'One', '100000', 'IDR', 'true', 'true'],
-            ['plush', 'Plush Moved', 'apparel', '', '', 'active', 'ID', '', '', 'PLUSH-1', 'One', '100000', 'IDR', 'true', 'true'],
+            ['crew-tee', 'Crew Tee', 'apparel', '', '', 'active', 'ID', '', '', '', 'CREW-1', 'One', '100000', 'IDR', 'true', 'true'],
+            ['robot', 'Robot', 'toys', '', '', 'active', 'ID', '', '', '', 'ROBOT-1', 'One', '100000', 'IDR', 'true', 'true'],
+            ['plush', 'Plush Moved', 'apparel', '', '', 'active', 'ID', '', '', '', 'PLUSH-1', 'One', '100000', 'IDR', 'true', 'true'],
         ]);
         $errors = $this->api('POST', '/api/v1/admin/catalog/products/import', [], file: $csv)->assertUnprocessable()->json('errors');
         $this->assertEqualsCanonicalizing(['/rows/3/category_slug' => 'category_out_of_scope', '/rows/4/product_slug' => 'product_out_of_scope'],
@@ -116,7 +116,7 @@ final class AdminCatalogScopeTest extends TestCase
         $this->assertDatabaseHas('products', ['slug' => 'plush', 'category_id' => $this->ids['toys']]);
 
         $this->api('POST', '/api/v1/admin/catalog/products/import', [], file: $this->csv([
-            ['crew-tee', 'Crew Tee', 'hoodies', '', '', 'active', 'ID', '', '', 'CREW-1', 'One', '100000', 'IDR', 'true', 'true'],
+            ['crew-tee', 'Crew Tee', 'hoodies', '', '', 'active', 'ID', '', '', '', 'CREW-1', 'One', '100000', 'IDR', 'true', 'true'],
         ]))->assertCreated()->assertJsonPath('data.products_created', 1);
     }
 
