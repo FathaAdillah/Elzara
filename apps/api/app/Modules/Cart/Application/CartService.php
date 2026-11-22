@@ -111,7 +111,7 @@ final class CartService
                 $eta = $v?->eta;
                 $key = $mode.'|'.($eta ?? '');
                 $groups[$key] ??= new CartGroup($mode, $eta);
-                $line = new CartLine(PublicId::encode('citem', $item->id), PublicId::encode('var', $item->variant_id), $v->name ?? 'Produk tidak tersedia', $item->qty, new Money($price), new Money($price * $item->qty), $price !== $item->unit_price_snapshot, $v === null || ($mode === 'rts' && $v->available < $item->qty), $v?->weightGrams);
+                $line = new CartLine(PublicId::encode('citem', $item->id), PublicId::encode('var', $item->variant_id), $v->name ?? 'Produk tidak tersedia', $item->qty, new Money($price), new Money($price * $item->qty), $price !== $item->unit_price_snapshot, $v === null || ($mode === 'rts' && $v->available < $item->qty), $v?->weightGrams, $v?->label, $v?->sku);
                 $groups[$key]->items[] = $line;
                 $groups[$key]->subtotal = new Money($groups[$key]->subtotal->amount_minor + $line->line_total->amount_minor);
                 $total += $line->line_total->amount_minor;

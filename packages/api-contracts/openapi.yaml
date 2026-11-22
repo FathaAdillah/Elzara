@@ -3803,6 +3803,8 @@ components:
         "id",
         "variant_id",
         "name",
+        "variant_label",
+        "sku",
         "quantity",
         "unit_price",
         "line_total",
@@ -3822,6 +3824,8 @@ components:
         "name": {
           "type": "string"
         },
+        "variant_label": {"type": ["string", "null"]},
+        "sku": {"type": ["string", "null"]},
         "quantity": {
           "type": "integer"
         },

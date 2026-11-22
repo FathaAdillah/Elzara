@@ -1685,6 +1685,8 @@ export interface components {
             id: string;
             variant_id: string;
             name: string;
+            variant_label: string | null;
+            sku: string | null;
             quantity: number;
             unit_price: components["schemas"]["Money"];
             line_total: components["schemas"]["Money"];

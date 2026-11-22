@@ -120,6 +120,18 @@ final class CartCheckoutTest extends TestCase
         $this->send('GET', '/api/v1/cart')->assertUnauthorized();
     }
 
+    public function test_lines_identify_two_variants_of_the_same_product(): void
+    {
+        $this->add()->assertCreated()->assertJsonPath('groups.0.items.0.variant_label', 'Standard')->assertJsonPath('groups.0.items.0.sku', 'cart-test');
+        $product = DB::table('product_variants')->where('id', $this->variant)->value('product_id');
+        $variant = DB::table('product_variants')->insertGetId(['product_id' => $product, 'sku' => 'cart-blue', 'label' => 'Blue / Large', 'base_price' => 100000]);
+        DB::table('stock_items')->insert(['warehouse_id' => DB::table('warehouses')->where('code', 'CART')->value('id'), 'variant_id' => $variant, 'on_hand' => 5]);
+        $this->send('POST', '/api/v1/cart/items', ['variant_id' => PublicId::encode('var', $variant), 'quantity' => 1])->assertCreated()->assertJsonCount(2, 'groups.0.items')
+            ->assertJsonPath('groups.0.items.1.name', 'Figure')->assertJsonPath('groups.0.items.1.variant_label', 'Blue / Large')->assertJsonPath('groups.0.items.1.sku', 'cart-blue');
+        DB::table('product_variants')->where('id', $variant)->update(['is_active' => false]);
+        $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonPath('groups.0.items.1.variant_label', null)->assertJsonPath('groups.0.items.1.unavailable', true);
+    }
+
     public function test_sliding_expiry_read_empty_new_add_and_command(): void
     {
         $a = $this->add()->assertCreated()->json('id');

@@ -23,6 +23,8 @@ export function CartPanel() {
         <h2 className="font-semibold">{modeLabel[group.mode]} · ETA: {group.eta ?? "Belum tersedia"}</h2>
         {group.items.map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-4 border-t border-divider pt-4">
           <div className="space-y-1"><h3 className="font-medium">{item.name}</h3><p>{rupiah(item.unit_price.amount_minor)}</p>
+            {item.variant_label && <p className="text-sm">Varian: {item.variant_label}</p>}
+            {item.sku && <p className="text-xs text-ink-muted">SKU: {item.sku}</p>}
             {item.price_changed && <p className="text-sm text-ink-muted">Harga berubah sejak ditambahkan. Harga terbaru digunakan.</p>}
             {item.unavailable && <p role="status" className="text-sm text-ink-muted">Tidak tersedia atau stok tidak cukup. Kurangi jumlah atau hapus.</p>}
           </div>
