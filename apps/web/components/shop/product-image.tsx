@@ -7,10 +7,14 @@ export function ProductImage({
   src,
   alt,
   priority = false,
+  inset = true,
+  sizes = "(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw",
 }: {
   src?: string | null;
   alt: string;
   priority?: boolean;
+  inset?: boolean;
+  sizes?: string;
 }) {
   const [failed, setFailed] = useState(false);
   return (
@@ -20,8 +24,8 @@ export function ProductImage({
           src={src}
           alt={alt}
           fill
-          sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw"
-          className="object-contain p-6"
+          sizes={sizes}
+          className={`object-contain ${inset ? "p-6" : "p-1"}`}
           unoptimized
           priority={priority}
           onError={() => setFailed(true)}

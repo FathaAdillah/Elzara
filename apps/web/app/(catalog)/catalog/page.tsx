@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { StorefrontBanner } from "@/components/shop/storefront-banner";
+import {
+  CategoryTiles,
+  ShoppingModes,
+} from "@/components/shop/category-navigation";
 import { FacetPanel } from "@/components/shop/catalog-filters";
 import { CatalogMessage, ProductGrid } from "@/components/shop/products";
 import { catalogHref, catalogQuery, type SearchParams } from "@/lib/catalog";
@@ -43,11 +48,27 @@ export default async function CatalogPage({ searchParams }: Props) {
         </Link>{" "}
         <span aria-hidden="true">/</span> Katalog
       </nav>
-      <header className="border-b border-divider pb-8">
+      <StorefrontBanner compact />
+      <ShoppingModes />
+      {categories.length > 0 && (
+        <section
+          className="rounded-card bg-surface p-5"
+          aria-labelledby="catalog-categories"
+        >
+          <h2
+            id="catalog-categories"
+            className="mb-4 text-lg font-semibold text-brand-text"
+          >
+            Kategori produk
+          </h2>
+          <CategoryTiles categories={categories.slice(0, 8)} />
+        </section>
+      )}
+      <header className="border-b border-divider pb-4">
         <p className="mb-3 text-xs uppercase tracking-widest text-brand-text">
           Temukan pilihan Anda
         </p>
-        <h1 className="text-4xl font-semibold tracking-tight">Katalog</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Katalog</h1>
         <p className="mt-3 text-sm text-ink-muted">
           Ready stock, pre-order, dan request — dalam satu tempat.
         </p>
