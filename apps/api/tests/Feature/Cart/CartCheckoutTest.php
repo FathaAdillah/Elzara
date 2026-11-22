@@ -132,6 +132,15 @@ final class CartCheckoutTest extends TestCase
         $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonPath('groups.0.items.1.variant_label', null)->assertJsonPath('groups.0.items.1.unavailable', true);
     }
 
+    public function test_products_without_modes_default_to_ready_stock(): void
+    {
+        foreach ([null, '{}'] as $modes) {
+            DB::table('products')->where('slug', 'cart-test')->update(['fulfillment_modes' => $modes]);
+            $this->add()->assertCreated()->assertJsonPath('groups.0.mode', 'rts');
+        }
+        $this->add(4)->assertStatus(422)->assertJsonPath('code', 'CART_ITEM_UNAVAILABLE');
+    }
+
     public function test_sliding_expiry_read_empty_new_add_and_command(): void
     {
         $a = $this->add()->assertCreated()->json('id');
