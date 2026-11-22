@@ -67,6 +67,17 @@ final class ProductSearchTest extends TestCase
         $this->assertHits([], ['q' => 'sepatu']);
     }
 
+    public function test_category_scope_limits_hits_and_facet_counts(): void
+    {
+        $result = app(ProductSearch::class)->search([], [$this->ids['accessories']]);
+        $this->assertEqualsCanonicalizing([$this->prefix.'ganci', $this->prefix.'boneka'], array_column($result['data'], 'slug'));
+        $this->assertSame([['value' => $this->prefix.'accessories', 'count' => 2]], $result['facets']['category']);
+        $this->assertEqualsCanonicalizing([['value' => $this->prefix.'kuma', 'count' => 1], ['value' => $this->prefix.'yuki', 'count' => 1]], $result['facets']['brand']);
+        $this->assertSame(2, $result['meta']['total']);
+        $this->assertSame([], app(ProductSearch::class)->search(['q' => 'aurora'], [$this->ids['accessories']])['data']);
+        $this->assertSame(0, app(ProductSearch::class)->search([], [])['meta']['total']);
+    }
+
     public function test_keyword_filters_price_range_facets_and_cursor(): void
     {
         $this->assertHits(['kaos', 'ganci'], ['brand' => [$this->prefix.'kuma']]);

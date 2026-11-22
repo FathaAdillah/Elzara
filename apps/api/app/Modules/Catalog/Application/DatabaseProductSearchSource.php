@@ -23,7 +23,7 @@ final class DatabaseProductSearchSource implements ProductSearchSource
             ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
             ->join('categories as c', 'c.id', '=', 'p.category_id')
             ->whereIn('p.id', $productIds)->whereNull('p.deleted_at')
-            ->get(['p.id', 'p.slug', 'p.name', 'p.series', 'p.description', 'p.status', 'p.origin_country', 'p.fulfillment_modes', 'p.version', 'p.updated_at',
+            ->get(['p.id', 'p.slug', 'p.name', 'p.series', 'p.description', 'p.status', 'p.origin_country', 'p.fulfillment_modes', 'p.version', 'p.updated_at', 'p.category_id',
                 'b.slug as brand_slug', 'b.name as brand_name', 'c.slug as category_slug', 'c.name_key as category_name_key']);
         $variants = DB::table('product_variants')->whereIn('product_id', $productIds)->whereNull('deleted_at')->where('is_active', true)
             ->orderBy('id')->get(['product_id', 'sku', 'label', 'base_price', 'currency_code'])->groupBy('product_id');
@@ -49,6 +49,7 @@ final class DatabaseProductSearchSource implements ProductSearchSource
                 'fulfillment_modes' => ProductAdminService::pgArray($product->fulfillment_modes),
                 'brand' => $product->brand_slug,
                 'brand_name' => $product->brand_name,
+                'category_id' => Scalar::int($product->category_id),
                 'category' => $product->category_slug,
                 'category_name' => $product->category_name_key,
                 'collections' => $collections->get($id, collect())->pluck('slug')->values()->all(),

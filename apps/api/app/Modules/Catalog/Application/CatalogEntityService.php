@@ -23,9 +23,12 @@ final class CatalogEntityService
     public function __construct(private readonly AuditRecorder $audit, private readonly ProductEvents $events) {}
 
     /** @return array{data: list<stdClass>, meta: array{limit: int, has_more: bool, next_cursor: ?string, prev_cursor: ?string}} */
-    public function list(Request $request, string $resource): array
+    public function list(Request $request, string $resource, CategoryScope $scope): array
     {
         $query = DB::table(CatalogResources::table($resource));
+        if ($resource === 'categories') {
+            $scope->constrain($query, 'id');
+        }
         $filters = [];
         $active = $request->query('is_active');
         if (is_string($active) && in_array($active, ['true', 'false'], true)) {
@@ -36,18 +39,20 @@ final class CatalogEntityService
         return CursorPagination::paginate($request, $query, ['id' => 'desc'], $filters);
     }
 
-    public function find(string $resource, int $id): stdClass
+    public function find(string $resource, int $id, ?CategoryScope $scope = null): stdClass
     {
         $row = DB::table(CatalogResources::table($resource))->where('id', $id)->first();
+        $hidden = $resource === 'categories' && $scope !== null && ! $scope->covers($id);
 
-        return $row instanceof stdClass ? $row : throw new CatalogRecordMissing('Data katalog tidak ditemukan.');
+        return $row instanceof stdClass && ! $hidden ? $row : throw new CatalogRecordMissing('Data katalog tidak ditemukan.');
     }
 
     /** @param array<string, mixed> $data */
-    public function create(string $resource, array $data, AdminContext $context): stdClass
+    public function create(string $resource, array $data, AdminContext $context, CategoryScope $scope): stdClass
     {
-        return DB::transaction(function () use ($resource, $data, $context): stdClass {
+        return DB::transaction(function () use ($resource, $data, $context, $scope): stdClass {
             $values = $this->only($resource, $data);
+            self::authorize($resource, null, $values, $scope);
             $id = (int) DB::table(CatalogResources::table($resource))->insertGetId($values);
             $row = $this->find($resource, $id);
             $this->audit->record($context->actorId, 'catalog.create', CatalogResources::table($resource), $id, [], Scalar::fields($row),
@@ -58,11 +63,12 @@ final class CatalogEntityService
     }
 
     /** @param array<string, mixed> $data */
-    public function update(string $resource, int $id, int $version, array $data, AdminContext $context): stdClass
+    public function update(string $resource, int $id, int $version, array $data, AdminContext $context, CategoryScope $scope): stdClass
     {
-        return DB::transaction(function () use ($resource, $id, $version, $data, $context): stdClass {
+        return DB::transaction(function () use ($resource, $id, $version, $data, $context, $scope): stdClass {
             $before = $this->lock($resource, $id, $version);
             $values = $this->only($resource, $data);
+            self::authorize($resource, $id, $values, $scope);
             if ($resource === 'price-lists') {
                 self::assertValidity([...Scalar::fields($before), ...$values]);
             }
@@ -78,11 +84,12 @@ final class CatalogEntityService
         });
     }
 
-    public function delete(string $resource, int $id, int $version, AdminContext $context): void
+    public function delete(string $resource, int $id, int $version, AdminContext $context, CategoryScope $scope): void
     {
         try {
-            DB::transaction(function () use ($resource, $id, $version, $context): void {
+            DB::transaction(function () use ($resource, $id, $version, $context, $scope): void {
                 $before = $this->lock($resource, $id, $version);
+                self::authorize($resource, $id, [], $scope);
                 $affected = $this->affectedProducts($resource, $id);
                 DB::table(CatalogResources::table($resource))->where('id', $id)->delete();
                 $this->audit->record($context->actorId, 'catalog.delete', CatalogResources::table($resource), $id, Scalar::fields($before), [],
@@ -105,6 +112,27 @@ final class CatalogEntityService
         $to = $row['valid_to'] ?? null;
         if (is_string($from) && is_string($to) && Carbon::parse($to)->lte(Carbon::parse($from))) {
             throw ValidationException::withMessages(['valid_to' => 'valid_to harus setelah valid_from.']);
+        }
+    }
+
+    /**
+     * Operator ber-scope kategori hanya menyentuh subpohon kategorinya; brand, koleksi, dan
+     * price list melintasi kategori sehingga mutasinya butuh peran global.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    private static function authorize(string $resource, ?int $id, array $values, CategoryScope $scope): void
+    {
+        if ($resource !== 'categories') {
+            $scope->assertGlobal();
+
+            return;
+        }
+        if ($id !== null) {
+            $scope->assertCovers($id);
+        }
+        if ($id === null || array_key_exists('parent_id', $values)) {
+            $scope->assertCovers($values['parent_id'] ?? null);
         }
     }
 
