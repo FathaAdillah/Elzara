@@ -91,7 +91,7 @@ export default async function HomePage() {
               href={`/catalog?category=${encodeURIComponent(category.slug)}`}
               className="inline-flex min-h-touch items-center rounded-badge border border-control-border px-4 text-sm"
             >
-              {category.name_key}
+              {category.name}
             </Link>
           ))}
         </nav>

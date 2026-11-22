@@ -900,6 +900,8 @@ export interface components {
         CategoryNode: {
             slug: string;
             name_key: string;
+            /** @description Shop-localized category name, falling back to name_key. */
+            name: string;
             parent: string | null;
             position: number;
         };

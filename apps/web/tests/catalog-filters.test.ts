@@ -4,6 +4,13 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 describe("filter form navigation identity", () => {
+  it("renders translated category names instead of localization keys", () => {
+    const markup = renderToStaticMarkup(createElement(FacetPanel, {
+      categories: [{ slug: "model-kits", name_key: "catalog.models", name: "Model rakitan", parent: null, position: 0 }], params: {},
+    }));
+    expect(markup).toContain('value="model-kits">Model rakitan</option>');
+    expect(markup).not.toContain("catalog.models");
+  });
   it("remounts uncontrolled fields when navigation clears the query", () => {
     const filtered = FacetPanel({
       categories: [],

@@ -65,7 +65,7 @@ export function FacetPanel({
             {categories.map((category) => (
               <option key={category.slug} value={category.slug}>
                 {category.parent ? "— " : ""}
-                {category.name_key}
+                {category.name}
               </option>
             ))}
           </select>

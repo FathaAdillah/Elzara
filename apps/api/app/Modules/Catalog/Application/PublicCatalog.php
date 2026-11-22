@@ -141,7 +141,11 @@ final class PublicCatalog
     /** @return list<stdClass> */
     public function categories(): array
     {
-        return array_values(DB::query()->fromRaw('(WITH RECURSIVE tree AS (SELECT id, slug, name_key, parent_id, position FROM categories WHERE parent_id IS NULL AND is_active UNION ALL SELECT c.id, c.slug, c.name_key, c.parent_id, c.position FROM categories c JOIN tree t ON c.parent_id = t.id WHERE c.is_active) SELECT t.slug, t.name_key, p.slug AS parent, t.position FROM tree t LEFT JOIN categories p ON p.id = t.parent_id) AS nav')->orderBy('position')->orderBy('slug')->get()->all());
+        return array_values(DB::query()->fromRaw('(WITH RECURSIVE tree AS (SELECT id, slug, name_key, parent_id, position FROM categories WHERE parent_id IS NULL AND is_active UNION ALL SELECT c.id, c.slug, c.name_key, c.parent_id, c.position FROM categories c JOIN tree t ON c.parent_id = t.id WHERE c.is_active) SELECT t.slug, t.name_key, p.slug AS parent, t.position FROM tree t LEFT JOIN categories p ON p.id = t.parent_id) AS nav')->orderBy('position')->orderBy('slug')->get()->map(function (stdClass $category): stdClass {
+            $category->name = $this->text->value($this->text($category, 'name_key'), 'shop');
+
+            return $category;
+        })->all());
     }
 
     private function integer(stdClass $row, string $field): int

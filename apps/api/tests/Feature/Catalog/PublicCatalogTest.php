@@ -58,7 +58,7 @@ final class PublicCatalogTest extends TestCase
         }
         $this->getJson('/api/v1/products?category=figures')->assertOk()->assertJsonCount(2, 'data');
         $this->getJson('/api/v1/products?price_max=50000')->assertOk()->assertJsonPath('data', []);
-        $this->getJson('/api/v1/categories')->assertOk()->assertJsonFragment(['slug' => 'model-kits', 'name_key' => 'Model kits', 'parent' => 'figures', 'position' => 0]);
+        $this->getJson('/api/v1/categories')->assertOk()->assertJsonFragment(['slug' => 'model-kits', 'name_key' => 'Model kits', 'name' => 'Model kits', 'parent' => 'figures', 'position' => 0]);
     }
 
     public function test_cursor_paging_has_no_duplicates_for_each_sort_and_binds_filters(): void
@@ -151,6 +151,7 @@ final class PublicCatalogTest extends TestCase
         DB::table('localizations')->insert(['key' => 'Model kits', 'group_name' => 'shop', 'locale' => 'id', 'value' => 'Model rakitan']);
         Cache::flush();
         $this->getJson('/api/v1/products/gundam')->assertOk()->assertJsonPath('category.name', 'Model rakitan');
+        $this->getJson('/api/v1/categories')->assertOk()->assertJsonFragment(['slug' => 'model-kits', 'name_key' => 'Model kits', 'name' => 'Model rakitan', 'parent' => 'figures', 'position' => 0]);
         DB::table('categories')->where('id', $this->category)->update(['is_active' => false]);
         $this->getJson('/api/v1/categories')->assertOk()->assertJsonPath('data', []);
         $this->getJson('/api/v1/categories?unexpected=1')->assertUnprocessable();

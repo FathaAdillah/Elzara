@@ -1792,10 +1792,11 @@ components:
                 max_days: { type: integer, minimum: 0 }
     CategoryNode:
       type: object
-      required: [slug, name_key, parent, position]
+      required: [slug, name_key, name, parent, position]
       properties:
         slug: { type: string }
         name_key: { type: string }
+        name: { type: string, description: "Shop-localized category name, falling back to name_key." }
         parent: { type: [string, "null"] }
         position: { type: integer }
     ProductVariant:
