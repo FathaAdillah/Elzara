@@ -98,7 +98,7 @@ describe("variants without option axes", () => {
   });
 
   it.each(["IDR", "USD", "JPY"])("sets cart eligibility for %s prices", (currency) => {
-    const variant = { ...product.variants[0]!, price: { amount_minor: 100000, currency } };
+    const variant = { ...product.variants[0]!, price: { amount_minor: 100000, currency: currency as "IDR" } };
     const markup = renderToStaticMarkup(createElement(VariantPicker, {
       product: { ...product, variants: [variant] },
     }));
