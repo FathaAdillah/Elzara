@@ -31,3 +31,6 @@ docker/.env
 
 # bukti hasil reverse engineering disimpan di luar repo (Doc 08 §0)
 /rea-evidence/
+
+# hasil run k6 (scripts/k6.sh)
+/load/k6/results/
