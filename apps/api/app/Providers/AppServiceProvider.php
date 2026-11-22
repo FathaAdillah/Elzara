@@ -14,6 +14,10 @@ use App\Modules\Catalog\Contracts\ProductSearchSource;
 use App\Modules\Catalog\Infrastructure\Search\PostgresProductSearch;
 use App\Modules\Content\Application\I18n\LocalizationResolver;
 use App\Modules\Content\Contracts\LocalizedText;
+use App\Modules\Fulfillment\Contracts\ShippingRateProvider;
+use App\Modules\Fulfillment\Infrastructure\Shipping\BiteshipShippingRateProvider;
+use App\Modules\Fulfillment\Infrastructure\Shipping\CachedShippingRateProvider;
+use App\Modules\Fulfillment\Infrastructure\Shipping\ManualShippingRateProvider;
 use App\Modules\Identity\Application\Queries\RoleRowScopes;
 use App\Modules\Identity\Contracts\RowScopes;
 use App\Modules\Search\Application\SyncProductSearchIndex;
@@ -31,6 +35,16 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->bind(AuditRecorder::class, DatabaseAuditRecorder::class);
         $this->app->bind(ProductSearch::class, PostgresProductSearch::class);
         $this->app->bind(LocalizedText::class, LocalizationResolver::class);
+        $this->app->bind(ShippingRateProvider::class, function (): ShippingRateProvider {
+            $driver = config('shipping.driver');
+            $provider = match ($driver) {
+                'manual' => new ManualShippingRateProvider,
+                'biteship' => new BiteshipShippingRateProvider,
+                default => throw new \InvalidArgumentException('Unknown shipping driver.'),
+            };
+
+            return new CachedShippingRateProvider($provider, $driver.':'.hash('sha256', json_encode(config('shipping.biteship'), JSON_THROW_ON_ERROR)));
+        });
         $this->app->bind(FeatureFlagQuery::class, FeatureFlagService::class);
         $this->app->bind(SettingValueQuery::class, DatabaseSettingValueQuery::class);
         $this->app->bind(ProductSearchSource::class, DatabaseProductSearchSource::class);
