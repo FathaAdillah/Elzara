@@ -3,6 +3,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const api = fileURLToPath(new URL('../../apps/api/', import.meta.url))
+const apiPort = Number(process.env.E2E_API_PORT ?? 3089)
 const env = {
   ...process.env,
   APP_ENV: 'local',
@@ -22,10 +23,10 @@ const env = {
 execFileSync('php', ['artisan', 'config:clear'], { cwd: api, env, stdio: 'inherit' })
 execFileSync('php', ['artisan', 'migrate', '--force'], { cwd: api, env, stdio: 'inherit' })
 execFileSync('php', ['fixture.php'], { cwd: fileURLToPath(new URL('.', import.meta.url)), env, stdio: 'inherit' })
-const backend = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', '--port=3089', '--no-reload'], { cwd: api, env, stdio: 'inherit' })
+const backend = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${apiPort}`, '--no-reload'], { cwd: api, env, stdio: 'inherit' })
 const server = http.createServer((req, res) => {
   if (req.url === '/ready') {
-    const probe = http.get('http://127.0.0.1:3089/up', upstream => { res.writeHead(upstream.statusCode); upstream.pipe(res) })
+    const probe = http.get(`http://127.0.0.1:${apiPort}/up`, upstream => { res.writeHead(upstream.statusCode); upstream.pipe(res) })
     probe.on('error', () => { res.writeHead(503); res.end() })
     return
   }
@@ -39,14 +40,14 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ cookie: req.headers.cookie ?? '' }))
     return
   }
-  const upstream = http.request({ hostname: '127.0.0.1', port: 3089, path: req.url, method: req.method, headers: req.headers }, response => {
+  const upstream = http.request({ hostname: '127.0.0.1', port: apiPort, path: req.url, method: req.method, headers: req.headers }, response => {
     res.writeHead(response.statusCode, response.headers)
     response.pipe(res)
   })
   upstream.on('error', () => { res.writeHead(502); res.end() })
   req.pipe(upstream)
 })
-server.listen(3088, '0.0.0.0')
+server.listen(3088, '127.0.0.1')
 function cleanup() { server.close(); backend.kill('SIGTERM'); process.exit() }
 process.on('SIGTERM', cleanup)
 process.on('SIGINT', cleanup)

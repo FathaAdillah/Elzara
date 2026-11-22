@@ -72,7 +72,7 @@ test('browser cookies and authenticated sessions remain isolated across localhos
 
   // SSR uses the internal transport URL and explicitly supplies the public admin Host.
   const session = cookies.find(c => c.name === 'elzara_admin_session')!
-  const ssr = await context.request.get('http://127.0.0.1:3089/api/v1/admin/auth/session', {
+  const ssr = await context.request.get(`http://127.0.0.1:${process.env.E2E_API_PORT ?? 3089}/api/v1/admin/auth/session`, {
     headers: { Host: 'admin.localhost:3088', Origin: admin, Cookie: `${session.name}=${session.value}` },
   })
   expect(ssr.status()).toBe(200)

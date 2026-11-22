@@ -14,7 +14,9 @@ npx playwright install --with-deps chromium
 npm test
 ```
 
-Port 3088/3089 harus kosong. `DB_*`, `REDIS_*`, dan `APP_KEY` dapat dioverride lewat env.
+Listener proxy dan API hanya terikat ke loopback. Port 3088/3089 harus kosong;
+`E2E_API_PORT` dapat mengganti port backend agar tidak mengganggu stack pengujian lain.
+`DB_*`, `REDIS_*`, dan `APP_KEY` dapat dioverride lewat env.
 Server menetapkan APP_ENV=local, ADMIN_2FA_ENABLED=false, cookie non-Secure untuk HTTP
 localhost, dua origin tetap, dan Redis nyata. Operator dibuat melalui command interaktif
 `identity:admin:create` dengan CommandTester, bukan bypass SQL untuk akun operator.
