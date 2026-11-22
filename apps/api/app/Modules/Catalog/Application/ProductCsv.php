@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use stdClass;
 
 /**
@@ -94,6 +95,9 @@ final class ProductCsv
                         'track_stock' => self::bool($variant['track_stock'], true), 'is_active' => self::bool($variant['is_active'], true),
                     ];
                     $current = DB::table('product_variants')->where('sku', $variant['sku'])->lockForUpdate()->first();
+                    if ($current instanceof stdClass && Scalar::int($current->product_id) !== $id) {
+                        throw ValidationException::withMessages(['file' => "SKU {$variant['sku']} kini dipakai produk lain; ulangi impor."]);
+                    }
                     if ($current instanceof stdClass) {
                         DB::table('product_variants')->where('id', $current->id)
                             ->update([...$variantValues, 'deleted_at' => null, 'version' => Scalar::int($current->version) + 1, 'updated_at' => Carbon::now()]);
