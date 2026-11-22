@@ -39,6 +39,8 @@ Artisan::command('platform:outbox:dispatch {--queue=} {--limit=50}', function (O
 })->purpose('Kirim event yang menunggu di transactional outbox');
 
 Schedule::command('platform:outbox:dispatch')->everyMinute();
+// ProductUpdated → reindex Search harus terlihat < 60 detik (tasklist P1.02), jadi antrean imports dikuras tiap 10 detik.
+Schedule::command('platform:outbox:dispatch --queue=imports --limit=200')->everyTenSeconds()->withoutOverlapping();
 
 Artisan::command('content:media:cleanup', function (ExpiredUploadCleaner $cleaner): int {
     $result = $cleaner->run();

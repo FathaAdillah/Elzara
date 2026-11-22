@@ -72,6 +72,7 @@ Aturan berada di dekat matcher dan mengutip sumbernya:
 - `PLAIN_ENGLISH_NOUN`, `ENGLISH_MENU_LABEL`, `ROLE_READ_ONLY_LABEL`:
   label menu Inggris bukan nama tabel/modul; kode yang di-backtick tetap dicek.
 - `IDENTIFIER_BOUNDARY`: komponen path ber-hyphen bukan identifier SQL lama.
+- `HTTP_PATH_SEGMENT`: segmen di dalam path HTTP ber-backtick (`/admin/catalog/variants/{id}`) bagian kontrak HTTP, bukan identifier SQL lama.
 - `DOMAIN_EXCEPTION_NOT_EVENT`, `EVENT_RENAME_RECORD`, `TEST_ROW_RANGE`:
   peta exception, rename event, dan rentang test tertulis.
 - `TREE_FOREIGN_REFERENCE`, `OWNERSHIP_REBUTTAL`, `TREE_REBUTTAL`, `TREE_BRACES`:

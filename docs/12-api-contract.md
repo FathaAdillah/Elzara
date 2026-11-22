@@ -290,6 +290,46 @@ Catatan kelompok K: `POST /admin/preorder-batches/{id}/close` **sudah ada di Blu
 
 Catatan kelompok S: semua mutasi memakai `X-XSRF-TOKEN` (§3.1). Untuk login dan verifikasi 2FA admin, panggil `/sanctum/csrf-cookie?scope=admin&purpose=login`. Browser menyimpan cookie sementara `elzara_admin_challenge` dan mengirim challenge dari sesi yang sama. Untuk logout, ambil token sesi aktif dari `/sanctum/csrf-cookie?scope=admin`. Pembacaan dan penutupan sesi sendiri memerlukan guard admin dan sesi terverifikasi, tanpa izin modul tambahan. `GET /sanctum/csrf-cookie` memakai path-level server override karena endpoint bawaan Sanctum berada di root.
 
+**T — Catalog admin & pencarian** · modul Catalog + Search · ditambahkan saat P1.02 setelah K6 diputuskan: kolom `version` di kategori/brand/koleksi/produk/varian/price list, harga lewat `price_lists` + `price_list_entries`; sudah masuk `openapi.yaml`
+| Method | Endpoint | Fungsi | Sisi | Idem |
+|---|---|---|---|---|
+| GET | `/admin/catalog/categories` | Daftar kategori (cursor, filter `is_active`); `catalog.view` | admin | — |
+| POST | `/admin/catalog/categories` | Buat kategori; `catalog.create`, diaudit | admin | UUID |
+| GET | `/admin/catalog/categories/{id}` | Detail kategori; `catalog.view` | admin | — |
+| PATCH | `/admin/catalog/categories/{id}` | Ubah kategori dengan `version` (K6) → basi 409 `VERSION_STALE`; produk terkait diindeks ulang | admin | UUID |
+| DELETE | `/admin/catalog/categories/{id}?version=` | Hapus kategori; masih dirujuk FK → 409 `RESOURCE_IN_USE` | admin | UUID |
+| GET | `/admin/catalog/brands` | Daftar brand (cursor, filter `is_active`); `catalog.view` | admin | — |
+| POST | `/admin/catalog/brands` | Buat brand; `catalog.create`, diaudit | admin | UUID |
+| GET | `/admin/catalog/brands/{id}` | Detail brand; `catalog.view` | admin | — |
+| PATCH | `/admin/catalog/brands/{id}` | Ubah brand dengan `version` (K6) → basi 409 `VERSION_STALE`; produk terkait diindeks ulang | admin | UUID |
+| DELETE | `/admin/catalog/brands/{id}?version=` | Hapus brand; masih dirujuk FK → 409 `RESOURCE_IN_USE` | admin | UUID |
+| GET | `/admin/catalog/collections` | Daftar koleksi (cursor, filter `is_active`); `catalog.view` | admin | — |
+| POST | `/admin/catalog/collections` | Buat koleksi; `catalog.create`, diaudit | admin | UUID |
+| GET | `/admin/catalog/collections/{id}` | Detail koleksi; `catalog.view` | admin | — |
+| PATCH | `/admin/catalog/collections/{id}` | Ubah koleksi dengan `version` (K6) → basi 409 `VERSION_STALE`; produk terkait diindeks ulang | admin | UUID |
+| DELETE | `/admin/catalog/collections/{id}?version=` | Hapus koleksi; masih dirujuk FK → 409 `RESOURCE_IN_USE` | admin | UUID |
+| GET | `/admin/catalog/price-lists` | Daftar price list (cursor, filter `is_active`); `catalog.view` | admin | — |
+| POST | `/admin/catalog/price-lists` | Buat price list; `catalog.create`, diaudit | admin | UUID |
+| GET | `/admin/catalog/price-lists/{id}` | Detail price list; `catalog.view` | admin | — |
+| PATCH | `/admin/catalog/price-lists/{id}` | Ubah price list dengan `version` (K6) → basi 409 `VERSION_STALE`; produk terkait diindeks ulang | admin | UUID |
+| DELETE | `/admin/catalog/price-lists/{id}?version=` | Hapus price list; masih dirujuk FK → 409 `RESOURCE_IN_USE` | admin | UUID |
+| GET | `/admin/catalog/price-lists/{id}/entries` | Harga per varian dalam price list | admin | — |
+| PUT | `/admin/catalog/price-lists/{id}/entries` | Ganti seluruh entri secara atomik; menaikkan `version` price list | admin | UUID |
+| GET | `/admin/catalog/products` | Daftar produk (cursor, filter status/kategori/brand) | admin | — |
+| POST | `/admin/catalog/products` | Buat produk + varian + koleksi; `ProductUpdated` ke outbox (antrean `imports`) | admin | UUID |
+| GET | `/admin/catalog/products/export` | Ekspor CSV satu baris per varian; sel formula dinetralkan | admin | — |
+| POST | `/admin/catalog/products/import` | Import CSV multipart, `dry_run` opsional; semua-atau-tidak, galat `/rows/{baris}/{kolom}`; butuh `catalog.create` + `catalog.update` | admin | — |
+| GET | `/admin/catalog/products/{id}` | Detail produk + varian + `collection_ids` | admin | — |
+| PATCH | `/admin/catalog/products/{id}` | Ubah produk dengan `version` (K6) | admin | UUID |
+| DELETE | `/admin/catalog/products/{id}?version=` | Soft delete + `archived`; dokumen indeks dihapus | admin | UUID |
+| POST | `/admin/catalog/products/{id}/variants` | Tambah varian/SKU | admin | UUID |
+| PATCH | `/admin/catalog/variants/{id}` | Ubah varian dengan `version` (K6) | admin | UUID |
+| DELETE | `/admin/catalog/variants/{id}?version=` | Soft delete varian | admin | UUID |
+| GET | `/admin/catalog/search` | Elasticsearch: `multi_match` fuzziness AUTO, prefiks edge n-gram, sinonim eksplisit (`config/search.php`), filter + facet keyword, cursor `search_after` | admin | — |
+| POST | `/admin/catalog/search/reindex` | Antrekan rebuild penuh dari PostgreSQL lalu swap alias atomik | admin | UUID |
+
+Catatan kelompok T: semua mutasi memakai `X-XSRF-TOKEN`; Elasticsearch hanya proyeksi (PostgreSQL sumber kebenaran), disinkron per produk oleh konsumen inbox `search.product-index` dengan versi eksternal dari `occurred_at`, dan outbox `imports` dikuras tiap 10 detik sehingga perubahan terlihat < 60 detik.
+
 **Pemeriksaan runtime 2026-11-22.** `php artisan route:list --json` di container `api` mencocokkan method/path seluruh 16 operasi kelompok S dengan OpenAPI: sembilan `/auth/*`, empat `/admin/auth/*`, CSRF root, dan dua operasi `/me/sessions`. Laravel menambahkan `HEAD` untuk GET; parameter runtime `{sessionId}` adalah `{session_id}` di kontrak, dengan nilai hash sesi yang sama. Login dan verifikasi 2FA sukses mengembalikan 200 (bukan 202); register 201; logout web/admin dan pencabutan sesi 204; redirect/callback sosial sukses 302.
 
 Lima operasi pengelolaan akses operator juga sudah ada di OpenAPI dan daftar rute, bukan endpoint auth publik. Seluruhnya memakai `adminSession`; mutasi memerlukan CSRF, `Idempotency-Key`, dan alasan audit:
@@ -308,13 +348,14 @@ Callback sosial menolak penautan email provider yang belum terverifikasi dengan 
 
 | Cakupan pada 2026-11-22 | Jumlah |
 |---|---|
-| Path pada `openapi.yaml` | 44 |
-| Operasi pada `openapi.yaml` | 45 |
+| Path pada `openapi.yaml` | 62 |
+| Operasi pada `openapi.yaml` | 80 |
 | Path wajib Blueprint yang dicek CI sebagai subset | 18 |
 | Path auth wajib yang dicek CI sebagai subset | 14 |
 | Operasi kelompok S di atas (termasuk dua `/me/sessions`) | 16 |
 | Operasi pengelolaan akses operator | 5 |
-| Entri `route:list --json` seluruh aplikasi | 56 |
+| Operasi kelompok T (catalog admin & pencarian) | 34 |
+| Entri `route:list --json` seluruh aplikasi | 93 |
 
 Daftar kebutuhan domain di §2.1/§2.2 bukan klaim seluruh endpoint sudah masuk spec atau runtime; kebutuhan yang belum ada harus dinormakan di OpenAPI sebelum dipakai frontend. Angka lama 132 bukan jumlah kontrak mesin aktual. Entri Laravel juga mencakup rute framework/internal, sehingga tidak dibandingkan langsung dengan jumlah operasi spec. CI mempertahankan subset Blueprint dan memeriksa auth serta tepat tiga nama skema keamanan lewat parser YAML; pemeriksaan lokal positif exit 0 dan salinan tanpa `/auth/login` exit 1. Drift klien TS terhadap spec nol.
 
@@ -324,7 +365,6 @@ Grup modul berikut butuh endpoint dan **sengaja belum diberi bentuk** supaya tid
 
 | Grup | Kenapa menunggu |
 |---|---|
-| Catalog admin (CRUD produk/varian/kategori/brand/koleksi/price list) | butuh keputusan `price_lists` vs harga inline (Doc 11 §4.2) dan bentuk optimistic lock (Doc 01 §6.3 K6) |
 | Promotion (voucher/loyalty/drop, CRUD admin + validasi) | aturan bisnis B-PO di Doc 02 §15 belum dijawab klien |
 | Content/CMS, nav, localization, SEO | tidak menyentuh uang; bisa menyusul setelah Phase 1 |
 | Search publik | hasil Blueprint §12 (public catalog GET boleh langsung via API/CDN) — perlu keputusan cache policy dulu |

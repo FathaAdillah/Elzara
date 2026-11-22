@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Contract;
 
 use App\Modules\Identity\Infrastructure\Http\RequireAdminPermission;
+use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
 use App\Modules\Settings\Infrastructure\Http\Middleware\EnsureCheckoutEnabled;
+use App\Modules\Settings\Infrastructure\Http\RequireUuidIdempotencyKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\Yaml\Yaml;
@@ -66,5 +68,44 @@ final class OpenApiRouteParityTest extends TestCase
         $this->assertContains('rate:web', $order->gatherMiddleware());
         $this->assertArrayHasKey('503', $spec['paths']['/orders']['post']['responses']);
         $this->assertSame('CHECKOUT_DISABLED', $spec['paths']['/orders']['post']['responses'][503]['content']['application/problem+json']['schema']['allOf'][1]['properties']['code']['const']);
+    }
+
+    public function test_admin_catalog_routes_match_openapi_both_ways(): void
+    {
+        $spec = Yaml::parseFile(base_path('../../packages/api-contracts/openapi.yaml'));
+        $documented = [];
+        foreach ($spec['paths'] as $path => $operations) {
+            if (! str_starts_with($path, '/admin/catalog/')) {
+                continue;
+            }
+            foreach (array_intersect_key($operations, array_flip(['get', 'post', 'put', 'patch', 'delete'])) as $method => $operation) {
+                $documented[] = strtoupper($method).' '.$path;
+                $route = Route::getRoutes()->match(Request::create('/api/v1'.str_replace('{id}', '1', $path), strtoupper($method)));
+                $middleware = $route->gatherMiddleware();
+                $this->assertContains('rate:admin', $middleware, $path);
+                $this->assertContains(RequireAdminPermission::class.':'.$operation['x-elzara-permission'], $middleware, $path);
+                foreach ($operation['x-elzara-additional-permissions'] ?? [] as $permission) {
+                    $this->assertContains(RequireAdminPermission::class.':'.$permission, $middleware, $path);
+                }
+                if ($method !== 'get') {
+                    $this->assertContains(VerifySessionCsrf::class, $middleware, $path);
+                    $refs = array_column($operation['parameters'], '$ref');
+                    $this->assertContains('#/components/parameters/XsrfToken', $refs, $path);
+                    $this->assertSame(in_array(RequireUuidIdempotencyKey::class, $middleware, true), in_array('#/components/parameters/IdempotencyKey', $refs, true), $path);
+                }
+            }
+        }
+
+        $registered = [];
+        foreach (Route::getRoutes() as $route) {
+            if (str_starts_with($route->uri(), 'api/v1/admin/catalog/')) {
+                foreach (array_diff($route->methods(), ['HEAD']) as $method) {
+                    $registered[] = $method.' '.substr($route->uri(), strlen('api/v1'));
+                }
+            }
+        }
+        sort($documented);
+        sort($registered);
+        $this->assertSame($registered, $documented);
     }
 }
