@@ -136,6 +136,24 @@ class AuditorsTest(unittest.TestCase):
         source.rename(source.with_name("0200_Identity_create_categories_table.php"))
         self.assert_defect("check_layout.py", "migration owner does not match directory")
 
+    def test_layout_later_billing_alteration(self):
+        path = self.repo / "apps/api/app/Modules/Billing/Infrastructure/Database/Migrations/0845_Billing_add_grace_days_to_invoices.php"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("<?php public function up(): void { Schema::table('invoices', function ($t) { $t->integer('grace_days')->nullable(); }); }", encoding="utf-8")
+        result = self.run_auditor("check_layout.py")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_layout_invalid_creation_band(self):
+        source = self.repo / "apps/api/app/Modules/Catalog/Infrastructure/Database/Migrations/0200_Catalog_create_categories_table.php"
+        source.rename(source.with_name("0845_Catalog_create_categories_table.php"))
+        self.assert_defect("check_layout.py", "outside documented sprint band")
+
+    def test_layout_alteration_before_creation_band(self):
+        path = self.repo / "apps/api/app/Modules/Billing/Infrastructure/Database/Migrations/0245_Billing_add_grace_days_to_invoices.php"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("<?php public function up(): void { Schema::table('invoices', function ($t) {}); }", encoding="utf-8")
+        self.assert_defect("check_layout.py", "outside documented sprint band")
+
     def test_layout_ownership_mirror(self):
         self.mutate("docs/01-architecture.md", "| `users`, `addresses`,", "| `users`, `missing_addresses`,")
         self.assert_defect("check_layout.py", "ownership mirror differs for Identity")

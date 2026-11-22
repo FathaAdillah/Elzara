@@ -68,6 +68,17 @@ MIGRATION_BANDS = {
     "Promotion": ((1200, 1399),), "UGC": ((1200, 1399),), "Reporting": ((1400, 1599),),
     "Search": ((1400, 1599),),
 }
+# Doc 10 §4/§4.1 allocates first creation by table, not forever by module.
+# These split-module allocations refine MIGRATION_BANDS; other modules have
+# only one creation band. Later changes follow M-3's 0845 Billing example.
+MIGRATION_TABLE_BANDS = {
+    **dict.fromkeys(("media", "localizations", "outbox_events", "inbox_events", "idempotency_keys"), ((1, 199),)),
+    **dict.fromkeys(("preorder_batches", "preorder_batch_items"), ((200, 399),)),
+    **dict.fromkeys(("orders", "order_items", "order_charges", "order_adjustments", "order_addresses", "returns", "return_items", "payment_intents", "payment_transactions", "payments", "payment_ledger", "webhook_receipts", "refunds"), ((400, 599),)),
+    "order_events": ((600, 799),),
+    **dict.fromkeys(("preorder_enrollments", "preorder_allocations", "preorder_payment_plans", "reconciliation_runs", "reconciliation_items"), ((800, 999),)),
+    **dict.fromkeys(("pages", "content_blocks", "content_block_versions", "nav_items"), ((1200, 1399),)),
+}
 # Doc 11 §8.8 G and the verification skill: detect these scripts, not all Unicode
 # (Indonesian punctuation, mathematical arrows and tree drawing are legitimate).
 SUSPICIOUS_UNICODE_NAMES = ("CJK", "IDEOGRAPH", "HIRAGANA", "KATAKANA", "HANGUL", "CYRILLIC", "FULLWIDTH", "HALFWIDTH")

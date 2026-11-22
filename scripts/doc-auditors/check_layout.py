@@ -7,7 +7,7 @@ import sys
 from collections import Counter
 
 from common import ROOT, cells, expand_braces, finding, read, run, section, text_files, tree_entries
-from expectations import BLUEPRINT_PATHS, BUCKETS, DOC_FILES, FRONTENDS, MIGRATION_BANDS, MODULE_COUNT, QUEUES, TABLELESS_MODULES, TREE_ENTRY_COUNT, WORKSPACE_FILES
+from expectations import BLUEPRINT_PATHS, BUCKETS, DOC_FILES, FRAMEWORK_TABLES, FRONTENDS, MIGRATION_BANDS, MIGRATION_TABLE_BANDS, MODULE_COUNT, QUEUES, TABLELESS_MODULES, TREE_ENTRY_COUNT, WORKSPACE_FILES
 from verify_schema import ownership
 
 
@@ -151,7 +151,25 @@ def check():
         framework_dir = str(path.parent) == "apps/api/database/migrations" and module == "Platform"
         if str(path.parent) != expected_dir and not framework_dir:
             fail(path, 1, "M-1/M-3 migration owner does not match directory")
-        if not any(low <= number <= high for low, high in MIGRATION_BANDS.get(module, ())) and number < 1600:
+        # Doc 10 §4's bands allocate first creation. M-3/§2 explicitly place
+        # a Billing alteration in Sprint 4 (0845), after its creation band.
+        # Inspect up(), not rollback recreation; an arbitrary slug alone is
+        # never sufficient to exempt an out-of-band migration.
+        source = read(path).split("public function down", 1)[0]
+        created = set(re.findall(r"Schema::create\(\s*['\"]([a-z][a-z0-9_]*)['\"]", source))
+        created.update(re.findall(r"\bCREATE TABLE\s+(?:IF NOT EXISTS\s+)?([a-z][a-z0-9_]*)", source, re.I))
+        changed = set(re.findall(r"(?:Schema|DB)::table\(\s*['\"]([a-z][a-z0-9_]*)['\"]", source))
+        changed.update(re.findall(r"\bALTER TABLE\s+([a-z][a-z0-9_]*)", source, re.I))
+        owned = set(owners.get(module, [])) if module != "Platform" else set(owners["Lintas modul"]) | FRAMEWORK_TABLES
+        def bands(table):
+            return MIGRATION_TABLE_BANDS.get(table, MIGRATION_BANDS.get(module, ()))
+        if created:
+            valid_band = all(any(low <= number <= high for low, high in bands(table)) for table in created)
+        elif changed and changed <= owned:
+            valid_band = all(any(low <= number for low, _ in bands(table)) for table in changed)
+        else:
+            valid_band = any(low <= number <= high for low, high in MIGRATION_BANDS.get(module, ()))
+        if not valid_band and number < 1600:
             fail(path, 1, "M-3 migration outside documented sprint band")
 
     # This parser is intentionally limited to the repository's block-style YAML
