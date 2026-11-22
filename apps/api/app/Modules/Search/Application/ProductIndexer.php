@@ -7,7 +7,10 @@ namespace App\Modules\Search\Application;
 use App\Modules\Catalog\Contracts\ProductSearchSource;
 use App\Modules\Search\Infrastructure\ElasticsearchClient;
 use App\Platform\Domain\Scalar;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use stdClass;
 
 /**
  * Menyalin dokumen produk dari PostgreSQL (sumber kebenaran) ke indeks.
@@ -59,8 +62,22 @@ final class ProductIndexer
         });
         $this->client->request('POST', $index.'/_refresh');
         $this->index->swap($index);
+        $this->replaySince($version);
 
         return ['index' => $index, 'documents' => $count];
+    }
+
+    /** Sync yang masuk ke alias lama selama rebuild hilang saat swap; proyeksikan ulang produknya ke indeks baru. */
+    private function replaySince(int $version): void
+    {
+        DB::table('outbox_events')->where('event_name', 'ProductUpdated')->where('aggregate_type', 'product')
+            ->whereRaw("(payload->>'occurred_at')::timestamptz >= to_timestamp(? / 1000000.0)", [$version])
+            ->groupBy('aggregate_id')->orderBy('aggregate_id')
+            ->selectRaw("aggregate_id, max((payload->>'occurred_at')::timestamptz) AS occurred_at")
+            ->get()
+            ->each(function (stdClass $row): void {
+                $this->sync([Scalar::int($row->aggregate_id)], (int) Carbon::parse(Scalar::string($row->occurred_at))->format('Uu'));
+            });
     }
 
     /** @param array<string, mixed> $response */
