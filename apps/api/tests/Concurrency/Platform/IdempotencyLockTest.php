@@ -11,9 +11,9 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
-use Tests\TestCase;
+use Tests\Support\Concurrency\ConcurrencyTestCase;
 
-final class IdempotencyLockTest extends TestCase
+final class IdempotencyLockTest extends ConcurrencyTestCase
 {
     private const KEY = 'a8d4bccc-56a7-40ad-a0f1-a4761fc6886f'; // gitleaks:allow
 

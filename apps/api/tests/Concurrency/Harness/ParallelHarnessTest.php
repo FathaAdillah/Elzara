@@ -10,11 +10,11 @@ use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\Concurrency\ConcurrencyAssertions;
+use Tests\Support\Concurrency\ConcurrencyTestCase;
 use Tests\Support\Concurrency\ParallelRunner;
 use Tests\Support\Concurrency\StockQuotaFixture;
-use Tests\TestCase;
 
-final class ParallelHarnessTest extends TestCase
+final class ParallelHarnessTest extends ConcurrencyTestCase
 {
     /** @return iterable<string, array{string, int, int, int}> */
     public static function workloads(): iterable
