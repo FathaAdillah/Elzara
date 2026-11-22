@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Identity\Application\Commands;
 
+use App\Modules\Audit\Contracts\AuditRecorder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -15,7 +16,7 @@ final class BackfillOperatorFlags extends Command
 
     protected $description = 'Backfill is_operator dari kind lama; is_admin=false untuk semua baris.';
 
-    public function handle(): int
+    public function handle(AuditRecorder $audit): int
     {
         if (! Schema::hasColumn('users', 'kind')) {
             $this->info('kolom kind lama sudah tidak ada - backfill no-op (idempoten).');
@@ -25,7 +26,7 @@ final class BackfillOperatorFlags extends Command
 
         $total = 0;
         do {
-            $affected = DB::transaction(function (): int {
+            $affected = DB::transaction(function () use ($audit): int {
                 $affected = DB::update(
                     "UPDATE users SET is_operator = (kind = 'staff'), is_admin = false
                      WHERE id IN (
@@ -34,15 +35,18 @@ final class BackfillOperatorFlags extends Command
                          ORDER BY id LIMIT 1000
                      )"
                 );
-                DB::table('audit_logs')->insert([
-                    'action' => 'backfill.operator_flags',
-                    'target_type' => 'users',
-                    'target_id' => 0,
-                    'after' => json_encode(['updated' => $affected], JSON_THROW_ON_ERROR),
-                    'reason' => 'Backfill struktural kind lama; is_admin=false semua baris; bypass hanya diberikan manual dan diaudit.',
-                    'request_id' => (string) Str::ulid(),
-                    'occurred_at' => now(),
-                ]);
+                $audit->record(
+                    actorId: null,
+                    action: 'backfill.operator_flags',
+                    targetType: 'users',
+                    targetId: 0,
+                    before: null,
+                    after: ['updated' => $affected],
+                    reason: 'Backfill struktural kind lama; is_admin=false semua baris; bypass hanya diberikan manual dan diaudit.',
+                    requestId: (string) Str::ulid(),
+                    ip: null,
+                    userAgent: null,
+                );
 
                 return $affected;
             });

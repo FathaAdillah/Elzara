@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Contract;
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -109,7 +110,30 @@ final class OperatorFlagsMigrationTest extends TestCase
         $this->migration('0051_Identity_expand_users_operator_flags')->up();
         $this->assertSame(0, Artisan::call('identity:backfill-operator-flags'));
         $this->assertStringContainsString('0 baris diperbarui', Artisan::output());
-        $this->assertSame('{"updated": 0}', DB::table('audit_logs')->value('after'));
+        $audit = DB::table('audit_logs')->sole();
+        $this->assertSame('{"updated": 0}', $audit->after);
+        $this->assertNull($audit->actor_id);
+        $this->assertNull($audit->before);
+        $this->assertNull($audit->ip);
+        $this->assertNull($audit->user_agent);
+    }
+
+    public function test_failed_audit_rolls_back_the_backfill_batch(): void
+    {
+        $this->legacy();
+        DB::table('users')->insert(['public_id' => (string) Str::ulid(), 'name' => 'Legacy', 'email' => 'rollback@example.test', 'kind' => 'staff']);
+        $this->migration('0051_Identity_expand_users_operator_flags')->up();
+        DB::statement("ALTER TABLE audit_logs ADD CONSTRAINT reject_backfill CHECK (action <> 'backfill.operator_flags')");
+
+        try {
+            Artisan::call('identity:backfill-operator-flags');
+            $this->fail('The audit write should have failed.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23514', $exception->getCode());
+        }
+
+        $this->assertFalse(DB::table('users')->sole()->is_operator);
+        $this->assertSame(0, DB::table('audit_logs')->count());
     }
 
     private function invalidGate(bool $admin): void
