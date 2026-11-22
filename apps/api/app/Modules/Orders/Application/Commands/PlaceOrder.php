@@ -11,8 +11,12 @@ use App\Modules\Inventory\Contracts\StockReservations;
 use App\Modules\Orders\Application\CheckoutProblem;
 use App\Modules\Payments\Contracts\CheckoutPaymentIntents;
 use App\Modules\Payments\Contracts\FakePaymentAvailability;
+use App\Platform\Domain\Statuses\FulfillmentStatus;
+use App\Platform\Domain\Statuses\OrderStatus;
 use App\Platform\Outbox\DomainEvent;
 use App\Platform\Outbox\OutboxWriter;
+use App\Platform\StateMachine\Axis;
+use App\Platform\StateMachine\StateMachineRunner;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,6 +29,7 @@ final class PlaceOrder
         private readonly CheckoutInvoices $invoices,
         private readonly CheckoutPaymentIntents $payments,
         private readonly OutboxWriter $outbox,
+        private readonly StateMachineRunner $states,
     ) {}
 
     /** @return array<string,mixed> */
@@ -47,6 +52,7 @@ final class PlaceOrder
                 $id = DB::table('orders')->insertGetId([
                     'code' => $code, 'user_id' => $actor, 'checkout_session_id' => $quote->sessionId,
                     'subtotal' => $quote->subtotal, 'shipping_total' => $quote->shipping, 'total' => $total, 'notes' => $note,
+                    'fulfillment_status' => FulfillmentStatus::Unprocessed->value,
                     'shipping_snapshot' => json_encode(['address' => $quote->address, 'courier' => $quote->courier, 'service' => $quote->service], JSON_THROW_ON_ERROR),
                     'placed_at' => $now, 'created_at' => $now, 'updated_at' => $now,
                 ]);
@@ -61,6 +67,7 @@ final class PlaceOrder
                     $orderItems[] = ['id' => $item, 'variant' => $line['variant_id'], 'qty' => $line['qty']];
                 }
                 $this->stock->hold($id, $orderItems, $expires);
+                $this->states->transition('orders', $id, Axis::Fulfillment, FulfillmentStatus::Reserved->value, FulfillmentStatus::Unprocessed->value, 'Stok checkout direservasi.', $actor);
                 $invoice = $this->invoices->issue($id, $total, $expires);
                 $intent = $this->payments->issue($id, $invoice['id'], $total, $expires);
                 $this->checkout->convert($quote->sessionId, $id);
@@ -72,7 +79,7 @@ final class PlaceOrder
                 ]));
 
                 return [
-                    'id' => $code, 'status' => 'awaiting_payment', 'total' => $money, 'created_at' => $now->toIso8601String(),
+                    'id' => $code, 'status' => OrderStatus::AwaitingPayment->value, 'total' => $money, 'created_at' => $now->toIso8601String(),
                     'reservation_expires_at' => $expiry, 'invoice' => ['id' => $invoice['code'], 'type' => 'balance', 'due_at' => $expiry, 'total' => $money],
                     'payment_intent' => ['id' => $intent->code, 'provider' => $intent->provider, 'expires_at' => $expiry, 'status' => $intent->status],
                     'repriced' => $quote->changes !== [], 'changes_from_snapshot' => $quote->changes,

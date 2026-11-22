@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Modules\Audit\Application\AuditLogTransitionSink;
 use App\Modules\Audit\Application\DatabaseAuditRecorder;
 use App\Modules\Audit\Contracts\AuditRecorder;
 use App\Modules\Billing\Application\DatabaseCheckoutInvoices;
@@ -32,6 +33,8 @@ use App\Modules\Identity\Contracts\CustomerAddresses;
 use App\Modules\Identity\Contracts\RowScopes;
 use App\Modules\Inventory\Application\DatabaseStockReservations;
 use App\Modules\Inventory\Contracts\StockReservations;
+use App\Modules\Orders\Application\Commands\PlaceOrder;
+use App\Modules\Orders\Application\Commands\ResolveFakeCheckout;
 use App\Modules\Payments\Application\DatabaseCheckoutPaymentIntents;
 use App\Modules\Payments\Contracts\CheckoutPaymentIntents;
 use App\Modules\Payments\Contracts\PaymentProvider;
@@ -41,6 +44,7 @@ use App\Modules\Settings\Application\DatabaseSettingValueQuery;
 use App\Modules\Settings\Application\FeatureFlagService;
 use App\Modules\Settings\Contracts\FeatureFlagQuery;
 use App\Modules\Settings\Contracts\SettingValueQuery;
+use App\Platform\StateMachine\StateMachineRunner;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -49,6 +53,9 @@ final class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AuditRecorder::class, DatabaseAuditRecorder::class);
+        $this->app->when([PlaceOrder::class, ResolveFakeCheckout::class])
+            ->needs(StateMachineRunner::class)
+            ->give(fn (): StateMachineRunner => new StateMachineRunner(sink: $this->app->make(AuditLogTransitionSink::class)));
         $this->app->bind(ProductSearch::class, PostgresProductSearch::class);
         $this->app->bind(SellableVariants::class, DatabaseSellableVariants::class);
         $this->app->bind(CustomerAddresses::class, AddressBook::class);

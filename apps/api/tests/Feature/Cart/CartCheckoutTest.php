@@ -12,10 +12,12 @@ use App\Modules\Fulfillment\Contracts\ShippingRateProvider;
 use App\Modules\Fulfillment\Contracts\ShippingRateRequest;
 use App\Modules\Identity\Application\ActiveOrderAddressUsage;
 use App\Modules\Identity\Infrastructure\Models\User;
+use App\Modules\Payments\Contracts\CheckoutPaymentIntents;
 use App\Modules\Settings\Infrastructure\Models\FeatureFlag;
 use App\Platform\Domain\PublicId;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -121,7 +123,7 @@ final class CartCheckoutTest extends TestCase
         $this->send('POST', $path, $body, csrf: false)->assertStatus(419);
         $this->send('POST', $path, ['payment_intent_id' => 'pi_'.Str::ulid()])->assertNotFound();
         $paymentKey = (string) Str::uuid();
-        $this->send('POST', $path, $body, $paymentKey)->assertOk()->assertJsonPath('status', 'paid');
+        $capture = $this->send('POST', $path, $body, $paymentKey)->assertOk()->assertJsonPath('status', 'paid');
         $this->send('POST', $path, $body, $paymentKey)->assertOk()->assertHeader('Idempotency-Replayed', 'true');
         $this->send('POST', $path, $body)->assertOk()->assertJsonPath('status', 'paid');
         $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonCount(0, 'groups');
@@ -132,6 +134,14 @@ final class CartCheckoutTest extends TestCase
         $this->assertDatabaseHas('payment_intents', ['code' => $order['payment_intent']['id'], 'status' => 'captured']);
         $this->assertDatabaseHas('stock_reservations', ['variant_id' => $this->variant, 'status' => 'committed']);
         $this->assertDatabaseHas('stock_items', ['variant_id' => $this->variant, 'reserved' => 1, 'on_hand' => 5]);
+        $audit = $this->orderAudit($order['id']);
+        $this->assertSame([
+            [['fulfillment_status' => 'unprocessed'], ['fulfillment_status' => 'reserved'], 'Stok checkout direservasi.'],
+            [['order_status' => 'awaiting_payment'], ['order_status' => 'paid'], 'Pembayaran simulasi berhasil.'],
+            [['payment_status' => 'unpaid'], ['payment_status' => 'paid'], 'Pembayaran simulasi berhasil.'],
+        ], $audit->map(fn (object $row): array => [json_decode($row->before, true), json_decode($row->after, true), $row->reason])->all());
+        $this->assertSame([$this->user, $this->user, $this->user], $audit->pluck('actor_id')->all());
+        $this->assertSame([$response->headers->get('X-Request-Id'), $capture->headers->get('X-Request-Id'), $capture->headers->get('X-Request-Id')], $audit->pluck('request_id')->all());
     }
 
     public function test_payment_only_consumes_purchased_quantity_once(): void
@@ -161,7 +171,14 @@ final class CartCheckoutTest extends TestCase
         $this->artisan('inventory:expire-checkout-reservations')->expectsOutput('expired=0')->assertSuccessful();
         $this->assertDatabaseHas('stock_items', ['variant_id' => $this->variant, 'reserved' => 0, 'available_to_sell' => 5]);
         $this->assertDatabaseHas('stock_reservations', ['variant_id' => $this->variant, 'status' => 'expired']);
-        $this->assertDatabaseHas('orders', ['code' => $order['id'], 'order_status' => 'expired']);
+        $this->assertDatabaseHas('orders', ['code' => $order['id'], 'order_status' => 'expired', 'fulfillment_status' => 'unprocessed']);
+        $audit = $this->orderAudit($order['id'])->slice(1)->values();
+        $this->assertSame([
+            [['order_status' => 'awaiting_payment'], ['order_status' => 'expired']],
+            [['fulfillment_status' => 'reserved'], ['fulfillment_status' => 'unprocessed']],
+        ], $audit->map(fn (object $row): array => [json_decode($row->before, true), json_decode($row->after, true)])->all());
+        $this->assertSame([null, null], $audit->pluck('actor_id')->all());
+        $this->assertSame(['Reservasi checkout kedaluwarsa.'], $audit->pluck('reason')->unique()->all());
         $this->assertDatabaseHas('invoices', ['code' => $order['invoice']['id'], 'status' => 'void']);
         $this->assertDatabaseHas('payment_intents', ['code' => $order['payment_intent']['id'], 'status' => 'expired']);
         $this->assertSame(1, DB::table('outbox_events')->where('event_name', 'ReservationExpired')->count());
@@ -188,6 +205,33 @@ final class CartCheckoutTest extends TestCase
             $this->assertDatabaseCount($table, 0);
         }
         $this->assertSame(0, DB::table('outbox_events')->where('event_name', 'StockReserved')->count());
+    }
+
+    public function test_failure_after_reserving_rolls_back_order_and_transition_audit(): void
+    {
+        $this->enableFakePayment();
+        $payload = $this->quoteForOrder($this->checkout()->assertCreated()->json());
+        $this->mock(CheckoutPaymentIntents::class)
+            ->shouldReceive('issue')->once()->andReturnUsing(function (): never {
+                $this->assertDatabaseHas('orders', ['fulfillment_status' => 'reserved']);
+                $this->assertDatabaseHas('audit_logs', ['action' => 'order.state.transition', 'reason' => 'Stok checkout direservasi.']);
+
+                throw new \RuntimeException('Fake payment fixture failed after reservation.');
+            });
+
+        $this->send('POST', '/api/v1/orders', $payload)->assertServerError();
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('stock_reservations', 0);
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'order.state.transition']);
+    }
+
+    private function orderAudit(string $orderCode): Collection
+    {
+        return DB::table('audit_logs')
+            ->where('action', 'order.state.transition')
+            ->where('target_type', 'order')
+            ->where('target_id', DB::table('orders')->where('code', $orderCode)->select('id'))
+            ->orderBy('id')->get();
     }
 
     public function test_fake_payment_cannot_be_enabled_in_production(): void

@@ -155,7 +155,7 @@ final class StateMachineTransitionTest extends TestCase
 
             public function __construct(private readonly bool $fail) {}
 
-            public function record(ConnectionInterface $connection, string $table, int $aggregateId, Axis $axis, string $from, string $to, string $reason): void
+            public function record(ConnectionInterface $connection, string $table, int $aggregateId, Axis $axis, string $from, string $to, string $reason, ?int $actorId = null): void
             {
                 $this->connection = $connection;
                 $connection->table('transition_audit')->insert([
