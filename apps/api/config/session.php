@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 // Redis memakai penyimpanan sesi terpisah dari ledger user_sessions.
+if (env('APP_ENV', 'production') === 'production' && ! in_array(env('SESSION_DOMAIN'), [null, ''], true)) {
+    throw new LogicException('SESSION_DOMAIN must be empty in production.');
+}
+
 return [
     'driver' => env('SESSION_DRIVER', 'redis'),
     'lifetime' => (int) env('SESSION_LIFETIME', 120),
@@ -15,7 +19,7 @@ return [
     'lottery' => [2, 100],
     'cookie' => env('SESSION_COOKIE', 'elzara_web_session'),
     'path' => env('SESSION_PATH', '/'),
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => null,
     'secure' => env('SESSION_SECURE_COOKIE', true),
     'http_only' => (bool) env('SESSION_HTTP_ONLY', true),
     'same_site' => env('SESSION_SAME_SITE', 'lax'),

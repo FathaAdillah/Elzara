@@ -14,6 +14,7 @@ export default defineEventHandler(async (event): Promise<AdminSession> => {
       headers: {
         cookie: `elzara_admin_session=${encodeURIComponent(sessionCookie)}`,
         origin: adminOrigin,
+        host: new URL(adminOrigin).host,
         accept: 'application/json',
         traceparent: event.context.traceparent as string,
       },

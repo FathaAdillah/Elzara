@@ -42,6 +42,7 @@ final class AdminLoginTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        config(['surfaces.admin_origin' => 'https://admin.localhost', 'sanctum.stateful' => ['localhost', 'admin.localhost']]);
     }
 
     public function test_auth_inputs_reject_unknown_fields_before_credentials(): void
@@ -366,14 +367,18 @@ final class AdminLoginTest extends TestCase
         $headers = [
             'HTTP_ACCEPT' => 'application/json',
             'CONTENT_TYPE' => 'application/json',
-            'HTTP_HOST' => 'localhost',
-            'HTTP_ORIGIN' => 'https://localhost',
+            'HTTP_HOST' => 'admin.localhost',
+            'HTTP_ORIGIN' => 'https://admin.localhost',
             'HTTPS' => 'on',
         ];
         if ($sendCsrf && isset($cookies['XSRF-TOKEN'])) {
             $headers['HTTP_X_XSRF_TOKEN'] = $cookies['XSRF-TOKEN'];
         }
 
-        return $this->call($method, $path, [], $cookies, [], $headers, json_encode($payload, JSON_THROW_ON_ERROR));
+        $host = str_contains($path, '/admin/') || str_contains($path, 'scope=admin') ? 'admin.localhost' : 'localhost';
+        $headers['HTTP_HOST'] = $host;
+        $headers['HTTP_ORIGIN'] = 'https://'.$host;
+
+        return $this->call($method, 'https://'.$host.$path, [], $cookies, [], $headers, json_encode($payload, JSON_THROW_ON_ERROR));
     }
 }

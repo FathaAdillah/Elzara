@@ -32,6 +32,8 @@ final class AuthSecurityGatesTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        config(['surfaces.admin_origin' => 'https://admin.localhost']);
+        config(['sanctum.stateful' => ['localhost', 'admin.localhost']]);
         config(['auth.local_admin_password_only_email' => null]);
         Route::pushMiddlewareToGroup('api', GuardSnapshot::class);
     }
@@ -142,6 +144,7 @@ final class AuthSecurityGatesTest extends TestCase
         $this->assertTrue($cookie->isHttpOnly());
         $this->assertSame('lax', $cookie->getSameSite());
         $this->assertSame('/', $cookie->getPath());
+        $this->assertNull($cookie->getDomain());
     }
 
     private function csrf(array $cookies = [], bool $admin = false): array
@@ -166,10 +169,14 @@ final class AuthSecurityGatesTest extends TestCase
     private function send(string $method, string $path, array $cookies, array $payload = []): TestResponse
     {
         $headers = ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json', 'HTTP_HOST' => 'localhost', 'HTTP_ORIGIN' => 'https://localhost', 'HTTPS' => 'on'];
+        if (str_contains($path, '/admin/') || str_contains($path, 'scope=admin')) {
+            $headers['HTTP_HOST'] = 'admin.localhost';
+            $headers['HTTP_ORIGIN'] = 'https://admin.localhost';
+        }
         if (isset($cookies['XSRF-TOKEN'])) {
             $headers['HTTP_X_XSRF_TOKEN'] = $cookies['XSRF-TOKEN'];
         }
-        $response = $this->call($method, $path, [], $cookies, [], $headers, json_encode($payload, JSON_THROW_ON_ERROR));
+        $response = $this->call($method, 'https://'.$headers['HTTP_HOST'].$path, [], $cookies, [], $headers, json_encode($payload, JSON_THROW_ON_ERROR));
         $this->app['auth']->forgetGuards();
 
         return $response;
