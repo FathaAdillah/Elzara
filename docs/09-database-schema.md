@@ -234,8 +234,9 @@ user_identities                           [Identity]      baru (Doc 11 §4.4 C) 
   idx user_identities_user (user_id)
   -- Penggabungan akun HANYA lewat email terverifikasi, bukan email mentah dari provider
   --   (kalau tidak, mendaftar di provider dengan email korban = pengambilalihan akun).
-  -- Admin tidak punya jalur sosial (Doc 11 §4.4 A). Provider OIDC menyusul bila Q-2
-  --   dijawab "klien punya IdP sendiri" (ADR-007 D-6a), bukan mengganti mekanisme sesi.
+  -- Admin tidak punya jalur sosial (Doc 11 §4.4 A). Q-2 dijawab pemilik proyek
+  --   2026-11-22: klien tidak punya IdP/SSO sendiri; sesi Sanctum dua guard tetap,
+  --   tidak ada provider OIDC (ADR-007 D-6a).
 
 staff_2fa_secrets                         [Identity]      2FA admin wajib (Doc 01 §9.4; Doc 11 §4.4 A)
   user_id bigint NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE

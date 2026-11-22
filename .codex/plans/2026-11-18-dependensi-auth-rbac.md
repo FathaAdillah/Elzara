@@ -144,7 +144,7 @@ Belum ada dependensi terpasang, belum ada test jalan, belum ada yang di-commit.
 | Butir | Status | Dampak ke plan |
 |---|---|---|
 | Tanda tangan threat model atas cookie/CSRF/2FA/pemisahan guard | **belum ada** (ADR-007 (BFF/sesi) D-6a, kewajiban B-14) | Task 6 tidak boleh dimulai sebelum pemilik proyek + klien menandatangani `docs/threat-model.md`; bila belum, agen feature lapor BLOCKED |
-| Q-2: apakah klien punya IdP/SSO sendiri | terbuka (menyempit, bukan lagi BFF-vs-token) | bila ya: provider OIDC ditambahkan pada jalur login yang sama (Task 8), bukan mengganti mekanisme sesi |
+| Q-2: apakah klien punya IdP/SSO sendiri | Terjawab 2026-11-22 oleh pemilik proyek: tidak | Mekanisme sesi Sanctum dua guard tetap; tidak ada provider OIDC. Artefak sign-off pemilik proyek dan klien masih ditunggu |
 | Q-1: jadwal J-a/J-b/J-c | terbuka | tidak mengubah teknis gelombang ini; mengubah urutan sprint berikutnya |
 | Q-3 finance, Q-4 kapasitas RPS, Q-5 multi-gudang, Q-6 domain/edge, Q-7 gateway | terbuka | di luar cakupan auth/RBAC; deploy staging/production tetap terhalang (workflow api.yml job deploy) |
 | Q-8: pemegang permission CMS + moderasi UGC | terbuka | bundel role di Task 9 bersifat provisional; grant per orang menunggu keputusan klien; jangan mengarang pemilik |
