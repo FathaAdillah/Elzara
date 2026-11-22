@@ -116,7 +116,7 @@ test('PO: batch placeholder and supported pre-order product/cart journey', async
 
 test.fixme('PO: seeded batch details, quota, ETA and reservation — no batch schema/API/UI on master', async () => {});
 
-test('Request Order: catalog filter, badge and PDP information', async ({ page }) => {
+test('Request Order: submit a private request and see it in the staff queue', async ({ page }) => {
   await page.goto('/catalog');
   await page.getByRole('combobox', { name: 'Mode', exact: true }).selectOption('request_order');
   await page.getByRole('button', { name: 'Terapkan filter' }).click();
@@ -128,8 +128,47 @@ test('Request Order: catalog filter, badge and PDP information', async ({ page }
   await expect(page).toHaveURL(/\/catalog\/e2e-request-charm$/);
   await expect(page.getByRole('heading', { name: 'E2E Request Charm', exact: true })).toBeVisible();
   await expect(page.getByText('Quote · Request', { exact: true })).toBeVisible();
-  await expect(page.getByText('Minta penawaran', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Request Order: penawaran dikonfirmasi oleh operator.', { exact: true })).toBeVisible();
-});
+  await expect(page.getByRole('button', { name: 'Tambah ke keranjang' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Minta penawaran', exact: true }).click();
+  await page.getByRole('link', { name: 'Masuk untuk mengajukan' }).click();
+  await login(page);
+  await expect(page).toHaveURL(/\/account\/requests\?product=e2e-request-charm$/);
+  await expect(page.getByLabel('Nama barang')).toHaveValue('E2E Request Charm');
+  await page.getByLabel('Jumlah', { exact: true }).fill('2');
+  await page.getByLabel('Target harga (Rp, opsional)').fill('85000');
+  await page.getByLabel('Negara asal (opsional)').fill('JP');
+  await page.getByLabel('Preferensi pemenuhan').selectOption('preorder');
+  await page.getByLabel('Tautan referensi (opsional)').fill('https://example.com/charm');
+  await page.getByLabel('Catatan (opsional)').fill('Mohon warna perak.');
+  const submitted = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/product-requests');
+  await page.getByRole('button', { name: 'Kirim pengajuan' }).click();
+  const response = await submitted;
+  expect(response.status()).toBe(201);
+  const request = await response.json();
+  expect(request).toMatchObject({
+    id: expect.stringMatching(/^prq_[0-9A-HJKMNP-TV-Z]{26}$/), status: 'new', quantity: 2,
+    target_price: { amount_minor: 85000, currency: 'IDR' }, origin_country: 'JP', preferred_mode: 'preorder',
+  });
+  await expect(page.getByRole('status')).toHaveText('Pengajuan berhasil dikirim');
+  await expect(page.getByText(`Kode pengajuan: ${request.id}`)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Pengajuan saya' }).getByText(request.id, { exact: true })).toBeVisible();
 
-test.fixme('Request Order: submit request, operator quote and payment — no flow on master', async () => {});
+  const adminOrigin = process.env.E2E_ADMIN_URL ?? 'http://admin.localhost:3081';
+  await page.goto(`${adminOrigin}/sourcing`);
+  await expect(page).toHaveURL(`${adminOrigin}/login`);
+  await page.getByLabel('Email', { exact: true }).fill('demo.operator@elzara.test');
+  await page.getByLabel('Kata sandi', { exact: true }).fill(process.env.DEMO_PASSWORD ?? 'E2e-demo-password!42');
+  await page.getByRole('button', { name: 'Masuk', exact: true }).click();
+  await page.getByRole('link', { name: 'Pengajuan barang', exact: true }).first().click();
+  await expect(page.getByRole('heading', { name: 'Antrean pengajuan barang' })).toBeVisible();
+  await page.getByLabel('Email pelanggan').fill('demo.customer@elzara.test');
+  await page.getByRole('button', { name: 'Terapkan filter' }).click();
+  const row = page.getByRole('article', { name: 'E2E Request Charm' }).filter({ hasText: request.id });
+  await expect(row.getByText('Baru', { exact: true })).toBeVisible();
+  await expect(row).toContainText('demo.customer@elzara.test');
+  await expect(row).toContainText('Target tanggapan:');
+  await expect(row).toContainText('Mohon warna perak.');
+  await expect(row.getByRole('link', { name: 'https://example.com/charm' })).toBeVisible();
+});

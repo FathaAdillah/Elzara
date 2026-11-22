@@ -98,7 +98,17 @@ export default async function ProductPage({ params }: Props) {
               Estimasi tiba {product.eta.min_days}–{product.eta.max_days} hari.
             </p>
           )}
-          <VariantPicker product={product} />
+          {product.kind === "request_order" ? (
+            <div className="space-y-3 border-y border-divider py-6">
+              <Link
+                href={{ pathname: "/account/requests", query: { product: product.slug } }}
+                className="inline-flex min-h-touch w-full items-center justify-center rounded-md bg-ink px-4 text-sm font-semibold text-white hover:opacity-90"
+              >
+                Minta penawaran
+              </Link>
+              <p className="text-sm text-ink-muted">Ajukan permintaan privat tanpa pemesanan atau pembayaran.</p>
+            </div>
+          ) : <VariantPicker product={product} />}
           <section
             aria-labelledby="description-title"
             className="space-y-3 border-t border-divider pt-6"

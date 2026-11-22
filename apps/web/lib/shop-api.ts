@@ -1,9 +1,10 @@
 import { api } from "./api";
+import type { components } from "@elzara/api-client";
 import { ensureCsrfCookie, xsrfHeader } from "./session";
 import { CommerceError, type AddressWrite } from "./commerce";
-async function result<T>(request: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
+async function result<T>(request: Promise<{ data?: T; error?: unknown; response: Response }>, redirectToLogin = true): Promise<T> {
   const { data, error, response } = await request;
-  if (response.status === 401 && typeof window !== "undefined") {
+  if (redirectToLogin && response.status === 401 && typeof window !== "undefined") {
     window.location.assign("/account/login?next=" + encodeURIComponent(window.location.pathname));
   }
   if (!response.ok) throw new CommerceError({ ...(typeof error === "object" && error !== null ? error : {}), status: response.status });
@@ -16,6 +17,10 @@ async function mutation(key = crypto.randomUUID()) {
 const read = { credentials: "include" as const, cache: "no-store" as const };
 export const getCart = () => result(api.GET("/cart", read));
 export const getAddresses = () => result(api.GET("/me/addresses", read));
+export const getProductRequests = (cursor?: string) => result(api.GET("/me/product-requests", { ...read, params: { query: { cursor } } }), false);
+export async function submitProductRequest(body: components["schemas"]["ProductRequestWrite"], key: string) {
+  return result(api.POST("/product-requests", { ...await mutation(key), body }), false);
+}
 export async function addCartItem(variant_id: string) { return result(api.POST("/cart/items", { ...await mutation(), body: { variant_id, quantity: 1 } })); }
 export async function updateCartItem(id: string, quantity: number) { const options = await mutation(); return result(api.PATCH("/cart/items/{id}", { ...options, params: { ...options.params, path: { id } }, body: { quantity } })); }
 export async function removeCartItem(id: string) { const options = await mutation(); return result(api.DELETE("/cart/items/{id}", { ...options, params: { ...options.params, path: { id } } })); }

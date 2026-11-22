@@ -42,7 +42,8 @@ fi
 "${compose[@]}" up -d --wait postgres redis >"$STATE/services-start.log" 2>&1
 "${compose[@]}" run --rm api install >"$STATE/composer-seed.log" 2>&1
 "${compose[@]}" run --rm node build >"$STATE/web-build.log" 2>&1
-"${compose[@]}" up -d api web proxy >>"$STATE/services-start.log" 2>&1
+"${compose[@]}" run --rm node build-admin >"$STATE/admin-build.log" 2>&1
+"${compose[@]}" up -d api web admin proxy >>"$STATE/services-start.log" 2>&1
 "${compose[@]}" run --rm node ready
 "${compose[@]}" run --rm browser test "$@"
 "${compose[@]}" run --rm api verify-order

@@ -51,6 +51,9 @@ export default async function CatalogPage({ searchParams }: Props) {
         <p className="mt-3 text-sm text-ink-muted">
           Ready stock, pre-order, dan request — dalam satu tempat.
         </p>
+        <Link className="mt-2 inline-flex min-h-touch items-center text-sm font-medium underline" href="/account/requests">
+          Ajukan barang yang belum ada di katalog
+        </Link>
       </header>
       <div className="grid items-start gap-8 lg:grid-cols-[15rem_1fr]">
         <aside

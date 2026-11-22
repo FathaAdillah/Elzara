@@ -2611,6 +2611,7 @@ paths:
     post:
       operationId: createProductRequest
       tags: [Sourcing]
+      description: Kirim permintaan sourcing privat tanpa pemesanan atau pembayaran. Tautan referensi bersifat opsional.
       x-elzara-auth: customer
       security: [{ webSession: [] }]
       parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }, { $ref: "#/components/parameters/XsrfToken" }]
@@ -2619,12 +2620,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [title, quantity]
-              properties:
-                title: { type: string, minLength: 5, maxLength: 200 }
-                quantity: { type: integer, minimum: 1, maximum: 999 }
-                target_price: { $ref: "#/components/schemas/Money" }
+              $ref: "#/components/schemas/ProductRequestWrite"
       responses:
         "201":
           description: "Permintaan Request Order dibuat"
@@ -2634,8 +2630,77 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProductRequestRead" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /me/product-requests:
+    get:
+      operationId: listMyProductRequests
+      tags: [Sourcing]
+      description: Tampilkan pengajuan milik akun pelanggan yang aktif saja.
+      x-elzara-auth: customer
+      security: [{ webSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/Limit" }, { $ref: "#/components/parameters/Cursor" }]
+      responses:
+        "200":
+          description: Pengajuan privat milik pelanggan yang masuk
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/ProductRequestRead" } }
+                  meta: { $ref: "#/components/schemas/CursorMeta" }
+        "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /admin/product-requests:
+    get:
+      operationId: listAdminProductRequests
+      tags: [Sourcing]
+      description: Tampilkan antrean sourcing dengan filter status atau alamat email lengkap.
+      x-elzara-auth: admin
+      x-elzara-permission: sourcing.view
+      security: [{ adminSession: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ProductRequestStatus" } }
+        - { name: account, in: query, schema: { type: string, format: email, maxLength: 254 } }
+      responses:
+        "200":
+          description: Antrean pengajuan pelanggan untuk staf dengan izin sourcing.view
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - { $ref: "#/components/schemas/ProductRequestRead" }
+                        - type: object
+                          required: [customer_name, customer_email]
+                          properties:
+                            customer_name: { type: string }
+                            customer_email: { type: string, format: email }
+                  meta: { $ref: "#/components/schemas/CursorMeta" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
 
   /product-requests/{id}/attachments/presign:
     post:
@@ -4295,13 +4360,51 @@ components:
         name: { type: string }
         status: { type: string, enum: [open, closing, closed, cancelled] }
         closes_at: { type: string, format: date-time }
+    ProductRequestStatus:
+      type: string
+      enum: [new, in_review, quoted, accepted, declined, expired, withdrawn]
+    ProductRequestWrite:
+      type: object
+      additionalProperties: false
+      required: [title, quantity]
+      properties:
+        title: { type: string, minLength: 5, maxLength: 200 }
+        quantity: { type: integer, minimum: 1, maximum: 999 }
+        target_price:
+          type: object
+          additionalProperties: false
+          required: [amount_minor, currency]
+          properties:
+            amount_minor: { type: integer, minimum: 0, maximum: 999999999999 }
+            currency: { type: string, const: IDR }
+        brand: { type: ["string", "null"], maxLength: 120 }
+        series: { type: ["string", "null"], maxLength: 120 }
+        character_name: { type: ["string", "null"], maxLength: 120 }
+        target_url: { type: ["string", "null"], format: uri, pattern: "^https?://", maxLength: 500 }
+        origin_country: { type: ["string", "null"], pattern: "^[A-Z]{2}$" }
+        preferred_mode: { type: ["string", "null"], enum: [ready_stock, preorder, null] }
+        notes: { type: ["string", "null"], maxLength: 2000 }
     ProductRequestRead:
       type: object
-      required: [id, status, created_at]
+      required: [id, title, quantity, target_price, brand, series, character_name, target_url, origin_country, preferred_mode, notes, status, created_at, sla_due_at]
       properties:
-        id: { type: string, pattern: "^prq_[0-9A-Za-z]{20,32}$" }
-        status: { type: string }
+        id: { type: string, pattern: "^prq_[0-9A-HJKMNP-TV-Z]{26}$" }
+        title: { type: string }
+        quantity: { type: integer }
+        target_price:
+          oneOf:
+            - { $ref: "#/components/schemas/Money" }
+            - { type: "null" }
+        brand: { type: ["string", "null"] }
+        series: { type: ["string", "null"] }
+        character_name: { type: ["string", "null"] }
+        target_url: { type: ["string", "null"], format: uri }
+        origin_country: { type: ["string", "null"] }
+        preferred_mode: { type: ["string", "null"], enum: [ready_stock, preorder, null] }
+        notes: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/ProductRequestStatus" }
         created_at: { type: string, format: date-time }
+        sla_due_at: { type: ["string", "null"], format: date-time }
     QuotationRead:
       type: object
       required: [id, current_version, status, total]

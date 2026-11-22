@@ -1329,13 +1329,14 @@ proof_files                               [MarketplacePurchase] nama tetap (Doc 
 
 ```
 product_requests                          [Sourcing]        rename quote_requests (Doc 11 §4.1); pengajuan buyer (Doc 06 §3.3)
-  code varchar(24) NOT NULL UNIQUE
+  code varchar(32) NOT NULL UNIQUE                            ID publik prq_ + ULID
   user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE
   product_name_wanted varchar(240) NOT NULL
   brand varchar(120), series varchar(120), character_name varchar(120)
   target_url varchar(500)                 tautan marketplace asal
-  desired_qty integer NOT NULL CHECK (desired_qty > 0)
-  budget_max bigint, currency_code char(3) NOT NULL DEFAULT 'IDR'
+  origin_country char(2), preferred_mode varchar(16)          pilihan ready_stock | preorder | NULL (fleksibel)
+  desired_qty integer NOT NULL CHECK (desired_qty BETWEEN 1 AND 999)
+  budget_max bigint CHECK (budget_max >= 0), currency_code char(3) NOT NULL DEFAULT 'IDR'
   reference_media_id bigint REFERENCES media(id) ON DELETE SET NULL   lampiran = media polimorfik (S-3), bukan request_attachments
   notes text
   status varchar(24) NOT NULL DEFAULT 'new'
@@ -1345,7 +1346,8 @@ product_requests                          [Sourcing]        rename quote_request
   assigned_to bigint REFERENCES users(id)
   --
   idx product_requests_status_sla (status, sla_due_at)
-  idx product_requests_user (user_id, requested_at DESC)
+  idx product_requests_recent (requested_at, id)
+  idx product_requests_user (user_id, requested_at, id)
 
 sourcing_options                          [Sourcing]        tabel baru (BP §6, Doc 11 §4.2) — alternatif sourcing yang dinilai admin
   product_request_id bigint NOT NULL REFERENCES product_requests(id) ON DELETE CASCADE
