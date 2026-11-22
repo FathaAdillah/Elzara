@@ -1,0 +1,67 @@
+name: admin-host-isolation
+
+on:
+  pull_request:
+    paths:
+      - apps/api/**
+      - apps/admin/server/routes/internal/admin-session.get.ts
+      - apps/admin/tests/**
+      - e2e/admin-isolation/**
+      - .github/workflows/admin-isolation.yml
+  push:
+    branches: [master]
+    paths:
+      - apps/api/**
+      - apps/admin/server/routes/internal/admin-session.get.ts
+      - apps/admin/tests/**
+      - e2e/admin-isolation/**
+      - .github/workflows/admin-isolation.yml
+  workflow_dispatch:
+
+permissions: { contents: read }
+
+jobs:
+  chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: elzara_test
+          POSTGRES_USER: elzara
+          POSTGRES_PASSWORD: elzara
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U elzara" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, redis, intl, gd, bcmath, zip, opcache
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with: { working-directory: apps/api }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: e2e/admin-isolation/package-lock.json
+      - run: touch apps/api/.env
+      - run: node --experimental-strip-types --test tests/*.test.ts
+        working-directory: apps/admin
+      - run: npm ci
+        working-directory: e2e/admin-isolation
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e/admin-isolation
+      - run: npm test
+        working-directory: e2e/admin-isolation
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: admin-isolation-traces
+          path: e2e/admin-isolation/test-results

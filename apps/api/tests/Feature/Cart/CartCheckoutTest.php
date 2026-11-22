@@ -273,6 +273,7 @@ final class CartCheckoutTest extends TestCase
     public function test_fake_payment_cannot_be_enabled_in_production(): void
     {
         $this->enableFakePayment();
+        config(['surfaces.admin_origin' => 'https://admin.localhost']);
         $this->app->detectEnvironment(fn () => 'production');
         $checkout = $this->checkout()->assertCreated()->assertJsonPath('fake_payment_available', false)->json();
         $payload = $this->quoteForOrder($checkout);

@@ -10,15 +10,19 @@ use App\Modules\Search\Infrastructure\Console\ReindexProductsCommand;
 use App\Platform\Http\ApiProblemRenderer;
 use App\Platform\Http\ApiResponseHeaders;
 use App\Platform\Http\AttachRequestId;
+use App\Platform\Http\EnforceSessionSurface;
 use App\Platform\Http\IdempotencyGuard;
 use App\Platform\Http\InternalAccess;
 use App\Platform\Http\RateLimit;
+use App\Platform\Http\SurfaceCors;
 use App\Platform\Http\TraceContext;
 use App\Platform\Observability\ObservabilityServiceProvider;
 use App\Platform\Observability\RecordRequestMetrics;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\HandleCors;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -31,7 +35,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([BackfillOperatorFlags::class, CreateAdminOperator::class, EnrollAdminTwoFactor::class, ReindexProductsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prepend([RecordRequestMetrics::class, AttachRequestId::class, TraceContext::class, SelectAdminSession::class, ApiResponseHeaders::class]);
+        $middleware->prepend([RecordRequestMetrics::class, AttachRequestId::class, TraceContext::class, TrustProxies::class, EnforceSessionSurface::class, SelectAdminSession::class, ApiResponseHeaders::class]);
+        $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO);
+        $middleware->replace(HandleCors::class, SurfaceCors::class);
 
         $middleware->statefulApi();
         $middleware->alias(['idempotency' => IdempotencyGuard::class, 'internal' => InternalAccess::class, 'rate' => RateLimit::class]);
