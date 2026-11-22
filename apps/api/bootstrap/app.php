@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Identity\Application\Commands\BackfillOperatorFlags;
 use App\Modules\Identity\Infrastructure\Console\CreateAdminOperator;
 use App\Modules\Identity\Infrastructure\Console\EnrollAdminTwoFactor;
 use App\Modules\Identity\Infrastructure\Http\SelectAdminSession;
@@ -28,7 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withCommands([CreateAdminOperator::class, EnrollAdminTwoFactor::class, ReindexProductsCommand::class])
+    ->withCommands([BackfillOperatorFlags::class, CreateAdminOperator::class, EnrollAdminTwoFactor::class, ReindexProductsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend([RecordRequestMetrics::class, AttachRequestId::class, TraceContext::class, SelectAdminSession::class, ApiResponseHeaders::class]);
 
