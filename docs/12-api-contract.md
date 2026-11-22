@@ -330,8 +330,6 @@ Catatan kelompok S: semua mutasi memakai `X-XSRF-TOKEN` (§3.1). Untuk login dan
 
 Catatan kelompok T: semua mutasi memakai `X-XSRF-TOKEN`; Elasticsearch hanya proyeksi (PostgreSQL sumber kebenaran), disinkron per produk oleh konsumen inbox `search.product-index` dengan versi eksternal dari `occurred_at`, dan outbox `imports` dikuras tiap 10 detik sehingga perubahan terlihat < 60 detik.
 
-||||||| 4ab875e
-
 **Pemeriksaan runtime 2026-11-22.** `php artisan route:list --json` di container `api` mencocokkan method/path seluruh 16 operasi kelompok S dengan OpenAPI: sembilan `/auth/*`, empat `/admin/auth/*`, CSRF root, dan dua operasi `/me/sessions`. Laravel menambahkan `HEAD` untuk GET; parameter runtime `{sessionId}` adalah `{session_id}` di kontrak, dengan nilai hash sesi yang sama. Login dan verifikasi 2FA sukses mengembalikan 200 (bukan 202); register 201; logout web/admin dan pencabutan sesi 204; redirect/callback sosial sukses 302.
 
 Lima operasi pengelolaan akses operator juga sudah ada di OpenAPI dan daftar rute, bukan endpoint auth publik. Seluruhnya memakai `adminSession`; mutasi memerlukan CSRF, `Idempotency-Key`, dan alasan audit:
