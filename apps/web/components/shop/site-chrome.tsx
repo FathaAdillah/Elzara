@@ -5,6 +5,7 @@ import { storefront } from "@/config/storefront";
 import { getCategories } from "@/lib/catalog-api";
 import { ShopIcon } from "./shop-icon";
 import { SiteNavigation } from "./site-navigation";
+import { CategoryMenu } from "./category-menu";
 
 function BrandMark() {
   return (
@@ -74,12 +75,7 @@ export async function SiteHeader() {
           <SiteNavigation />
         </div>
         <nav className="store-category-bar" aria-label="Kategori produk">
-          <details className="store-category-menu">
-            <summary>
-              <ShopIcon name="menu" />
-              Semua kategori
-            </summary>
-            <div className="store-category-dropdown">
+          <CategoryMenu>
               <Link href="/catalog">
                 Semua produk
                 <ShopIcon name="arrow" />
@@ -93,8 +89,7 @@ export async function SiteHeader() {
                   <ShopIcon name="arrow" />
                 </Link>
               ))}
-            </div>
-          </details>
+          </CategoryMenu>
           <div className="store-category-shortcuts">
             {categories.length ? (
               categories.slice(0, 6).map((category, index) => (
