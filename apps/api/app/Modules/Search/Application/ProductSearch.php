@@ -17,9 +17,10 @@ final class ProductSearch
 
     /**
      * @param  array{q?: string, brand?: list<string>, category?: list<string>, collections?: list<string>, origin_country?: list<string>, fulfillment_modes?: list<string>, status?: list<string>, price_min?: int, price_max?: int, limit?: int, cursor?: string}  $params
+     * @param  list<int>|null  $categoryIds  scope kategori operator; null = global
      * @return array{data: list<array<string, mixed>>, facets: array<string, list<array{value: string, count: int}>>, meta: array{limit: int, total: int, has_more: bool, next_cursor: ?string}}
      */
-    public function search(array $params): array
+    public function search(array $params, ?array $categoryIds = null): array
     {
         $limit = $params['limit'] ?? 20;
         $filters = [];
@@ -53,7 +54,7 @@ final class ProductSearch
         $body = [
             'size' => $limit + 1,
             'track_total_hits' => true,
-            'query' => ['bool' => ['must' => $must]],
+            'query' => ['bool' => ['must' => $must, 'filter' => $categoryIds === null ? [] : [['terms' => ['category_id' => $categoryIds]]]]],
             'post_filter' => ['bool' => ['filter' => $postFilter]],
             'aggs' => $aggregations,
             'sort' => [['_score' => 'desc'], ['id' => 'asc']],

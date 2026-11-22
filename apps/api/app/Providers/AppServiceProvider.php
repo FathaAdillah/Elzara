@@ -6,8 +6,10 @@ namespace App\Providers;
 
 use App\Modules\Audit\Application\DatabaseAuditRecorder;
 use App\Modules\Audit\Contracts\AuditRecorder;
+use App\Modules\Catalog\Application\CatalogScopes;
 use App\Modules\Catalog\Application\DatabaseProductSearchSource;
 use App\Modules\Catalog\Application\DatabaseSellableVariants;
+use App\Modules\Catalog\Contracts\CategoryScopes;
 use App\Modules\Catalog\Contracts\ProductSearch;
 use App\Modules\Catalog\Contracts\ProductSearchSource;
 use App\Modules\Catalog\Contracts\SellableVariants;
@@ -21,7 +23,9 @@ use App\Modules\Fulfillment\Infrastructure\Shipping\ManualShippingRateProvider;
 use App\Modules\Identity\Application\ActiveOrderAddressUsage;
 use App\Modules\Identity\Application\AddressBook;
 use App\Modules\Identity\Application\DeferredActiveOrderAddressUsage;
+use App\Modules\Identity\Application\Queries\RoleRowScopes;
 use App\Modules\Identity\Contracts\CustomerAddresses;
+use App\Modules\Identity\Contracts\RowScopes;
 use App\Modules\Search\Application\SyncProductSearchIndex;
 use App\Modules\Settings\Application\DatabaseSettingValueQuery;
 use App\Modules\Settings\Application\FeatureFlagService;
@@ -53,6 +57,8 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->bind(FeatureFlagQuery::class, FeatureFlagService::class);
         $this->app->bind(SettingValueQuery::class, DatabaseSettingValueQuery::class);
         $this->app->bind(ProductSearchSource::class, DatabaseProductSearchSource::class);
+        $this->app->bind(RowScopes::class, RoleRowScopes::class);
+        $this->app->bind(CategoryScopes::class, CatalogScopes::class);
     }
 
     public function boot(): void

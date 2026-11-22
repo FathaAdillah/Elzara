@@ -119,6 +119,7 @@ final class ProductIndex
                     'brand_name' => ['type' => 'text', 'analyzer' => 'elzara_text', 'search_analyzer' => 'elzara_search', 'fields' => [
                         'prefix' => ['type' => 'text', 'analyzer' => 'elzara_prefix', 'search_analyzer' => 'elzara_text'],
                     ]],
+                    'category_id' => ['type' => 'long'],
                     'category' => $keyword,
                     'category_name' => $keyword,
                     'collections' => $keyword,
