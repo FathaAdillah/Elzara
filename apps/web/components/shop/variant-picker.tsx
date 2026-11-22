@@ -15,12 +15,18 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
   const [selected, setSelected] = useState<Record<string, string>>(
     product.variants[0]?.attributes ?? {},
   );
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    product.variants[0]?.id,
+  );
   const complete = options.every(
     (option) => selected[option.name] !== undefined,
   );
-  const variant = complete
-    ? resolveVariant(product.variants, selected)
-    : undefined;
+  const variant =
+    options.length === 0
+      ? product.variants.find((candidate) => candidate.id === selectedVariantId)
+      : complete
+        ? resolveVariant(product.variants, selected)
+        : undefined;
   return (
     <section aria-label="Pilih varian" className="space-y-6">
       <div
@@ -46,6 +52,32 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
           </p>
         )}
       </div>
+      {options.length === 0 && product.variants.length > 1 && (
+        <fieldset className="space-y-3">
+          <legend className="mb-3 text-sm font-semibold">Varian</legend>
+          <div className="flex flex-wrap gap-3">
+            {product.variants.map((candidate) => (
+              <label
+                key={candidate.id}
+                className={`inline-flex min-h-touch items-center gap-2 rounded-badge border px-4 text-sm ${candidate.id === selectedVariantId ? "border-brand-text bg-brand-ink font-medium" : "border-control-border"}`}
+              >
+                <input
+                  type="radio"
+                  name="variant"
+                  value={candidate.id}
+                  checked={candidate.id === selectedVariantId}
+                  onChange={() => setSelectedVariantId(candidate.id)}
+                  className="accent-brand-text"
+                />
+                <span>
+                  {candidate.label || candidate.sku}
+                  {candidate.available === 0 ? " · Habis" : ""}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
       {options.map((option) => (
         <fieldset key={option.name} className="space-y-3">
           <legend className="mb-3 text-sm font-semibold">{option.name}</legend>
