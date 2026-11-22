@@ -12,7 +12,7 @@ final class PublicId
 
     public static function encode(string $prefix, int $id): string
     {
-        if (! in_array($prefix, ['prd', 'var', 'media'], true) || $id < 1) {
+        if (! in_array($prefix, ['prd', 'var', 'media', 'cart', 'citem', 'cs', 'addr'], true) || $id < 1) {
             throw new InvalidArgumentException('Invalid public id.');
         }
         $value = '';
@@ -26,7 +26,7 @@ final class PublicId
 
     public static function decode(string $value, string $prefix): int
     {
-        if (! in_array($prefix, ['prd', 'var', 'media'], true) || preg_match('/\A'.preg_quote($prefix, '/').'_[0-9A-Za-z]{20,32}\z/', $value) !== 1) {
+        if (! in_array($prefix, ['prd', 'var', 'media', 'cart', 'citem', 'cs', 'addr'], true) || preg_match('/\A'.preg_quote($prefix, '/').'_[0-9A-Za-z]{20,32}\z/', $value) !== 1) {
             throw new InvalidArgumentException('Invalid public id.');
         }
         $id = 0;

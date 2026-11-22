@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Contract;
 
 use App\Modules\Identity\Infrastructure\Http\RequireAdminPermission;
+use App\Modules\Identity\Infrastructure\Http\RequireCustomerSession;
 use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
 use App\Modules\Settings\Infrastructure\Http\Middleware\EnsureCheckoutEnabled;
 use App\Modules\Settings\Infrastructure\Http\RequireUuidIdempotencyKey;
@@ -15,6 +16,27 @@ use Tests\TestCase;
 
 final class OpenApiRouteParityTest extends TestCase
 {
+    public function test_cart_address_checkout_routes_match_auth_csrf_and_idempotency_contract(): void
+    {
+        $spec = Yaml::parseFile(base_path('../../packages/api-contracts/openapi.yaml'));
+        foreach (['/cart', '/cart/items', '/cart/items/{id}', '/checkout/sessions', '/checkout/sessions/{id}', '/checkout/sessions/{id}/shipping-options', '/checkout/sessions/{id}/shipping-selection', '/me/addresses', '/me/addresses/{id}', '/me/addresses/{id}/set-default'] as $path) {
+            foreach ($spec['paths'][$path] as $method => $operation) {
+                $route = Route::getRoutes()->match(Request::create('/api/v1'.str_replace('{id}', 'example', $path), strtoupper($method)));
+                $middleware = $route->gatherMiddleware();
+                $this->assertContains('rate:web', $middleware);
+                $this->assertContains(RequireCustomerSession::class, $middleware);
+                $this->assertContains(VerifySessionCsrf::class, $middleware);
+                $this->assertSame([['webSession' => []]], $operation['security']);
+                $idempotent = $method !== 'get' && $operation['operationId'] !== 'checkoutShippingOptions';
+                $idempotency = 'idempotency:'.$operation['operationId'].',web,86400';
+                $this->assertSame($idempotent, in_array($idempotency, $middleware, true));
+                $parameters = array_column($operation['parameters'], '$ref');
+                $this->assertSame($idempotent, in_array('#/components/parameters/IdempotencyKey', $parameters, true));
+            }
+        }
+        $this->assertSame(['shipping_address_id', 'expected_items_hash'], $spec['components']['schemas']['CheckoutSessionWrite']['required']);
+    }
+
     public function test_public_catalog_routes_match_contract_operations_and_rate_policy(): void
     {
         $spec = Yaml::parseFile(base_path('../../packages/api-contracts/openapi.yaml'));

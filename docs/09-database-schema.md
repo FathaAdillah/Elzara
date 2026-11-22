@@ -892,7 +892,7 @@ carts                                     [Cart]
 cart_items                                [Cart]
   cart_id bigint NOT NULL REFERENCES carts(id) ON DELETE CASCADE
   variant_id bigint NOT NULL REFERENCES product_variants(id) ON DELETE RESTRICT
-  batch_offer_id bigint REFERENCES preorder_batch_items(id) ON DELETE SET NULL
+  batch_offer_id bigint NULL             P1.04: FK ke preorder_batch_items ditunda sampai modul PreOrder tersedia
   qty integer NOT NULL CHECK (qty > 0)
   unit_price_snapshot bigint NOT NULL     harga saat ditambahkan; divalidasi ulang saat checkout (D7)
   added_at timestamptz NOT NULL DEFAULT now()
@@ -916,6 +916,13 @@ checkout_sessions                         [Cart]          tabel baru (BP §6, Do
   CHECK (status IN ('open','locked','converted','expired'))
   CHECK (exchange_rate_snapshot > 0)
   idx checkout_sessions_expiry (expires_at) WHERE status IN ('open','locked')
+
+  P1.04 quote: semua grup mode/ETA memakai paket_besar (parcel standar), berat
+  unit_weight_g × qty dari snapshot. Berat kosong → SHIPPING_WEIGHT_MISSING.
+  Quote baru memilih tarif termurah tiap grup sebagai default. PUT shipping-selection
+  mengganti seluruh pilihan, memvalidasi courier/service terhadap quote tersimpan,
+  lalu menyimpan shipping_selection, shipping_estimate, total pada snapshot.
+  Total selalu dihitung server dari tarif terpilih (belum ada reservasi/pembayaran).
 
 wishlist_items                            [Cart]         tabel baru (Doc 11 §4.2) — **bukan** Blueprint; turunan produk Doc 05 M3 ("favorit" / "kabari saya" di PDP)
   user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE

@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Modules\Identity\Infrastructure\Http\AddressController;
 use App\Modules\Identity\Infrastructure\Http\AdminAccessController;
 use App\Modules\Identity\Infrastructure\Http\AdminAuthController;
 use App\Modules\Identity\Infrastructure\Http\EnsureWebSession;
 use App\Modules\Identity\Infrastructure\Http\MySessionsController;
 use App\Modules\Identity\Infrastructure\Http\RequireAccessIdempotencyKey;
 use App\Modules\Identity\Infrastructure\Http\RequireAdminPermission;
+use App\Modules\Identity\Infrastructure\Http\RequireCustomerSession;
 use App\Modules\Identity\Infrastructure\Http\SocialAuthController;
 use App\Modules\Identity\Infrastructure\Http\StorefrontAuthController;
 use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
@@ -48,4 +50,13 @@ Route::middleware(['rate:web', EnsureWebSession::class, VerifySessionCsrf::class
 
     Route::get('me/sessions', [MySessionsController::class, 'index']);
     Route::delete('me/sessions/{sessionId}', [MySessionsController::class, 'destroy'])->where('sessionId', '[0-9a-f]{64}');
+});
+
+Route::middleware(['rate:web', EnsureWebSession::class, RequireCustomerSession::class, VerifySessionCsrf::class])->group(function (): void {
+    Route::get('me/addresses', [AddressController::class, 'index']);
+    Route::get('me/addresses/{id}', [AddressController::class, 'show']);
+    Route::post('me/addresses', [AddressController::class, 'store'])->middleware('idempotency:createAddress,web,86400');
+    Route::patch('me/addresses/{id}', [AddressController::class, 'update'])->middleware('idempotency:updateAddress,web,86400');
+    Route::delete('me/addresses/{id}', [AddressController::class, 'destroy'])->middleware('idempotency:deleteAddress,web,86400');
+    Route::post('me/addresses/{id}/set-default', [AddressController::class, 'setDefault'])->middleware('idempotency:setDefaultAddress,web,86400');
 });

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { api, ensureCsrfCookie, socialLoginUrl, xsrfHeader } from "@/lib/session";
+import { loginDestination } from "@/lib/login-destination";
 
 type Mode = "login" | "register";
 
@@ -37,7 +38,7 @@ export default function LoginPage() {
         setError(result.response.status === 401 ? "Email atau kata sandi salah." : "Permintaan ditolak. Periksa kembali isian Anda.");
         return;
       }
-      router.push("/account");
+      router.push(loginDestination(new URLSearchParams(window.location.search).get("next")));
     } finally {
       setBusy(false);
     }
