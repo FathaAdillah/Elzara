@@ -10,14 +10,14 @@ export async function getProducts(query: CatalogQuery = {}) {
   }
 }
 
-export async function getCategories() {
+export const getCategories = cache(async () => {
   try {
     const result = await api.GET("/categories", { cache: "no-store" });
     return result.data?.data ?? [];
   } catch {
     return [];
   }
-}
+});
 
 export const getProduct = cache(async (slug: string) => {
   try {

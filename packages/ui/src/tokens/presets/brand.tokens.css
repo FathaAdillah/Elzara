@@ -1,13 +1,13 @@
 :root[data-brand-theme="brand"] {
-  --brand-600: #f26b9a;
-  --brand-contrast: #9b2756;
-  --brand-foreground: #241c22;
-  --brand-50: #fdf0f6;
+  --brand-600: #0875b6;
+  --brand-contrast: #075f91;
+  --brand-foreground: #ffffff;
+  --brand-50: #e4f5fe;
   --coral-500: #ffc53d;
-  --neutral-0: #fffdf9;
-  --neutral-50: #fdeff5;
-  --neutral-500: #6e6469;
-  --neutral-900: #241c22;
+  --neutral-0: #ffffff;
+  --neutral-50: #eef8fd;
+  --neutral-500: #547187;
+  --neutral-900: #173b53;
   --radius-3: 20px;
   --motion-base: 240ms;
 }

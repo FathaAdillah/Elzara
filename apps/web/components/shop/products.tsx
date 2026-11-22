@@ -1,8 +1,9 @@
-import { Badge, Card, Grid } from "@elzara/ui";
+import { Badge } from "@elzara/ui";
 import Link from "next/link";
 import { availability, type Product } from "@/lib/catalog";
 import { formatIdr } from "@/lib/money";
 import { ProductImage } from "./product-image";
+import { ShopIcon } from "./shop-icon";
 
 export function ModeBadge({ kind }: { kind: Product["kind"] }) {
   return (
@@ -40,49 +41,56 @@ export function PriceBlock({
 
 export function ProductCard({ product }: { product: Product }) {
   return (
-    <Card
-      as="article"
-      padding="none"
-      className="overflow-hidden border border-divider shadow-none"
-    >
+    <article className="store-product-card">
       <Link
         href={`/catalog/${product.slug}`}
-        className="group block rounded-card"
+        className="store-product-image"
         aria-label={`Lihat ${product.name}`}
       >
         <ProductImage
           src={product.primary_media?.url}
           alt={product.primary_media?.alt || product.name}
+          inset={false}
+          sizes="(max-width: 760px) 45vw, 190px"
         />
-        <div className="grid gap-3 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <ModeBadge kind={product.kind} />
-            <span className="text-xs text-ink-muted">
-              {availability(product.available, product.kind)}
-            </span>
-          </div>
-          <div>
-            <p className="mb-1 text-xs text-ink-muted">
-              {product.brand || product.category?.name || "Koleksi"}
-            </p>
-            <h3 className="font-medium group-hover:underline">
-              {product.name}
-            </h3>
-          </div>
+        <span className="store-product-badge">
+          <ModeBadge kind={product.kind} />
+        </span>
+      </Link>
+      <div className="store-product-copy">
+        <div>
+          <small>{product.brand || product.category?.name || "Koleksi"}</small>
+          <h3>
+            <Link href={`/catalog/${product.slug}`}>{product.name}</Link>
+          </h3>
+        </div>
+        <p className="store-product-availability">
+          <ShopIcon name="box" />
+          {availability(product.available, product.kind)}
+        </p>
+        <div className="store-product-price">
           <PriceBlock amount={product.price.amount_minor} />
         </div>
-      </Link>
-    </Card>
+        <Link
+          href={`/catalog/${product.slug}`}
+          className="store-product-detail"
+          aria-label={`Lihat detail ${product.name}`}
+        >
+          Lihat detail
+          <ShopIcon name="arrow" />
+        </Link>
+      </div>
+    </article>
   );
 }
 
 export function ProductGrid({ products }: { products: Product[] }) {
   return (
-    <Grid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} gap="md">
+    <div className="store-product-grid">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}
-    </Grid>
+    </div>
   );
 }
 
