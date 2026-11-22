@@ -8,11 +8,12 @@ export function CartPanel() {
   const [cart, setCart] = useState<Cart>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editVersion, setEditVersion] = useState(0);
   useEffect(() => { getCart().then(setCart).catch((e: Error) => setError(e.message)); }, []);
   async function change(id: string, quantity?: number) {
     setBusy(true); setError("");
     try { setCart(await (quantity === undefined ? removeCartItem(id) : updateCartItem(id, quantity))); }
-    catch (e) { setError(e instanceof Error ? e.message : "Tidak dapat memperbarui keranjang."); }
+    catch (e) { setError(e instanceof Error ? e.message : "Tidak dapat memperbarui keranjang."); setEditVersion((version) => version + 1); }
     finally { setBusy(false); }
   }
   return <div className="space-y-8">
@@ -29,7 +30,7 @@ export function CartPanel() {
             {item.unavailable && <p role="status" className="text-sm text-ink-muted">Tidak tersedia atau stok tidak cukup. Kurangi jumlah atau hapus.</p>}
           </div>
           <label className="flex items-center gap-2 text-sm">Jumlah
-            <input key={item.id + ":" + item.quantity} type="number" min={1} max={99} defaultValue={item.quantity} disabled={busy}
+            <input key={item.id + ":" + item.quantity + ":" + editVersion} type="number" min={1} max={99} defaultValue={item.quantity} disabled={busy}
               onBlur={(e) => { const n = validQuantity(e.target.value); if (n === undefined) { e.target.value = String(item.quantity); setError("Jumlah harus 1–99."); } else if (n !== item.quantity) void change(item.id, n); }}
               className="min-h-touch w-20 rounded-control border border-control-border bg-canvas p-2" />
           </label>
