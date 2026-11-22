@@ -184,11 +184,11 @@ Kontras ≥4,5:1 teks / ≥3:1 non-teks untuk **setiap** preset (dicek dengan to
 
 - **Baca publik** (katalog, PDP, koleksi/drop, pencarian): diambil di **server component** `web` memanggil `GET /api/v1/...` lewat client generate; hasil boleh di-cache edge/ISR (§8).
 - **Mutasi** (cart, checkout, order, quotation accept): lewat client generate dengan `Idempotency-Key` (Blueprint §7). Harga/diskon/stok/ongkir **dihitung ulang server-side** dari checkout snapshot; browser tidak pernah jadi sumber total (Blueprint §7).
-- **Data akun & admin**: lewat endpoint terautentikasi; **bentuk autentikasinya adalah keputusan terbuka (ADR-007), lihat §7 — jangan berpura-pura sudah final.**
+- **Data akun & admin**: lewat endpoint terautentikasi; **mekanisme sesi Sanctum same-site dua guard sudah diputuskan (ADR-007); sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6), lihat §7.**
 
-## 7. Keputusan terbuka: direct browser→API vs BFF (ADR-007)
+## 7. Mekanisme sesi dan alternatif awal (ADR-007)
 
-Blueprint §7 dan §12 **sengaja tidak memaksakan satu bentuk**; ia menyerahkannya ke threat model (Doc 11 §6 Q-2, ADR-007 — wajib diputus sebelum Sprint 1). Keduanya valid; kami menuliskan konsekuensi keamanannya agar tim tidak menganggap ini sudah selesai.
+Mekanisme sesi Sanctum same-site dua guard sudah diputuskan pemilik pada 2026-11-18 (ADR-007 D-1a–D-6a), tanpa BFF wajib dan tanpa token browser. Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri, tidak ada provider OIDC; sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6). Bentuk A/B di bawah adalah perbandingan alternatif awal, bukan keputusan terbuka atau implementasi yang berlaku.
 
 **Bentuk A — browser → API langsung (token-based).**
 - Browser `web`/`admin` memanggil `api.example.com` dengan short-lived access token (+ refresh).
@@ -200,7 +200,7 @@ Blueprint §7 dan §12 **sengaja tidak memaksakan satu bentuk**; ia menyerahkann
 - Kelebihan: **tidak ada bearer token di browser** (mitigasi XSS terbesar), boundary autentikasi di satu tempat, cocok untuk alur sensitif (checkout, akun, seluruh admin).
 - Konsekuensi keamanan: server Next ikut stateful; **wajib** `Cache-Control: no-store` + cache key benar supaya respons per-user **tidak pernah** tersimpan CDN/ISR (Blueprint §12); cookie/session policy harus diselaraskan dengan Cloudflare; CSRF tetap wajib meskipun token hilang dari browser.
 
-**Arah kerja (belum final, untuk diuji di ADR-007/threat-model):** katalog publik GET boleh lewat Bentuk A/CDN; **checkout, area akun, dan seluruh `admin` cenderung ke Bentuk B** (Blueprint §12: BFF untuk alur sensitif). Apapun bentuknya, otorisasi tetap **server-side** — Laravel policy/gate yang memutuskan, bukan Next.js — dan **jangan** menaruh secret di `NEXT_PUBLIC_*`.
+**Keputusan yang berlaku:** cookie sesi Sanctum same-site dua guard, CSRF wajib, tanpa BFF wajib dan tanpa token browser (ADR-007 D-1a–D-6a). Otorisasi tetap **server-side** — Laravel policy/gate yang memutuskan, bukan Next.js — dan **jangan** menaruh secret di `NEXT_PUBLIC_*`.
 
 ## 8. Performa (Blueprint §8.6, §11, §12) — angka yang divalidasi, bukan diasumsikan
 
@@ -221,7 +221,7 @@ Blueprint §7 dan §12 **sengaja tidak memaksakan satu bentuk**; ia menyerahkann
 - **Navigasi sadar-role untuk 10 role** (superadmin, catalog-manager, sales-ops, preorder-ops, sourcing-ops, warehouse-staff, procurement-staff, finance, customer-support, analyst read-only — B-10). Sidebar dibangun dari permission yang dikembalikan API, bukan daftar menu hardcoded.
 - **Menyembunyikan menu BUKAN otorisasi.** Filter menu di Next.js hanya kenyamanan UI; penegakan sebenarnya ada di **Laravel policy/gate di sisi server** (Blueprint §4: "Enforce permissions di Laravel policy/gate, bukan hanya menyembunyikan menu"). Ini melanjutkan temuan Doc 08 §3: situs sumber mengembalikan shell `/admin` HTTP 200 ke tamu dan menjaganya di klien — **pola itu tidak kita tiru**. Rute & aksi admin dijaga server-side; respons 401/403 dari API adalah garis pertahanan, bukan redirect klien.
 - **Dashboard operasional:** Overview/KPI penjualan/pemantauan order/pembayaran/alert, rekonsiliasi finance, monitor antrian (queue lag/DLQ), audit timeline, bulk action (Blueprint §12).
-- `admin` memakai **BFF + cookie HttpOnly/SameSite** (§7 Bentuk B) sebagai arah default agar token tidak mendarat di browser; MFA, IP restriction/Zero Trust, dan session policy terpisah dari publik (Blueprint §12) adalah kebutuhan app ini, bukan app publik.
+- `admin` memakai **cookie sesi Sanctum HttpOnly/SameSite dengan guard terpisah**, tanpa BFF wajib atau token browser (ADR-007); MFA, IP restriction/Zero Trust, dan session policy terpisah dari publik (Blueprint §12) adalah kebutuhan app ini, bukan app publik.
 
 ## 10. Testing — Playwright per aplikasi (Blueprint §16)
 

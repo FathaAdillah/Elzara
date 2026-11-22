@@ -79,7 +79,7 @@ WHERE action ILIKE '%quotation%' GROUP BY status;
 
 ### 3.3 Cabut akses yang sedang dipakai (session invalidation)
 
-Konteks: sesi disimpan di **Redis** (`SESSION_DRIVER=redis`, Doc 01 §11.3; `sessions` tabel tidak dipakai, Doc 09 §16). Karena itu "mencabut sesi" = membuang record sesi, bukan UPDATE tabel. Belum ada perintah terdokumentasi untuk revoke per-user → **butir terbuka README §5 nomor 4 (Q-2 / ADR-007)**, dan sampai ada, jalankan langkah paling kecil yang aman:
+Konteks: sesi disimpan di **Redis** (`SESSION_DRIVER=redis`, Doc 01 §11.3; `sessions` tabel tidak dipakai, Doc 09 §16). Karena itu "mencabut sesi" = membuang record sesi, bukan UPDATE tabel. Belum ada perintah terdokumentasi untuk revoke per-user → **butir terbuka README §5 nomor 4 (prosedur operasional ADR-007, bukan keputusan IdP; Q-2 dijawab pemilik proyek 2026-11-22: klien tidak punya IdP/SSO sendiri, tidak ada provider OIDC)**, dan sampai ada, jalankan langkah paling kecil yang aman:
 
 ```bash
 # A. Baca dulu, jangan menulis (identifikasi key sesi milik akun terdampak)
