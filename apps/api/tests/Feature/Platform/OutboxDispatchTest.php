@@ -6,12 +6,16 @@ namespace Tests\Feature\Platform;
 
 use App\Platform\Outbox\DispatchDomainEvent;
 use App\Platform\Outbox\DomainEvent;
+use App\Platform\Outbox\InboxConsumer;
 use App\Platform\Outbox\OutboxDispatcher;
 use App\Platform\Outbox\OutboxWriter;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use LogicException;
 use Tests\TestCase;
 
 final class OutboxDispatchTest extends TestCase
@@ -97,6 +101,22 @@ final class OutboxDispatchTest extends TestCase
         });
     }
 
+    public function test_scheduled_dispatch_drains_a_canonical_queue_and_refuses_other_names(): void
+    {
+        $this->assertTrue(collect(app(Schedule::class)->events())->contains(
+            fn ($event) => str_ends_with($event->command ?? '', ' platform:outbox:dispatch') && $event->expression === '* * * * *',
+        ));
+
+        Queue::fake();
+        $id = $this->record('OrderPlaced');
+        $this->artisan('platform:outbox:dispatch', ['--queue' => 'search'])->assertFailed();
+        Queue::assertNothingPushed();
+
+        $this->artisan('platform:outbox:dispatch', ['--queue' => 'orders'])
+            ->expectsOutput('claimed=1 dispatched=1 failed=0 dead=0 queue=orders')->assertSuccessful();
+        Queue::assertPushedOn('orders', DispatchDomainEvent::class, fn (DispatchDomainEvent $job) => $job->outboxId === $id);
+    }
+
     public function test_discarding_queue_does_not_mark_event_delivered(): void
     {
         config(['queue.default' => 'null']);
@@ -132,6 +152,66 @@ final class OutboxDispatchTest extends TestCase
         $this->assertSame(1, $result['dispatched']);
         Queue::assertPushedOn('orders', DispatchDomainEvent::class, fn (DispatchDomainEvent $job) => $job->outboxId === $unlockedId);
         $this->assertSame(0, DB::table('outbox_events')->where('id', $lockedId)->value('attempts'));
+    }
+
+    public function test_other_dispatcher_cannot_publish_before_commit_or_after_rollback(): void
+    {
+        Queue::fake();
+        config(['database.connections.outbox_lock' => config('database.connections.pgsql')]);
+        DB::connection('outbox_lock')->statement("SET search_path TO {$this->fixtureSchema}");
+        $dispatcher = new OutboxDispatcher('outbox_lock');
+        $writer = app(OutboxWriter::class);
+
+        foreach ([false, true] as $commit) {
+            DB::beginTransaction();
+            try {
+                $id = $writer->record(new DomainEvent('OrderPlaced', 'order', 1));
+                $this->assertSame(0, $dispatcher->dispatchBatch(onlyQueue: 'orders')['claimed']);
+                Queue::assertNothingPushed();
+                $commit ? DB::commit() : DB::rollBack();
+            } finally {
+                if (DB::transactionLevel() > 0) {
+                    DB::rollBack();
+                }
+            }
+
+            $this->assertSame($commit ? 1 : 0, $dispatcher->dispatchBatch(onlyQueue: 'orders')['dispatched']);
+        }
+
+        Queue::assertPushedOn('orders', DispatchDomainEvent::class, fn (DispatchDomainEvent $job) => $job->outboxId === $id);
+        Queue::assertPushed(DispatchDomainEvent::class, 1);
+    }
+
+    public function test_worker_recovery_and_replayed_delivery_produce_one_durable_effect(): void
+    {
+        $id = $this->record('OrderPlaced');
+        DB::statement('CREATE TABLE test_order_effects (event_id uuid NOT NULL)');
+        Event::listen('OrderPlaced', static function (array $event): void {
+            app(InboxConsumer::class)->run('order-projection-test', $event['event_id'], $event, static function (ConnectionInterface $db) use ($event): void {
+                $db->table('test_order_effects')->insert(['event_id' => $event['event_id']]);
+            });
+        });
+
+        config(['queue.default' => 'null']);
+        $dispatcher = app(OutboxDispatcher::class);
+        $this->assertSame(1, $dispatcher->dispatchBatch(onlyQueue: 'orders')['failed']);
+        $this->assertDatabaseCount('test_order_effects', 0);
+        $this->assertNull(DB::table('outbox_events')->where('id', $id)->value('dispatched_at'));
+
+        config(['queue.default' => 'sync']);
+        $this->assertSame(1, $dispatcher->dispatchBatch(onlyQueue: 'orders')['dispatched']);
+        $this->assertSame(0, $dispatcher->dispatchBatch(onlyQueue: 'orders')['claimed']);
+        $job = new DispatchDomainEvent($id, 'OrderPlaced', 'order', 1);
+        $job->handle();
+        $this->assertDatabaseCount('test_order_effects', 1);
+        $this->assertDatabaseHas('test_order_effects', ['event_id' => $job->eventId()]);
+        $this->assertDatabaseHas('inbox_events', ['consumer' => 'order-projection-test', 'event_id' => $job->eventId(), 'status' => 'processed']);
+    }
+
+    public function test_event_cannot_be_written_without_its_domain_transaction(): void
+    {
+        $this->expectException(LogicException::class);
+        app(OutboxWriter::class)->record(new DomainEvent('OrderPlaced', 'order', 1));
     }
 
     private function record(string $eventName): int

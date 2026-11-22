@@ -111,6 +111,23 @@ final class IdempotencyGuardTest extends TestCase
         $this->assertSame(0, DB::table('idempotency_keys')->count());
     }
 
+    public function test_one_hundred_deliveries_replay_one_http_response_and_one_effect(): void
+    {
+        $this->actingAs(new GenericUser(['id' => 1]), 'web');
+        $headers = $this->headers('first-delivery');
+        $first = $this->postJson(self::PATH, ['quantity' => 1], $headers)->assertCreated();
+        for ($attempt = 2; $attempt <= 100; $attempt++) {
+            $replay = $this->postJson(self::PATH, ['quantity' => 1], $this->headers("retry-{$attempt}"))
+                ->assertCreated()
+                ->assertHeader('Idempotency-Replayed', 'true')
+                ->assertHeader('X-Request-Id', 'first-delivery');
+            $this->assertSame($first->getContent(), $replay->getContent());
+        }
+
+        $this->assertDatabaseCount('idempotency_keys', 1);
+        $this->assertDatabaseCount('idempotency_effects', 1);
+    }
+
     public function test_recoverable_failures_leave_no_claim_or_effect_and_retry_succeeds(): void
     {
         $this->actingAs(new GenericUser(['id' => 1]), 'web');
