@@ -122,7 +122,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Active products with active variants. Unknown or invalid query parameters return 422. Stock and effective retail prices are read live; public cache lifetime is at most 30 seconds. */
         get: operations["listProducts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Active category tree as flat nodes; inactive ancestors hide their descendants. Unknown parameters return 422. */
+        get: operations["listCategories"];
         put?: never;
         post?: never;
         delete?: never;
@@ -869,10 +887,28 @@ export interface components {
             /** @enum {string} */
             kind: "rts" | "pre_order" | "request_order";
             primary_media?: components["schemas"]["MediaRef"] | null;
+            kinds?: ("rts" | "pre_order" | "request_order")[];
+            category?: {
+                slug: string;
+                name: string;
+            };
+            eta?: null | {
+                min_days: number;
+                max_days: number;
+            };
+        };
+        CategoryNode: {
+            slug: string;
+            name_key: string;
+            /** @description Shop-localized category name, falling back to name_key. */
+            name: string;
+            parent: string | null;
+            position: number;
         };
         ProductVariant: {
             id: string;
             sku: string;
+            label?: string;
             price: components["schemas"]["Money"];
             available: number;
             attributes?: {
@@ -1346,6 +1382,21 @@ export interface operations {
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
                 cursor?: components["parameters"]["Cursor"];
+                /** @description Typo-tolerant name, brand and series search. */
+                q?: string;
+                kind?: "rts" | "pre_order" | "request_order";
+                /** @description Category slug, including descendants. */
+                category?: string;
+                collection?: string;
+                brand?: string;
+                /** @description Inclusive minimum product price in minor units. */
+                price_min?: number;
+                /** @description Inclusive maximum product price; must be >= price_min. */
+                price_max?: number;
+                /** @description True selects available > 0; false selects available = 0. Also accepts 1/0. */
+                in_stock?: boolean;
+                /** @description Relevance requires q. Every order has a unique id tie-breaker. */
+                sort?: "newest" | "price_asc" | "price_desc" | "relevance";
             };
             header?: never;
             path?: never;
@@ -1363,6 +1414,32 @@ export interface operations {
                     "application/json": {
                         data: components["schemas"]["ProductSummary"][];
                         meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Navigation and facet categories */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CategoryNode"][];
                     };
                 };
             };
@@ -1392,11 +1469,25 @@ export interface operations {
                         description_html: string;
                         variants: components["schemas"]["ProductVariant"][];
                         media: components["schemas"]["MediaRef"][];
+                        options?: {
+                            name: string;
+                            values: string[];
+                        }[];
+                        meta_title?: string | null;
+                        meta_description?: string | null;
+                        care_notes?: string | null;
+                        return_policy_notes?: string | null;
+                        origin_country?: string;
+                        collections?: {
+                            slug: string;
+                            name_key: string;
+                        }[];
                     };
                 };
             };
             404: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     listOpenPreorderBatches: {

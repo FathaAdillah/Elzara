@@ -12,3 +12,4 @@ require base_path('app/Modules/Identity/Infrastructure/Http/routes.php');
 require base_path('app/Modules/Content/Infrastructure/Http/routes.php');
 require base_path('app/Modules/Settings/Infrastructure/Http/routes.php');
 require base_path('app/Modules/Orders/Infrastructure/Http/routes.php');
+require base_path('app/Modules/Catalog/Infrastructure/Http/routes.php');

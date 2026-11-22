@@ -289,7 +289,19 @@ paths:
       tags: [Catalog]
       x-elzara-auth: public
       security: []
-      parameters: [{ $ref: "#/components/parameters/Limit" }, { $ref: "#/components/parameters/Cursor" }]
+      description: "Active products with active variants. Unknown or invalid query parameters return 422. Stock and effective retail prices are read live; public cache lifetime is at most 30 seconds."
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+        - { name: q, in: query, description: "Typo-tolerant name, brand and series search.", schema: { type: string, minLength: 1, maxLength: 200 } }
+        - { name: kind, in: query, schema: { type: string, enum: [rts, pre_order, request_order] } }
+        - { name: category, in: query, description: "Category slug, including descendants.", schema: { type: string, pattern: "^[a-z0-9-]{1,80}$" } }
+        - { name: collection, in: query, schema: { type: string, pattern: "^[a-z0-9-]{1,80}$" } }
+        - { name: brand, in: query, schema: { type: string, pattern: "^[a-z0-9-]{1,80}$" } }
+        - { name: price_min, in: query, schema: { type: integer, minimum: 0 }, description: "Inclusive minimum product price in minor units." }
+        - { name: price_max, in: query, schema: { type: integer, minimum: 0 }, description: "Inclusive maximum product price; must be >= price_min." }
+        - { name: in_stock, in: query, schema: { type: boolean }, description: "True selects available > 0; false selects available = 0. Also accepts 1/0." }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, relevance], default: newest }, description: "Relevance requires q. Every order has a unique id tie-breaker." }
       responses:
         "200":
           description: "Halaman katalog publik (cursor, tanpa total - Doc 12 §3.3)"
@@ -302,6 +314,28 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: "#/components/schemas/ProductSummary" } }
                   meta: { $ref: "#/components/schemas/CursorMeta" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [Catalog]
+      x-elzara-auth: public
+      security: []
+      description: "Active category tree as flat nodes; inactive ancestors hide their descendants. Unknown parameters return 422."
+      responses:
+        "200":
+          description: Navigation and facet categories
+          headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/CategoryNode" } }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
 
@@ -328,8 +362,30 @@ paths:
                       description_html: { type: string }
                       variants: { type: array, items: { $ref: "#/components/schemas/ProductVariant" } }
                       media: { type: array, items: { $ref: "#/components/schemas/MediaRef" } }
+                      options:
+                        type: array
+                        items:
+                          type: object
+                          required: [name, values]
+                          properties:
+                            name: { type: string }
+                            values: { type: array, items: { type: string } }
+                      meta_title: { type: [string, "null"] }
+                      meta_description: { type: [string, "null"] }
+                      care_notes: { type: [string, "null"] }
+                      return_policy_notes: { type: [string, "null"] }
+                      origin_country: { type: string, pattern: "^[A-Z]{2}$" }
+                      collections:
+                        type: array
+                        items:
+                          type: object
+                          required: [slug, name_key]
+                          properties:
+                            slug: { type: string }
+                            name_key: { type: string }
         "404": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
 
   /preorder-batches:
     get:
@@ -1719,12 +1775,37 @@ components:
         available: { type: integer, minimum: 0 }
         kind: { type: string, enum: [rts, pre_order, request_order] }
         primary_media: { oneOf: [{ $ref: "#/components/schemas/MediaRef" }, { type: "null" }] }
+        kinds: { type: array, items: { type: string, enum: [rts, pre_order, request_order] } }
+        category:
+          type: object
+          required: [slug, name]
+          properties:
+            slug: { type: string }
+            name: { type: string }
+        eta:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [min_days, max_days]
+              properties:
+                min_days: { type: integer, minimum: 0 }
+                max_days: { type: integer, minimum: 0 }
+    CategoryNode:
+      type: object
+      required: [slug, name_key, name, parent, position]
+      properties:
+        slug: { type: string }
+        name_key: { type: string }
+        name: { type: string, description: "Shop-localized category name, falling back to name_key." }
+        parent: { type: [string, "null"] }
+        position: { type: integer }
     ProductVariant:
       type: object
       required: [id, sku, price, available]
       properties:
         id: { type: string, pattern: "^var_[0-9A-Za-z]{20,32}$" }
         sku: { type: string }
+        label: { type: string }
         price: { $ref: "#/components/schemas/Money" }
         available: { type: integer, minimum: 0 }
         attributes: { type: object, additionalProperties: { type: string } }

@@ -67,7 +67,7 @@ Rujukan terperinci: [plan Sprint 0](2026-11-17-sprint-0-fondasi.md), Task 1-20. 
 
 - [ ] **P1.01** Migrasi katalog, varian/opsi, kategori, brand, koleksi, daftar harga, media, gudang, stok per gudang/SKU dan ledger. Verifikasi CHECK kuantitas nonnegatif dan hitung unavailable.
 - [ ] **P1.02** Buat CRUD admin, import CSV tervalidasi, sinkronisasi indeks Elasticsearch Basic lewat job. Buat `multi_match` dengan fuzziness, analyzer prefiks, filter/facet keyword, dan sinonim eksplisit. Verifikasi pencocokan, filter, sinonim, serta hasil indeks saat reindex. Buktikan perubahan indeks di bawah 60 detik sesuai rencana.
-- [ ] **P1.03** Buat home, listing, PDP, pilihan varian, badge/ETA/available-to-sell, SEO/sitemap/OG dan aksesibilitas. Uji pencarian salah ketik, filter PO dan harga/stok sinkron.
+- [x] **P1.03** Buat home, listing, PDP, pilihan varian, badge/ETA/available-to-sell, SEO/sitemap/OG dan aksesibilitas. Uji pencarian salah ketik, filter PO dan harga/stok sinkron.
 
 ### Sprint 3 | Checkout dan pembayaran
 
