@@ -69,10 +69,15 @@ def check():
                     if name in EVENT_RENAMES and (historical_name(line, match.start(), match.end(), name) or re.search(r"sebelumnya tertulis\s+`?$", line[:match.start()])):
                         continue
                     fail(path, number, f"C: unregistered event {name}")
+            # HTTP_PATH_SEGMENT (Doc 12 §2.2): a segment inside a backticked
+            # `/path` is part of the HTTP contract, not a SQL identifier.
+            paths = [span.span() for span in re.finditer(r"`/[^`]*`", line)]
             for old in sorted(dead):
                 # IDENTIFIER_BOUNDARY (Doc 12 §2.2): stock-reservations is an
                 # HTTP path segment, not the retired SQL identifier reservations.
                 for match in re.finditer(rf"(?<![\w-]){re.escape(old)}(?![\w-])", line):
+                    if any(start < match.start() and match.end() < end for start, end in paths):
+                        continue
                     if not historical_name(line, match.start(), match.end(), old):
                         fail(path, number, f"D/A: retired active name {old}")
             # Dead values are axis-specific: 'draft' remains valid for a PO.
