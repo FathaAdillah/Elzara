@@ -269,6 +269,7 @@ body {
   min-height: 100%;
   padding: 7%;
   padding-bottom: max(7%, 48px);
+  background: var(--color-brand-ink);
 }
 .store-eyebrow {
   margin-bottom: 18px;
