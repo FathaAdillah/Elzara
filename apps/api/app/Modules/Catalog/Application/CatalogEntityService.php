@@ -14,6 +14,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use stdClass;
 
 /** CRUD seragam + optimistic version (K6) + audit untuk kategori, brand, koleksi, dan price list. */
@@ -62,6 +63,9 @@ final class CatalogEntityService
         return DB::transaction(function () use ($resource, $id, $version, $data, $context): stdClass {
             $before = $this->lock($resource, $id, $version);
             $values = $this->only($resource, $data);
+            if ($resource === 'price-lists') {
+                self::assertValidity([...Scalar::fields($before), ...$values]);
+            }
             DB::table(CatalogResources::table($resource))->where('id', $id)
                 ->update([...$values, 'version' => $version + 1, 'updated_at' => Carbon::now()]);
             $row = $this->find($resource, $id);
@@ -91,6 +95,16 @@ final class CatalogEntityService
             }
 
             throw $exception;
+        }
+    }
+
+    /** @param array<string, mixed> $row */
+    private static function assertValidity(array $row): void
+    {
+        $from = $row['valid_from'] ?? null;
+        $to = $row['valid_to'] ?? null;
+        if (is_string($from) && is_string($to) && Carbon::parse($to)->lte(Carbon::parse($from))) {
+            throw ValidationException::withMessages(['valid_to' => 'valid_to harus setelah valid_from.']);
         }
     }
 
