@@ -10,7 +10,7 @@ export function SiteNavigation({ mobile = false }: { mobile?: boolean }) {
     { href: "/", label: "Beranda", icon: "home" },
     {
       href: "/catalog",
-      label: mobile ? "Kategori" : "Shop",
+      label: mobile ? "Kategori" : "Katalog",
       icon: mobile ? "grid" : "bag",
     },
     ...(!mobile
