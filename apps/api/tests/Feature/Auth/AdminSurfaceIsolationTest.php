@@ -194,6 +194,46 @@ final class AdminSurfaceIsolationTest extends TestCase
         }
     }
 
+    public static function defaultOriginPorts(): array
+    {
+        return [['https', 443], ['http', 80]];
+    }
+
+    #[DataProvider('defaultOriginPorts')]
+    public function test_default_origin_ports_are_normalized_for_admin_origin_referer_and_cors(string $scheme, int $port): void
+    {
+        $origin = $scheme.'://admin.localhost';
+        $web = $scheme.'://localhost';
+        config([
+            'surfaces.admin_origin' => $origin.':'.$port,
+            'surfaces.storefront_origin' => $web.':'.$port,
+            'sanctum.stateful' => ['admin.localhost', 'localhost'],
+        ]);
+        foreach ([$origin, $origin.':'.$port] as $header) {
+            $this->call('GET', $origin.'/sanctum/csrf-cookie?scope=admin', server: [
+                'HTTP_ORIGIN' => $header,
+                'HTTP_REFERER' => $origin.':'.$port.'/login',
+            ])->assertNoContent()->assertHeader('Access-Control-Allow-Origin', $origin);
+            $this->call('POST', $origin.'/api/v1/admin/auth/login', server: [
+                'HTTP_ORIGIN' => $header, 'HTTP_ACCEPT' => 'application/json',
+            ])->assertStatus(419);
+        }
+        $this->call('GET', $origin.'/sanctum/csrf-cookie?scope=admin', server: [
+            'HTTP_REFERER' => $origin.':'.$port.'/login',
+        ])->assertNoContent();
+        foreach ([$web, $scheme.'://sibling.localhost', $origin.':8443', 'null'] as $foreign) {
+            $this->call('GET', $origin.'/sanctum/csrf-cookie?scope=admin', server: [
+                'HTTP_ORIGIN' => $foreign,
+            ])->assertForbidden()->assertHeaderMissing('Set-Cookie')->assertHeaderMissing('Access-Control-Allow-Origin');
+        }
+        $this->call('OPTIONS', $origin.'/api/v1/admin/auth/login', server: [
+            'HTTP_ORIGIN' => $origin, 'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+        ])->assertNoContent()->assertHeader('Access-Control-Allow-Origin', $origin);
+        $this->call('OPTIONS', $web.'/api/v1/auth/login', server: [
+            'HTTP_ORIGIN' => $web, 'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+        ])->assertNoContent()->assertHeader('Access-Control-Allow-Origin', $web);
+    }
+
     private function request(string $method, string $path, string $host = 'admin.localhost:8443', array $headers = []): TestResponse
     {
         $server = ['HTTP_HOST' => $host, 'HTTPS' => 'on', 'HTTP_ACCEPT' => 'application/json'];

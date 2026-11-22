@@ -30,7 +30,7 @@ final class EnforceSessionSurface
             }
             $hasOrigin = $request->headers->has('Origin');
             $hasReferer = $request->headers->has('Referer');
-            if (($hasOrigin && $request->header('Origin') !== $origin)
+            if (($hasOrigin && SurfacePolicy::origin($request->header('Origin')) !== $origin)
                 || ($hasReferer && SurfacePolicy::origin($request->header('Referer'), true) !== $origin)
                 || (! $request->isMethodSafe() && ! $request->isMethod('OPTIONS') && ! $hasOrigin && ! $hasReferer)) {
                 return $this->reject(403, 'ADMIN_ORIGIN_REQUIRED');

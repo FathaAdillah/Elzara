@@ -13,7 +13,7 @@ final class SurfaceCors extends HandleCors
     {
         $previous = config('cors.allowed_origins');
         $origin = SurfacePolicy::origin(config(SurfacePolicy::isAdmin($request) ? 'surfaces.admin_origin' : 'surfaces.storefront_origin'));
-        config(['cors.allowed_origins' => $origin !== null && $request->header('Origin') === $origin ? [$origin] : []]);
+        config(['cors.allowed_origins' => $origin !== null && SurfacePolicy::origin($request->header('Origin')) === $origin ? [$origin] : []]);
         try {
             $response = parent::handle($request, $next);
             $response->setVary('Origin', false);

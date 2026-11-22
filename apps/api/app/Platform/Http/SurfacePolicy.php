@@ -25,8 +25,13 @@ final class SurfacePolicy
             return null;
         }
         $origin = $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+        if (! $referer && $origin !== $value) {
+            return null;
+        }
+        $port = $parts['port'] ?? null;
+        $defaultPort = $parts['scheme'] === 'https' ? 443 : 80;
 
-        return $referer || $origin === $value ? $origin : null;
+        return $parts['scheme'].'://'.$parts['host'].($port !== null && $port !== $defaultPort ? ':'.$port : '');
     }
 
     public static function authority(string $origin): ?string
