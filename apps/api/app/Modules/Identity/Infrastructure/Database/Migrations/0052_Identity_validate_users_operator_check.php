@@ -22,7 +22,6 @@ return new class extends Migration
         }
 
         DB::statement('ALTER TABLE users VALIDATE CONSTRAINT ck_users_admin_requires_operator_v2');
-        DB::statement('ALTER TABLE users ALTER COLUMN is_operator SET NOT NULL, ALTER COLUMN is_admin SET NOT NULL');
     }
 
     public function down(): void
@@ -31,7 +30,6 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('ALTER TABLE users ALTER COLUMN is_operator DROP NOT NULL, ALTER COLUMN is_admin DROP NOT NULL');
         DB::statement('ALTER TABLE users DROP CONSTRAINT ck_users_admin_requires_operator_v2');
         DB::statement('ALTER TABLE users ADD CONSTRAINT ck_users_admin_requires_operator_v2 CHECK (NOT is_admin OR is_operator) NOT VALID');
     }

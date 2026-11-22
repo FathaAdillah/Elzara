@@ -72,6 +72,7 @@ final class OperatorFlagsMigrationTest extends TestCase
         $this->assertSame(4, DB::table('audit_logs')->where('action', 'backfill.operator_flags')->where('target_type', 'users')->where('target_id', 0)->whereNotNull('request_id')->count());
         $validate->up();
         $this->assertTrue($this->validated());
+        $this->assertSame(2, DB::table('information_schema.columns')->whereRaw('table_schema = current_schema()')->where('table_name', 'users')->whereIn('column_name', ['is_operator', 'is_admin'])->where('is_nullable', 'YES')->count());
         $contract->up();
         $this->assertFalse(Schema::hasColumn('users', 'kind'));
         $this->assertContains('users_operator_status', array_column(Schema::getIndexes('users'), 'name'));
@@ -79,6 +80,7 @@ final class OperatorFlagsMigrationTest extends TestCase
         $this->assertSame(['ck_users_admin_requires_operator', 'ck_users_status'], array_map(fn ($row) => $row->conname, DB::select("SELECT conname FROM pg_constraint WHERE conrelid = 'users'::regclass AND contype = 'c' ORDER BY conname")));
         $this->assertSame(0, DB::table('information_schema.columns')->whereRaw('table_schema = current_schema()')->where('table_name', 'users')->whereIn('column_name', ['is_operator', 'is_admin'])->where('is_nullable', 'YES')->count());
         $contract->down();
+        $this->assertSame(2, DB::table('information_schema.columns')->whereRaw('table_schema = current_schema()')->where('table_name', 'users')->whereIn('column_name', ['is_operator', 'is_admin'])->where('is_nullable', 'YES')->count());
         $this->assertSame(1001, DB::table('users')->where('kind', 'staff')->count());
         $validate->down();
         $this->assertFalse($this->validated());

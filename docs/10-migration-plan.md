@@ -198,8 +198,8 @@ Band Sprint 0 tetap `0001–0199`. Plan Dependensi/Auth/RBAC D-DR-1 mengalokasik
 | 0049 | `0049_Audit_create_audit_logs_table.php` | audit_logs append-only dengan reason dan request_id | L2 |
 | 0050 | `0050_Audit_create_activity_log_table.php` | activity_log dengan morph paket; tanpa FK | L0 |
 | 0051 | `0051_Identity_expand_users_operator_flags.php` | legacy saja: flag nullable default false, indeks dan CHECK NOT VALID; rilis N | L1 |
-| 0052 | `0052_Identity_validate_users_operator_check.php` | legacy saja: gerbang NULL/bypass, VALIDATE dan SET NOT NULL | L1 |
-| 0053 | `0053_Identity_contract_users_drop_kind.php` | legacy saja: hapus kind/CHECK/indeks lama; nama CHECK kanonik; rilis N+1 terpisah | L1 |
+| 0052 | `0052_Identity_validate_users_operator_check.php` | legacy saja: gerbang NULL/bypass dan VALIDATE; flag tetap nullable | L1 |
+| 0053 | `0053_Identity_contract_users_drop_kind.php` | legacy saja: SET NOT NULL, hapus kind/CHECK/indeks lama; nama CHECK kanonik; rilis N+1 terpisah | L1 |
 | 0054 | `0054_Audit_add_attribute_changes_to_activity_log.php` | tambah `attribute_changes jsonb NULL` untuk Activitylog 5.1.5 | L0 |
 | 0070 | `0070_Identity_create_addresses_table.php` | addresses | L2 |
 | 0071 | `0071_Identity_create_customer_profiles_table.php` | customer_profiles | L2 |

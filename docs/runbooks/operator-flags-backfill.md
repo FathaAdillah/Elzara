@@ -21,11 +21,12 @@ Untuk database legacy berisi kind customer/staff, tanpa flag:
    Jangan menjalankan ulang setelah pemberian bypass manual.
 3. Pastikan jumlah NULL flag dan admin tanpa operator sama-sama nol.
    Jalankan hanya path 0052. Migrasi menolak gerbang nonnol,
-   memvalidasi CHECK, lalu menetapkan kedua flag NOT NULL.
+   memvalidasi CHECK; kedua flag tetap nullable sampai contract (M-13).
    Selama koeksistensi, penulis lama harus dihentikan atau didual-write;
    default false saja tidak menyinkronkan staff baru.
 4. Cutover kode ke flag; jangan contract pada rilis expand yang sama.
-   Rilis N+1: jalankan hanya path 0053. kind, CHECK kind dan indeks
+   Rilis N+1: jalankan hanya path 0053. Kedua flag ditetapkan NOT NULL;
+   kind, CHECK kind dan indeks
    `idx_users_kind_status` dihapus; CHECK flag memakai nama kanonik
    `ck_users_admin_requires_operator` dengan ekspresi sama seperti 0042.
    Jangan migrate tanpa filter pada legacy sebelum backfill/cutover.
@@ -36,10 +37,10 @@ dengan aksi `backfill.operator_flags`, target_type `users`, target_id `0`
 serta `after.updated`. Batch yang tidak bisa menulis audit ikut rollback;
 pemanggilan ulang melanjutkan batch yang belum selesai.
 
-Rollback 0053 membangun kembali kind dari is_operator. Comment pada CHECK
+Rollback 0053 melepas NOT NULL dan membangun kembali kind dari is_operator. Comment pada CHECK
 kanonik menyimpan asal legacy agar down 0053 tidak mengubah baseline 0042
 yang bentuk kolomnya identik. Jangan menghapus comment tersebut.
-Down 0052 melepas NOT NULL dan mengembalikan CHECK NOT VALID; down 0051
+Down 0052 mengembalikan CHECK NOT VALID; down 0051
 menghapus flag dan indeksnya. Sebelum down 0051, pastikan tidak ada hibah
 bypass manual yang perlu dipertahankan; flag admin tidak punya padanan kind.
 

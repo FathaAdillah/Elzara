@@ -17,6 +17,7 @@ return new class extends Migration
             return;
         }
 
+        DB::statement('ALTER TABLE users ALTER COLUMN is_operator SET NOT NULL, ALTER COLUMN is_admin SET NOT NULL');
         DB::statement('ALTER TABLE users RENAME CONSTRAINT ck_users_admin_requires_operator_v2 TO ck_users_admin_requires_operator');
         DB::statement("COMMENT ON CONSTRAINT ck_users_admin_requires_operator ON users IS 'Identity 0053 legacy contract'");
         DB::statement('ALTER TABLE users DROP CONSTRAINT ck_users_kind');
@@ -33,6 +34,7 @@ return new class extends Migration
             return;
         }
 
+        DB::statement('ALTER TABLE users ALTER COLUMN is_operator DROP NOT NULL, ALTER COLUMN is_admin DROP NOT NULL');
         Schema::table('users', function (Blueprint $table): void {
             $table->string('kind', 16)->default('customer');
             $table->index(['kind', 'status'], 'idx_users_kind_status');
