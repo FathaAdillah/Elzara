@@ -35,7 +35,9 @@ final class DatabaseProductSearchSource implements ProductSearchSource
             $id = Scalar::int($product->id);
             /** @var Collection<int, stdClass> $own */
             $own = $variants->get($id, collect());
-            $prices = $own->map(static fn (stdClass $variant): int => Scalar::int($variant->base_price));
+            $currency = Scalar::string($own->first()->currency_code ?? 'IDR');
+            $prices = $own->filter(static fn (stdClass $variant): bool => $variant->currency_code === $currency)
+                ->map(static fn (stdClass $variant): int => Scalar::int($variant->base_price));
             $documents[$id] = [
                 'id' => $id,
                 'slug' => $product->slug,
@@ -54,7 +56,7 @@ final class DatabaseProductSearchSource implements ProductSearchSource
                 'variant_labels' => $own->pluck('label')->values()->all(),
                 'price_min' => $prices->min(),
                 'price_max' => $prices->max(),
-                'currency_code' => $own->first()->currency_code ?? 'IDR',
+                'currency_code' => $currency,
                 'source_version' => Scalar::int($product->version),
                 'updated_at' => Carbon::parse(Scalar::string($product->updated_at))->toIso8601ZuluString(),
             ];
