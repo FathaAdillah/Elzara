@@ -13,7 +13,7 @@
 ---
 
 > **Amandemen 2026-11-18 (baca sebelum mengerjakan task apa pun):**
-> 1. **Mekanisme auth diputuskan pemilik** — ADR-007 (BFF/sesi) amandemen 2026-11-18 + ADR-012 (RBAC/identitas/dependensi) Accepted. D-S0-6 diamandemen di tempat (ID tetap); bentuk lama "cookie + BFF, securitySchemes ditunda" **tidak berlaku**. Sisa terbuka ADR-007 hanya sign-off threat model (prasyarat kode auth) + Q-2 yang dipersempit menjadi "apakah klien punya IdP/SSO sendiri".
+> 1. **Mekanisme auth diputuskan pemilik** — ADR-007 (BFF/sesi) amandemen 2026-11-18 + ADR-012 (RBAC/identitas/dependensi) Accepted. D-S0-6 diamandemen di tempat (ID tetap); bentuk lama "cookie + BFF, securitySchemes ditunda" **tidak berlaku**. Sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6); Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC.
 > 2. **Scaffold sudah ada di disk** (diverifikasi `ls`/`find`/`grep` 2026-11-18): Task 1–10 sebagian besar sudah dipenuhi scaffold; status per task di §2.1. **Belum ada** lockfile, `vendor/`, `node_modules/`, migrasi modul (masih `.gitkeep`), dan **belum pernah ada suite test yang dijalankan**. Jangan mengklaim task selesai tanpa artefak + test hijau yang benar-benar dijalankan.
 > 3. **Sisa pekerjaan dependensi + auth gelombang 2026-11-18 direncanakan terpisah di `.codex/plans/2026-11-18-*.md` (sedang ditulis agen lain — dirujuk, tidak dibuat/diubah di sini).** Instalasi dependensi = task Doc 03 0.17, container-only: `bash scripts/gen-lockfiles.sh` (node:22 + php:8.4-cli), lalu `composer require`/`install` di dalam php:8.4 — host PHP 8.3.30 tidak bisa me-resolve activitylog 5.1.5 (^8.4) dan phpunit 13.4.7 (>=8.4.1).
 > 4. **Urutan agen mengikat** (Doc 11 §4.4 H; definisi peran di `.codex/agents/`, ditulis agen lain): migrasi DB → fitur → testing → rebuild docker; agen testing tidak boleh mulai sebelum agen fitur selesai; penulis knowledge paralel hanya di berkas disjoint.
@@ -30,7 +30,7 @@ Diputus sekarang supaya tidak direbut ulang di tengah sprint. Kalau salah satu t
 | D-S0-3 | **PHPUnit**, bukan Pest — constraint bawaan skeleton Laravel 13 dipakai apa adanya | Blueprint §16 mengizinkan "Pest/PHPUnit"; D-S0-3 versi pra-Blueprint tidak dibatalkan |
 | D-S0-4 | Enum status PHP di `app/Platform/Domain/Status/` adalah **satu-satunya daftar** di kode; `CHECK` migrasi dibangun dari enum (`->values()`), dan test mengawasi isi CHECK di DB nyata terhadap enum | Doc 11 §8.3 (pemilik nilai final = CHECK Doc 09); melarang salinan kedua yang bisa saling bertentangan |
 | D-S0-5 | `packages/api-contracts/openapi.yaml` = satu sumber kontrak; client hasil generate ditulis ke `packages/api-contracts/generated/` dan **di-commit**; CI regenerasi lalu `git diff --exit-code` | B-2 + gerbang D-8; app tidak butuh langkah codegen saat build (Doc 12 §1.3) |
-| D-S0-6 | **Diamandemen 2026-11-18** (versi lama — "selama ADR-007 terbuka, securitySchemes ditunda; bentuk sesi cookie + BFF" — **tidak berlaku**, diganti keputusan pemilik): mekanisme = **Sanctum session cookie same-site**, dua guard/cookie (`web`/`elzara_web_session`, `admin`/`elzara_admin_session`), CSRF wajib semua mutasi, **tanpa BFF wajib**; `securitySchemes` cookie (cookieAuth + CSRF) **wajib ada** dan `security` dipasang **per operasi**; `x-elzara-auth: public\|customer\|admin\|s2s` tetap penanda kategori; operasi admin menambah `x-elzara-permission: <modul.aksi>`; endpoint auth (login/logout/OTP/sesi, social login+callback, registrasi hybrid) masuk spec; **bearer token di browser tetap dilarang**, tabel `personal_access_tokens` **tidak dibuat** | ADR-007 (BFF/sesi) amandemen 2026-11-18 D-1a..D-5a; Doc 11 §4.4 C/I; Doc 12 §1.2 G2 + §3.1 diamandemen gelombang yang sama; sisa terbuka: sign-off threat model + Q-2 IdP/SSO |
+| D-S0-6 | **Diamandemen 2026-11-18** (versi lama — "selama ADR-007 terbuka, securitySchemes ditunda; bentuk sesi cookie + BFF" — **tidak berlaku**, diganti keputusan pemilik): mekanisme = **Sanctum session cookie same-site**, dua guard/cookie (`web`/`elzara_web_session`, `admin`/`elzara_admin_session`), CSRF wajib semua mutasi, **tanpa BFF wajib**; `securitySchemes` cookie (cookieAuth + CSRF) **wajib ada** dan `security` dipasang **per operasi**; `x-elzara-auth: public\|customer\|admin\|s2s` tetap penanda kategori; operasi admin menambah `x-elzara-permission: <modul.aksi>`; endpoint auth (login/logout/OTP/sesi, social login+callback, registrasi hybrid) masuk spec; **bearer token di browser tetap dilarang**, tabel `personal_access_tokens` **tidak dibuat** | ADR-007 (BFF/sesi) amandemen 2026-11-18 D-1a..D-5a; Doc 11 §4.4 C/I; Doc 12 §1.2 G2 + §3.1 diamandemen gelombang yang sama; sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6); Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC |
 | D-S0-7 | Presigned URL memakai `MINIO_PUBLIC_ENDPOINT` (host yang dijangkau browser, lewat edge `/storage`), terpisah dari endpoint internal `AWS_ENDPOINT_URL` | Blueprint §11 + Doc 11 B-9; menutup butir terbuka `docs/runbooks/object-storage-unreachable.md:68` dan ADR-008 |
 | D-S0-8 | Rumah kode lintas modul: `app/Platform/` (enum, ApiProblem, state-machine runner, outbox+dispatcher, migrasi trio reliability) dan `app/ModuleLoader/` (service provider glob). Platform **bukan** modul domain: tanpa logika bisnis, tanpa model milik modul | B1 tetap satu penulis per tabel; Doc 01 §3.1 dan Doc 10 M-1/M-2 diselaraskan lewat PR dokumen ini |
 | D-S0-9 | Path & nama migrasi Sprint 0: `0001`–`0003_Framework_*` di `database/migrations/` (bawaan framework saja); `0004`–`0006_Platform_*` di `app/Platform/Infrastructure/Database/Migrations/`; tabel modul `0007+` di `app/Modules/<X>/Infrastructure/Database/Migrations/` dengan format `NNNN_<Module>_<slug>.php`. **Diamandemen 2026-11-18 mengikuti disk:** trio reliability Platform sudah ditulis sebagai **satu** berkas `0001_Platform_create_reliability_tables.php` (outbox/inbox/idempotency), `database/migrations/` kosong (tanpa migrasi framework bawaan) — penomoran `0004–0006` lama **tidak berlaku**; band Sprint 0 tetap `0001–0199`, basename unik, pemilik = direktori (M-1..M-4, Doc 10 §1); migrasi Identity berikutnya melanjutkan nomor yang belum dipakai di band | M-1/M-2/M-3 + Appendix B langkah 3; basename unik ditegakkan CI C2; Doc 11 §4.4 G |
@@ -4698,11 +4698,11 @@ lihat `docs/threat-model-verification.md`". Jangan menyentuh §4 (batas KI) dan 
 
 - [ ] **Step 3: Jadwalkan sign-off + nyatakan yang diblokir**
 
-Di §6 baris "Status" tulis: draf v1 selesai Sprint 0; **sign-off klien dijadwalkan akhir Sprint 1** (Doc 03
+Di §6 baris "Status" tulis: draf v1 selesai Sprint 0; **rencana awal sign-off klien: akhir Sprint 1; sign-off kini tercatat 2026-11-22 di chat bot Product Engineer oleh Fatharoni, dengan persetujuan klien dikonfirmasi pemilik** (Doc 03
 P-6) dan menjadi **prasyarat keras sebelum kode auth ditulis** (ADR-007 (BFF/sesi) D-6a). Amandemen 2026-11-18:
 arah yang dibangun sudah diputuskan — **sesi cookie same-site dua guard + CSRF wajib** (Task 17 membuktikan
 CSP/nonce, Task 12 membangun guard/CSRF); bentuk lama session/BFF tidak berlaku. **ADR-007 (BFF/sesi) Accepted
-untuk mekanisme**; yang tersisa terbuka hanya sign-off threat model + Q-2 ("apakah klien punya IdP/SSO sendiri").
+untuk mekanisme**; sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6); Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC.
 Kalimat yang dilarang keras: "ADR-007 diputus oleh implementasi" — mekanisme diputus **pemilik**, tercatat di amandemen.
 
 - [ ] **Step 4: Blok "Penutupan Sprint 0" di ADR-004, ADR-008, ADR-010, ADR-011**
@@ -4740,7 +4740,7 @@ Pemetaan ditulis sebagai **satu tabel** di bagian bawah ADR-009 (Doc 11 §8: sat
 |---|---|---|
 | ADR-005 | reservasi TTL + resolusi late payment | keputusan bisnis B-PO + **Q-7** (jalur `paid_stock_exception` bergantung semantik settlement) |
 | ADR-006 | gateway + semantik settlement/refund | **Q-7** |
-| ADR-007 (BFF/sesi) | mekanisme sesi cookie same-site + dua guard | **Accepted untuk mekanisme 2026-11-18**; sisa: sign-off threat model (P-6) + **Q-2** (apakah klien punya IdP/SSO sendiri) |
+| ADR-007 (BFF/sesi) | mekanisme sesi cookie same-site + dua guard | **Accepted untuk mekanisme 2026-11-18**; sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6); Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC |
 | ADR-009 | Waiting Room coverage/threshold/bypass | **Q-4** (angka k6) **dan Q-6** (plan Cloudflare) |
 
 - [ ] **Step 6: Audit konsistensi nomor ↔ topik ↔ judul berkas**
@@ -4910,7 +4910,7 @@ staging lokal, belum di VPS klien — registry/SSH key belum ada (D-S0-8); ulang
 pemilik penanggung jawab rilis. (b) empat metrik §15 belum bersumber data — panel terpasang, tabel lahir Sprint
 2/Phase 4; jangan dikutip sebagai bukti kapasitas. (c) ambang alert masih angka teknis, belum kapasitas teruji
 (Q-4); tinjau setelah task 1.7. (d) CSP nonce belum diverifikasi terhadap upgrade Next berikutnya; test
-Playwright Task 17 dijalankan tiap upgrade. (e) threat model belum ditandatangani klien (Q-2); sign-off akhir
+Playwright Task 17 dijalankan tiap upgrade. (e) sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6, P-6); bukan bukti penutupan
 Sprint 1. Tidak ada baris yang menjanjikan angka ketersediaan; tidak ada kalimat HA/99,9 %.
 
 - [ ] **Step 9: Gerbang akhir Sprint 0 — semua hijau dalam satu kali jalan**
@@ -4961,7 +4961,7 @@ Yang tidak bisa dibuktikan script — dan karena itu dibuktikan test PHPUnit di 
 1. Dokumen ini panjang (±4 900 baris) karena larangan placeholder: setiap langkah yang menyentuh kode memuat kode nyata. Kalau eksekusi nanti ternyata menabrak, yang dipotong adalah prosa task, bukan isinya.
 2. Angka hasil (spec §6): `up` cold start < 90 s, build tiga image < 6 menit cache hangat, CI < 12 menit, harness D-9 repeatable < 60 s. Tiga angka pertama diukur di Task 3/5/20 dan **dilaporkan apa adanya**; bila tidak tercapai, yang dikurangi adalah paralelisasi, bukan targetnya.
 3. Sprint ini tidak menghasilkan satu pun fitur yang dijual. Bila muncul permintaan "tambah layar produk", jawabannya Sprint 2 — bukan pengecualian di Task 15.
-4. Keputusan klien (Q-1…Q-8) tetap terbuka dan **sengaja** terbuka: ADR-005/006/009 tidak ditutup supaya Sprint 0 tidak membeli asumsi (amandemen 2026-11-18: ADR-007 (BFF/sesi) keluar dari daftar ini — mekanisme Accepted, sisa hanya sign-off threat model + Q-2 IdP/SSO; ADR-012 (RBAC/identitas/dependensi) Accepted). Jalur paralel klien ada di Doc 03 §9 (P-1…P-8).
+4. Keputusan klien selain Q-2 (Doc 11 §6) tetap terbuka dan **sengaja** terbuka: ADR-005/006/009 tidak ditutup supaya Sprint 0 tidak membeli asumsi (amandemen 2026-11-18: ADR-007 (BFF/sesi) keluar dari daftar ini — mekanisme Accepted, sign-off Fatharoni tercatat di chat bot Product Engineer pada 2026-11-22, dengan persetujuan klien dikonfirmasi pemilik (threat model §6); Q-2 dijawab pemilik proyek pada 2026-11-22: klien tidak punya IdP/SSO sendiri; mekanisme sesi Sanctum dua guard tetap, tidak ada provider OIDC; ADR-012 (RBAC/identitas/dependensi) Accepted). Jalur paralel klien ada di Doc 03 §9 (P-1…P-8).
 
 ---
 
@@ -5064,4 +5064,3 @@ Semua angka/nama di bawah sudah diterapkan ke dokumen ini dan/atau ke dokumen su
 | 23 | `composer ci:concurrency` dirujuk jalur D tapi belum didefinisikan jalur A | Ditambahkan ke skrip root Task 5 dan ke rantai `ci:all` (D-S0-12) |
 | 24 | Nama test parity disebut berbeda dua cara (`OpenApiParityTest` / `OpenApiRouteParityTest`) | Kanonik: `OpenApiRouteParityTest` — semua rujukan sudah dinormalkan |
 | 25 | Target panjang bagian (380–520 baris) tidak tercapai di keempat jalur | Diterima. Yang diizinkan berkurang adalah prosa, bukan kode nyata; memangkas kode berarti mengembalikan placeholder yang dilarang. Konsekuensinya dicatat di §6 |
-
