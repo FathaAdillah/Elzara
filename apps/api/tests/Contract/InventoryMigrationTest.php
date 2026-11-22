@@ -21,12 +21,14 @@ final class InventoryMigrationTest extends TestCase
             DB::statement("SET LOCAL search_path TO {$schema}, public");
             DB::statement('CREATE TABLE users (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY)');
             DB::statement('CREATE TABLE product_variants (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY)');
+            DB::statement('CREATE TABLE orders (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY)');
+            DB::statement('CREATE TABLE order_items (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY)');
             $files = glob(app_path('Modules/Inventory/Infrastructure/Database/Migrations/*.php'));
-            $this->assertCount(3, $files);
+            $this->assertCount(4, $files);
             foreach ($files as $file) {
                 (require $file)->up();
             }
-            foreach (['warehouses', 'stock_items', 'stock_movements'] as $table) {
+            foreach (['warehouses', 'stock_items', 'stock_movements', 'stock_reservations'] as $table) {
                 $columns = collect(Schema::getColumns($table))->keyBy('name');
                 $this->assertSame('int8', $columns['id']['type_name']);
                 $this->assertSame('timestamptz', $columns['created_at']['type_name']);
@@ -49,6 +51,15 @@ final class InventoryMigrationTest extends TestCase
             $warehouse = DB::table('warehouses')->insertGetId(['code' => 'WH', 'name' => 'Warehouse', 'kind' => 'warehouse']);
             $variant = DB::table('product_variants')->insertGetId([]);
             $slot = ['warehouse_id' => $warehouse, 'variant_id' => $variant];
+            $reservation = $slot + [
+                'order_id' => DB::table('orders')->insertGetId([]),
+                'order_item_id' => DB::table('order_items')->insertGetId([]),
+                'qty' => 1,
+                'expires_at' => now()->addMinute(),
+            ];
+            $this->rejects('23514', fn () => DB::table('stock_reservations')->insert(array_replace($reservation, ['qty' => 0])));
+            $this->assertTrue(DB::table('stock_reservations')->insert($reservation));
+            $this->rejects('23505', fn () => DB::table('stock_reservations')->insert($reservation));
             DB::table('stock_items')->insert($slot);
             $this->assertSame(0, DB::table('stock_items')->value('available_to_sell'));
             foreach (['on_hand', 'reserved', 'damaged', 'quarantined', 'in_transit'] as $component) {
