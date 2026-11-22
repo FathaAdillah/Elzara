@@ -1793,12 +1793,14 @@ export interface components {
             checkout: components["schemas"]["CheckoutSessionRead"];
         };
         CheckoutOrderCreated: components["schemas"]["OrderRead"] & {
+            /** @enum {string} */
+            order_type: "ready_stock" | "preorder";
             /** Format: date-time */
             reservation_expires_at: string;
             invoice: {
                 id: string;
-                /** @constant */
-                type: "balance";
+                /** @enum {string} */
+                type: "balance" | "deposit";
                 /** Format: date-time */
                 due_at: string;
                 total: components["schemas"]["Money"];

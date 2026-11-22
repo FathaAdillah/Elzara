@@ -4225,15 +4225,16 @@ components:
       allOf:
         - { $ref: "#/components/schemas/OrderRead" }
         - type: object
-          required: [reservation_expires_at, invoice, payment_intent, repriced, changes_from_snapshot]
+          required: [order_type, reservation_expires_at, invoice, payment_intent, repriced, changes_from_snapshot]
           properties:
+            order_type: { type: string, enum: [ready_stock, preorder] }
             reservation_expires_at: { type: string, format: date-time }
             invoice:
               type: object
               required: [id, type, due_at, total]
               properties:
                 id: { type: string }
-                type: { type: string, const: balance }
+                type: { type: string, enum: [balance, deposit] }
                 due_at: { type: string, format: date-time }
                 total: { $ref: "#/components/schemas/Money" }
             payment_intent:

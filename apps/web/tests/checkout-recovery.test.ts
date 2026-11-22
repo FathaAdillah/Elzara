@@ -99,4 +99,23 @@ describe("checkout recovery", () => {
     press("Simulasikan pembayaran");
     await vi.waitFor(() => expect(text(render())).toContain("Pembayaran simulasi berhasil"));
   });
+  it("skips courier quotes for preorder and displays only server invoice deposit amounts", async () => {
+    const groups = [{ mode: "pre_order", items: [{ id: "item_po", name: "Nova", quantity: 1, line_total: { amount_minor: 80000 } }] }];
+    mocks.state[0] = { items_hash: "po", groups, subtotal: { amount_minor: 80000 } };
+    const session = { id: "cs_po", status: "open", fake_payment_available: true, total: { amount_minor: 80000 }, subtotal: { amount_minor: 80000 }, shipping_estimate: { amount_minor: 0 }, snapshot: { cart: { groups } }, expires_at: "2026-11-22T10:00:00Z" };
+    mocks.createCheckout.mockResolvedValueOnce(session);
+    mocks.placeCheckoutOrder.mockResolvedValueOnce({ id: "ord_po", total: { amount_minor: 80000 }, invoice: { type: "deposit", total: { amount_minor: 30123 } }, reservation_expires_at: session.expires_at, payment_intent: { id: "pi_po" } });
+    mocks.simulatePayment.mockResolvedValueOnce({ status: "paid" });
+    const press = (label: string) => elements(render()).find((node) => text(node) === label && node.props.onClick)?.props.onClick?.();
+    press("Buat sesi pre-order");
+    await vi.waitFor(() => expect(mocks.state[3]).toEqual(session));
+    expect(mocks.shippingOptions).not.toHaveBeenCalled();
+    expect(text(render())).not.toContain("Ongkir terpilih:");
+    press("Pesan pre-order");
+    await vi.waitFor(() => expect(text(render())).toContain("Deposit dibayar sekarang:"));
+    expect(text(render())).toContain("30.123");
+    expect(text(render())).toContain("80.000");
+    press("Simulasikan pembayaran");
+    await vi.waitFor(() => expect(text(render())).toContain("Deposit telah dibayar"));
+  });
 });

@@ -95,7 +95,7 @@ final class PreorderCheckoutTest extends TestCase
     {
         $payload = $this->checkoutPayload();
         $key = (string) Str::uuid();
-        $response = $this->send('POST', '/api/v1/orders', $payload, $key)->assertCreated()->assertJsonPath('invoice.type', 'deposit')->assertJsonPath('total.amount_minor', 90001)->assertJsonPath('invoice.total.amount_minor', 45001);
+        $response = $this->send('POST', '/api/v1/orders', $payload, $key)->assertCreated()->assertJsonPath('order_type', 'preorder')->assertJsonPath('invoice.type', 'deposit')->assertJsonPath('total.amount_minor', 90001)->assertJsonPath('invoice.total.amount_minor', 45001);
         $this->send('POST', '/api/v1/orders', $payload, $key)->assertCreated()->assertHeader('Idempotency-Replayed', 'true');
         $this->assertDatabaseCount('preorder_enrollments', 1);
         $this->assertDatabaseHas('orders', ['order_type' => 'preorder', 'fulfillment_lane' => 'import_po', 'fulfillment_status' => 'awaiting_batch', 'shipping_total' => 0]);

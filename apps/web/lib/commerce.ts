@@ -16,6 +16,10 @@ export function validQuantity(value: string): number | undefined {
 export class CommerceError extends Error {
   constructor(public problem: { title?: string; detail?: string; status?: number; code?: string; errors?: { pointer: string; detail: string }[] }) {
     const messages: Record<string, string> = {
+      BATCH_QUOTA_EXHAUSTED: "Kuota batch habis. Kurangi jumlah atau pilih batch lain.",
+      BATCH_NOT_OPEN: "Batch belum dibuka atau sudah ditutup. Pilih batch yang masih terbuka.",
+      BATCH_ACCOUNT_LIMIT_EXCEEDED: "Jumlah pesanan melebihi batas per akun untuk batch ini.",
+      CHECKOUT_MIXED_MODES: "Pisahkan produk siap kirim dan pre-order ke pesanan berbeda.",
       CHECKOUT_SNAPSHOT_STALE: "Keranjang Anda berubah. Periksa kembali lalu lanjutkan checkout.",
       CHECKOUT_SESSION_EXPIRED: "Sesi checkout telah berakhir. Silakan mulai checkout kembali.",
       CART_ITEM_UNAVAILABLE: "Barang tidak tersedia atau stok tidak cukup. Periksa jumlah di keranjang.",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Button } from "@elzara/ui";
 import {
   availability,
@@ -10,12 +9,9 @@ import {
   type ProductDetail,
 } from "@/lib/catalog";
 import { PriceBlock } from "./products";
-import { addCartItem } from "@/lib/shop-api";
+import { AddToCart } from "./add-to-cart";
 
 export function VariantPicker({ product }: { product: ProductDetail }) {
-  const [adding, setAdding] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [added, setAdded] = useState(false);
   const options = product.options ?? [];
   const [selected, setSelected] = useState<Record<string, string>>(
     product.variants[0]?.attributes ?? {},
@@ -134,25 +130,7 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
           Atur ulang pilihan
         </Button>
       )}
-      <div className="space-y-3">
-        <Button disabled={adding || !variant || unsupportedCurrency || (product.kind === "rts" && variant.available < 1)} block aria-describedby="cart-notice" onClick={async () => {
-          if (!variant || unsupportedCurrency) return;
-          setAdding(true); setNotice(""); setAdded(false);
-          try { await addCartItem(variant.id); setNotice("Ditambahkan ke keranjang."); setAdded(true); }
-          catch (e) { setNotice(e instanceof Error ? e.message : "Gagal menambahkan produk."); }
-          finally { setAdding(false); }
-        }}>
-          Tambah ke keranjang
-        </Button>
-        <p
-          id="cart-notice"
-          role="status"
-          className="text-xs leading-relaxed text-ink-muted"
-        >
-          {notice || (unsupportedCurrency ? "Keranjang hanya mendukung varian dengan harga IDR." : "Harga dan stok dikonfirmasi kembali saat checkout.")}
-          {added && <> <Link href="/cart" className="underline">Lihat keranjang</Link></>}
-        </p>
-      </div>
+      <AddToCart variantId={variant?.id} disabled={unsupportedCurrency || (product.kind === "rts" && !!variant && variant.available < 1)} noticeId="cart-notice" hint={unsupportedCurrency ? "Keranjang hanya mendukung varian dengan harga IDR." : undefined} />
       <noscript>
         <p className="text-sm">
           Aktifkan JavaScript untuk memilih varian. Semua varian tersedia pada

@@ -100,21 +100,91 @@ test('RTS: place order and complete Fake payment', async ({ page }, testInfo) =>
   writeFileSync(join(testInfo.project.outputDir, 'rts-order.json'), JSON.stringify(order));
 });
 
-test('PO: batch placeholder and supported pre-order product/cart journey', async ({ page }) => {
-  await page.goto('/preorder/e2e-batch');
-  await expect(page.getByRole('heading', { name: 'Pre-order', exact: true })).toBeVisible();
-  await expect(page.getByText('e2e-batch', { exact: true })).toBeVisible();
-  await expect(page.getByText(/tidak ada batch contoh di repo/)).toBeVisible();
-  await page.goto('/account/login?next=/catalog/nova-keychain');
+test('PO: batch, deposit checkout, Fake payment and decreased quota', async ({ page }, testInfo) => {
+  const batches = await page.request.get('/api/v1/preorder-batches');
+  expect(batches.ok()).toBeTruthy();
+  const batch = (await batches.json()).data.find((value: { name: string }) => value.name === 'Nova Keychain Pre-order');
+  expect(batch).toBeTruthy();
+  const detail = await page.request.get(`/api/v1/preorder-batches/${batch.id}`);
+  expect(detail.ok()).toBeTruthy();
+  const initial = await detail.json();
+  const item = initial.items[0];
+  await page.goto(`/account/login?next=/preorder/${batch.id}`);
   await login(page);
-  await expect(page).toHaveURL(/\/catalog\/nova-keychain$/);
-  await expect(page.getByRole('heading', { name: 'Nova Keychain', exact: true })).toBeVisible();
-  await expect(page.getByText('PO · Pre-order', { exact: true })).toBeVisible();
-  await addAndSeeCart(page, 'Nova Keychain');
-  await expect(page.getByRole('heading', { name: /Pre-order · ETA:/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: batch.name, exact: true })).toBeVisible();
+  await expect(page.getByText('Status: Terbuka', { exact: true })).toBeVisible();
+  await expect(page.getByText(`ETA: ${initial.eta_min_date} – ${initial.eta_max_date}`, { exact: true })).toBeVisible();
+  await expect(page.getByTestId('batch-countdown')).toContainText(/hari .*jam .*menit .*detik/);
+  const card = page.getByRole('article').first();
+  await expect(card.getByText(`Kuota: ${item.remaining} dari ${item.quota} tersisa`, { exact: true })).toBeVisible();
+  await expect(card.getByText(`Batas per akun: ${item.max_per_account}`, { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('po-batch.png'), fullPage: true });
+  await card.getByRole('button', { name: 'Tambah ke keranjang', exact: true }).click();
+  await card.getByRole('link', { name: 'Lihat keranjang', exact: true }).click();
+  await page.getByRole('link', { name: 'Lanjut ke checkout' }).click();
+  let addresses = await page.request.get('/api/v1/me/addresses');
+  expect(addresses.ok()).toBeTruthy();
+  let address = (await addresses.json()).data[0];
+  if (!address) {
+    for (const [label, value] of Object.entries({
+      'Nama penerima': 'E2E Preorder Customer', 'Nomor ponsel Indonesia': '081234567890',
+      'Provinsi': 'DKI Jakarta', 'Kota / kabupaten': 'Jakarta Selatan', 'Kecamatan': 'Tebet',
+      'Kode pos': '12810', 'Alamat lengkap': 'Jalan Preorder Nomor 23',
+    })) await page.getByLabel(label, { exact: true }).fill(value);
+    await page.getByRole('button', { name: 'Simpan alamat', exact: true }).click();
+    await expect(page.getByRole('radio', { name: /E2E Preorder Customer/ })).toBeChecked();
+    addresses = await page.request.get('/api/v1/me/addresses');
+    address = (await addresses.json()).data[0];
+  }
+  expect(address).toBeTruthy();
+  await page.getByRole('radio', { name: new RegExp(address.recipient) }).check();
+  const sessionResponse = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/checkout/sessions');
+  await page.getByRole('button', { name: 'Buat sesi pre-order', exact: true }).click();
+  expect((await sessionResponse).ok()).toBeTruthy();
+  await expect(page.getByRole('radio', { name: /JNE/ })).toHaveCount(0);
+  await expect(page.getByText(/^Ongkir terpilih:/)).toHaveCount(0);
+  const placed = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/orders');
+  await page.getByRole('button', { name: 'Pesan pre-order', exact: true }).click();
+  const placedResponse = await placed;
+  expect(placedResponse.status()).toBe(201);
+  const order = await placedResponse.json();
+  expect(order.order_type).toBe('preorder');
+  expect(order.invoice.type).toBe('deposit');
+  expect(order.total).toEqual(item.price);
+  expect(order.invoice.total.amount_minor).toBeGreaterThan(0);
+  expect(order.invoice.total.amount_minor).toBeLessThan(order.total.amount_minor);
+  const money = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount);
+  await expect(page.getByText(`Total pesanan: ${money(order.total.amount_minor)}`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`Deposit dibayar sekarang: ${money(order.invoice.total.amount_minor)}`, { exact: true })).toBeVisible();
+  const captured = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/orders/${order.id}/fake-payment`));
+  await page.getByRole('button', { name: 'Simulasikan pembayaran', exact: true }).click();
+  expect((await captured).status()).toBe(200);
+  await expect(page.getByText('Deposit telah dibayar', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('po-deposit-paid.png'), fullPage: true });
+  writeFileSync(join(testInfo.project.outputDir, 'po-order.json'), JSON.stringify({ ...order, batch_id: batch.id, batch_item_id: item.id, reserved_before: item.quota - item.remaining }));
+  await page.goto(`/preorder/${batch.id}`);
+  await expect(page.getByRole('article').first().getByText(`Kuota: ${item.remaining - 1} dari ${item.quota} tersisa`, { exact: true })).toBeVisible();
+
+  // The seeded account limit is two; one paid enrollment plus two more must fail.
+  const token = (await page.context().cookies()).find((cookie) => cookie.name === 'XSRF-TOKEN');
+  expect(token).toBeTruthy();
+  const headers = () => ({ 'X-XSRF-TOKEN': decodeURIComponent(token!.value), 'Idempotency-Key': crypto.randomUUID(), Accept: 'application/json' });
+  const added = await page.request.post('/api/v1/cart/items', { headers: headers(), data: { variant_id: item.variant_id, quantity: 2 } });
+  expect(added.ok()).toBeTruthy();
+  const cart = await (await page.request.get('/api/v1/cart')).json();
+  const checkout = await page.request.post('/api/v1/checkout/sessions', { headers: headers(), data: { shipping_address_id: address.id, expected_items_hash: cart.items_hash } });
+  expect(checkout.ok()).toBeTruthy();
+  const rejected = await page.request.post('/api/v1/orders', { headers: headers(), data: { checkout_session_id: (await checkout.json()).id, shipping_address_id: address.id } });
+  expect(rejected.status()).toBe(422);
+  expect((await rejected.json()).code).toBe('BATCH_ACCOUNT_LIMIT_EXCEEDED');
+  const afterRejection = await (await page.request.get(`/api/v1/preorder-batches/${batch.id}`)).json();
+  expect(afterRejection.items[0].remaining).toBe(item.remaining - 1);
 });
 
-test.fixme('PO: seeded batch details, quota, ETA and reservation — no batch schema/API/UI on master', async () => {});
+test('PO: unknown batch shows not-found UI', async ({ page }) => {
+  await page.goto('/preorder/batch_missing');
+  await expect(page.getByRole('heading', { name: 'Batch tidak ditemukan', exact: true })).toBeVisible();
+});
 
 test('Request Order: catalog filter, badge and PDP information', async ({ page }) => {
   await page.goto('/catalog');

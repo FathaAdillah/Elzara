@@ -99,6 +99,7 @@ export default async function ProductPage({ params }: Props) {
             </p>
           )}
           <VariantPicker product={product} />
+          {product.kind === "pre_order" && <Link href="/preorder" className="inline-flex min-h-touch items-center underline">Lihat batch pre-order terbuka</Link>}
           <section
             aria-labelledby="description-title"
             className="space-y-3 border-t border-divider pt-6"

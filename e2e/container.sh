@@ -44,6 +44,7 @@ JS
   test) cd e2e; exec npm test -- "$@" ;;
   verify-order)
     if [ -f e2e/test-results/rts-order.json ]; then php e2e/verify-order.php; fi
+    if [ -f e2e/test-results/po-order.json ]; then php e2e/verify-preorder.php; fi
     ;;
   *) echo "Unknown container task: $mode" >&2; exit 2 ;;
 esac

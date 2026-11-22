@@ -111,7 +111,7 @@ final class PlaceOrder
                 ]));
 
                 return [
-                    'id' => $code, 'status' => OrderStatus::AwaitingPayment->value, 'total' => $money, 'created_at' => $now->toIso8601String(),
+                    'id' => $code, 'status' => OrderStatus::AwaitingPayment->value, 'order_type' => $preorder ? OrderType::Preorder->value : OrderType::ReadyStock->value, 'total' => $money, 'created_at' => $now->toIso8601String(),
                     'reservation_expires_at' => $expiry, 'invoice' => ['id' => $invoice['code'], 'type' => $invoiceType, 'due_at' => $expiry, 'total' => ['amount_minor' => $payable, 'currency' => 'IDR']],
                     'payment_intent' => ['id' => $intent->code, 'provider' => $intent->provider, 'expires_at' => $expiry, 'status' => $intent->status],
                     'repriced' => $changes !== [], 'changes_from_snapshot' => $changes,

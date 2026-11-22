@@ -48,7 +48,7 @@ memeriksa metadata Docker Hub lagi (misalnya saat registry membatasi request).
 Default lokal dan CI tetap membangun image; jangan pakai opsi ini setelah
 Dockerfile API berubah.
 
-## Coverage of master
+## Journey coverage
 
 - **RTS:** home → catalog → Lumen Fox Plush → Mint/S variant → anonymous add/login
   redirect → demo login → reselect/add → authenticated cart (also read through
@@ -60,17 +60,24 @@ Dockerfile API berubah.
   same order/invoice are paid, its Fake intent is captured and its stock
   reservations are committed in PostgreSQL. Fake payment is enabled only in the
   disposable local API environment; no real payment provider is used.
-- **PO:** `/preorder/e2e-batch` currently only echoes its URL identifier. The test
-  checks that shell honestly, then exercises the seeded Nova Keychain PO PDP,
-  add-to-cart and pre-order cart grouping. There is **no batch table, endpoint or
-  batch-detail rendering on master**, so inventing a seeded batch would require
-  migrations/production features outside this task. Quota/ETA/enrollment are
-  explicitly `test.fixme`, not reported as covered.
+- **PO:** discover the seeded open Nova batch through the public API → login →
+  batch detail (server-time countdown, ETA, quota and account limit) → add Nova
+  Keychain → cart → address → checkout without courier selection → place order
+  (`201`, `order_type=preorder`, deposit invoice) → exact server invoice deposit
+  versus order total → Fake payment → deposit-paid UI → batch quota decreased.
+  A further API-level enrollment exceeding the seeded per-account limit returns
+  `422 BATCH_ACCOUNT_LIMIT_EXCEEDED` without consuming additional quota. Another
+  test checks unknown-batch not-found UI. PostgreSQL verification checks the same
+  artifact's enrollment `deposit_paid`, quota increment, paid deposit invoice and
+  captured Fake intent. This does not claim a quota-exhaustion browser scenario.
+  Deposit amount is displayed after placement from the issued invoice; the
+  checkout-session API does not provide a deposit preview. No frontend deposit
+  calculation is used.
 - **Request Order:** real catalog mode filter → isolated E2E Request Charm card
   and Quote/Request badge → PDP request information. Request submission,
   operator quote and payment are `test.fixme`: no such flow is on master.
 
-`E2eSeeder` calls Reference → DemoAccount → DemoCatalog → DemoShipping and adds
+`E2eSeeder` calls Reference → DemoAccount → DemoCatalog → DemoPreorder → DemoShipping and adds
 only the missing request product. Media-less demo products use the storefront's
 existing fallback images. Each script run uses a fresh DB. The demo account is
 `demo.customer@elzara.test`; `DEMO_PASSWORD` can override the disposable default.
@@ -84,7 +91,8 @@ existing fallback images. Each script run uses a fresh DB. The demo account is
 
 CI uploads the report, test results and stack logs **always**, retaining them for
 14 days. Fixme tests are visible as skipped; they are not silently removed.
-The full run expects **4 passed, 2 skipped**. `test-results/rts-order.json` links
-the UI/API result to the post-test database verification.
+The full run expects **5 passed, 1 skipped**. `test-results/rts-order.json` and
+`test-results/po-order.json` link the UI/API results to post-test database
+verification. PO screenshots also include `po-batch.png` and `po-deposit-paid.png`.
 Argumen Playwright dapat diteruskan, misalnya
 `scripts/e2e-local.sh --grep RTS`. Tidak ada mode runner-tool/layanan eksternal.

@@ -24,6 +24,8 @@ export function CheckoutPanel() {
   const [expired, setExpired] = useState(false);
   const orderKey = useRef<{ session: string; key: string }>(undefined);
   const paymentKey = useRef<string>(undefined);
+  const preorder = !!cart?.groups.length && cart.groups.every((group) => group.mode === "pre_order");
+  const mixedModes = !!cart?.groups.some((group) => group.mode === "pre_order") && !preorder;
   useEffect(() => { Promise.all([getCart(), getAddresses()]).then(([c, a]) => { setCart(c); setAddresses(a.data); setSelected(a.data.find((v) => v.is_default)?.id ?? a.data[0]?.id ?? ""); }).catch((e: Error) => setError(e.message)); }, []);
   function report(e: unknown) {
     setError(e instanceof Error ? e.message : "Permintaan gagal.");
@@ -41,6 +43,7 @@ export function CheckoutPanel() {
     if (!cart) return; setBusy(true); setError(""); setShipping(undefined); setOrder(undefined); setExpired(false); paymentKey.current = undefined;
     try {
       const s = await createCheckout(selected, cart.items_hash); setSession(s);
+      if (preorder) { setChoices({}); return; }
       const rates = await shippingOptions(s.id); setShipping(rates); setSession(rates.checkout); setChoices(Object.fromEntries((rates.checkout.snapshot.shipping_selection ?? []).map((v) => [v.group_index, v.courier_code + ":" + v.service_code])));
     } catch (e) {
       setSession(undefined); setShipping(undefined); setChoices({});
@@ -102,7 +105,8 @@ export function CheckoutPanel() {
           <Button type="submit" disabled={busy}>Simpan alamat</Button>
         </form>
       </details>}
-      <Button disabled={busy || !selected || !cart?.groups.length || (!!order && !expired)} onClick={() => void quote()}>{busy ? "Memproses…" : "Buat sesi & lihat ongkir"}</Button>
+      {mixedModes && <p role="alert">Pisahkan produk siap kirim dan pre-order ke pesanan berbeda.</p>}
+      <Button disabled={busy || mixedModes || !selected || !cart?.groups.length || (!!order && !expired)} onClick={() => void quote()}>{busy ? "Memproses…" : preorder ? "Buat sesi pre-order" : "Buat sesi & lihat ongkir"}</Button>
     </div>
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Ringkasan server</h2>
@@ -121,21 +125,23 @@ export function CheckoutPanel() {
       <div className="space-y-2 rounded-card bg-brand-ink p-5">
         {order ? <>
           <p className="font-semibold">Total pesanan: {rupiah(order.total.amount_minor)}</p>
+          {order.invoice?.type === "deposit" && <p className="font-semibold">Deposit {paid ? "dibayar" : "dibayar sekarang"}: {rupiah(order.invoice.total.amount_minor)}</p>}
           {order.repriced && <p className="text-sm">Harga atau ongkir berubah. Periksa total terbaru sebelum melanjutkan.</p>}
         </> : <>
           <p>Subtotal: {rupiah(session?.subtotal.amount_minor ?? cart?.subtotal.amount_minor ?? 0)}</p>
-          {session && <>{session.shipping_estimate && session.total ? <><p>Ongkir terpilih: {rupiah(session.shipping_estimate.amount_minor)}</p><p className="font-semibold">Total: {rupiah(session.total.amount_minor)}</p></> : <p role="status">Ongkir dan total belum tersedia sampai semua grup memiliki layanan pengiriman.</p>}<p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
+          {preorder && <p>Ongkir ditagih saat release. Nominal deposit dari invoice ditampilkan setelah pesanan dibuat, sebelum simulasi pembayaran.</p>}
+          {session && <>{session.shipping_estimate && session.total ? <>{!preorder && <p>Ongkir terpilih: {rupiah(session.shipping_estimate.amount_minor)}</p>}<p className="font-semibold">Total: {rupiah(session.total.amount_minor)}</p></> : <p role="status">Ongkir dan total belum tersedia sampai semua grup memiliki layanan pengiriman.</p>}<p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
           {!session?.fake_payment_available && <p className="text-sm">Pembayaran belum tersedia.</p>}
         </>}
       </div>
       {order ? <>
         <div role="status" className="rounded-card border border-divider p-5">
-          <p className="font-semibold">{paid ? "Pembayaran simulasi berhasil" : expired ? "Pembayaran simulasi kedaluwarsa" : "Stok dipesan untuk simulasi"}</p>
+          <p className="font-semibold">{paid ? order.invoice?.type === "deposit" ? "Deposit telah dibayar" : "Pembayaran simulasi berhasil" : expired ? "Pembayaran simulasi kedaluwarsa" : order.invoice?.type === "deposit" ? "Kuota pre-order dipesan untuk simulasi" : "Stok dipesan untuk simulasi"}</p>
           <p>Pesanan {order.id}</p>
           {!paid && !expired && <p className="text-sm">Reservasi hingga {new Date(order.reservation_expires_at).toLocaleString("id-ID")}. Tidak ada uang yang ditagih.</p>}
         </div>
         {!paid && !expired && <Button block disabled={busy} onClick={() => void pay()}>Simulasikan pembayaran</Button>}
-      </> : <Button block disabled={busy || !session?.fake_payment_available || !session.total || session.status !== "open" || session.snapshot.cart.groups.some((g) => g.mode !== "rts")} onClick={() => void reserve()}>Reservasi stok untuk simulasi</Button>}
+      </> : <Button block disabled={busy || mixedModes || !session?.fake_payment_available || !session.total || session.status !== "open" || session.snapshot.cart.groups.some((g) => g.mode !== (preorder ? "pre_order" : "rts"))} onClick={() => void reserve()}>{preorder ? "Pesan pre-order" : "Reservasi stok untuk simulasi"}</Button>}
     </div>
   </div>;
 }
