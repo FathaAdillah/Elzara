@@ -58,14 +58,14 @@ export async function SiteHeader() {
           >
             <ShopIcon name="search" />
             <label className="sr-only" htmlFor="store-search">
-              Cari produk, brand, atau kategori
+              Cari produk atau brand
             </label>
             <input
               id="store-search"
               name="q"
               type="search"
               maxLength={200}
-              placeholder="Cari produk, brand, atau kategori…"
+              placeholder="Cari produk atau brand…"
             />
             <button type="submit" aria-label="Cari produk">
               <ShopIcon name="search" />
