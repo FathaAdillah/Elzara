@@ -33,11 +33,14 @@ def main():
     with tempfile.TemporaryDirectory(prefix='elzara-edge-') as directory:
         root = Path(directory)
         shutil.copytree(args.config_dir, root / 'nginx')
-        (root / 'stub.conf').write_text('''server {
+        for app in ('web', 'admin'):
+            (root / f'stub-{app}.conf').write_text(f'''server {{
     listen 3000;
-    location = /_nuxt/missing.js { return 404; }
-    location / { return 200 "stub\\n"; }
-}
+    location = /_nuxt/missing.js {{ return 404; }}
+    location = /real-ip {{ return 200 "$http_x_real_ip"; }}
+    location = /whoami {{ return 200 "{app}"; }}
+    location / {{ return 200 "stub\\n"; }}
+}}
 ''')
         (root / 'index.php').write_text('<?php http_response_code(200); echo "api stub";')
         (root / 'certs').mkdir()
@@ -52,9 +55,13 @@ def main():
                 run('docker', 'run', '-d', '--name', container, '--network', name, *options)
                 return container
 
-            start('stub', '--network-alias', 'web', '--network-alias', 'admin',
-                  '--network-alias', 'minio', '-v', f'{root}/stub.conf:/etc/nginx/conf.d/default.conf:ro',
-                  'nginx:1.27-alpine')
+            def start_stub(app):
+                aliases = ['--network-alias', app] + (['--network-alias', 'minio'] if app == 'web' else [])
+                return start('stub-' + app, *aliases,
+                             '-v', f'{root}/stub-{app}.conf:/etc/nginx/conf.d/default.conf:ro', 'nginx:1.27-alpine')
+
+            start_stub('web')
+            start_stub('admin')
             start('api', '--network-alias', 'api', '-v', f'{root}/index.php:/app/public/index.php:ro',
                   'php:8.4-fpm-alpine')
             edge = start('edge', '-p', '127.0.0.1::8080',
@@ -65,17 +72,28 @@ def main():
                          '-v', f'{root}/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro',
                          '-v', f'{root}/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro',
                          '-v', f'{root}/certs:/etc/nginx/certs:ro', 'nginx:1.27-alpine')
+            dokploy = start('dokploy', '-p', '127.0.0.1::8080',
+                            '-e', 'ELZARA_ADMIN_HOST=admin.localhost', '-e', 'ELZARA_EDGE_URL=http://web.localhost',
+                            '-e', 'MINIO_PUBLIC_ENDPOINT=http://storage.localhost',
+                            '-e', 'NGINX_ENVSUBST_FILTER=^(ELZARA_(ADMIN_HOST|EDGE_URL)|MINIO_PUBLIC_ENDPOINT)$',
+                            '-v', f'{root}/nginx:/etc/nginx/elzara:ro',
+                            '-v', f'{root}/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro',
+                            '-v', f'{root}/nginx/dokploy.conf:/etc/nginx/conf.d/default.conf:ro', 'nginx:1.27-alpine')
             port = int(run('docker', 'port', edge, '8080/tcp').rsplit(':', 1)[1])
+            dokploy_port = int(run('docker', 'port', dokploy, '8080/tcp').rsplit(':', 1)[1])
 
-            def request(path, host):
-                conn = HTTPConnection('127.0.0.1', port, timeout=15)
+            def fetch(path, host, headers=None, target=None):
+                conn = HTTPConnection('127.0.0.1', target or port, timeout=15)
                 try:
-                    conn.request('GET', path, headers={'Host': host})
+                    conn.request('GET', path, headers={'Host': host, **(headers or {})})
                     response = conn.getresponse()
-                    response.read()
-                    return response.status, dict(response.getheaders())
+                    body = response.read().decode()
+                    return response.status, dict(response.getheaders()), body
                 finally:
                     conn.close()
+
+            def request(path, host):
+                return fetch(path, host)[:2]
 
             for attempt in range(60):
                 try:
@@ -86,6 +104,61 @@ def main():
                 time.sleep(0.25)
             else:
                 raise RuntimeError(run('docker', 'logs', edge))
+
+            for attempt in range(60):
+                try:
+                    if fetch('/nginx-healthz', 'admin.localhost', target=dokploy_port)[0] == 200:
+                        break
+                except OSError:
+                    pass
+                time.sleep(0.25)
+            else:
+                raise RuntimeError(run('docker', 'logs', dokploy))
+
+            # The storefront forwards X-Real-IP to the API as the shopper identity: clients cannot set it,
+            # and behind Traefik (dokploy.conf) it is the hop Traefik appended, not a spoofed leftmost one.
+            for label, target, headers, expected in (
+                ('dev ignores client X-Real-IP', port, {'X-Real-IP': '203.0.113.99', 'X-Forwarded-For': '203.0.113.98'}, None),
+                ('dokploy uses Traefik client IP', dokploy_port, {'X-Forwarded-For': '198.51.100.7'}, '198.51.100.7'),
+                ('dokploy ignores spoofed hops', dokploy_port, {'X-Real-IP': '203.0.113.99', 'X-Forwarded-For': '203.0.113.98, 198.51.100.7'}, '198.51.100.7'),
+            ):
+                status, _, body = fetch('/real-ip', 'web.localhost', headers, target)
+                ok = status == 200 and body and not body.startswith('203.0.113.') and (expected is None or body == expected)
+                print(f'{"PASS" if ok else "FAIL"} {label}: {body!r}', flush=True)
+                if not ok:
+                    failures.append(label)
+
+            def routed():
+                return fetch('/whoami', 'web.localhost')[2], fetch('/whoami', 'admin.localhost')[2]
+
+            def address(app):
+                return run('docker', 'inspect', '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
+                           name + '-stub-' + app)
+
+            ok = routed() == ('web', 'admin')
+            print(f'{"PASS" if ok else "FAIL"} host routing: {routed()}', flush=True)
+            if not ok:
+                failures.append('host routing')
+
+            # Recreating the apps in reverse order hands each one the other's old IP; the edge must
+            # re-resolve the service names instead of routing each host to the other app.
+            before = address('web'), address('admin')
+            for app in ('web', 'admin'):
+                container = name + '-stub-' + app
+                run('docker', 'rm', '-f', container)
+                containers.remove(container)
+            start_stub('admin')
+            start_stub('web')
+            swapped = (address('admin'), address('web')) == before
+            for attempt in range(60):
+                if routed() == ('web', 'admin'):
+                    break
+                time.sleep(0.5)
+            ok = routed() == ('web', 'admin')
+            print(f'{"PASS" if ok else "FAIL"} host routing after app recreation '
+                  f'({"swapped IPs" if swapped else "new IPs"}): {routed()}', flush=True)
+            if not ok:
+                failures.append('host routing after app recreation')
 
             # Validate all entrypoints against the rendered production template.
             for variant in ('dev', 'tls', 'dokploy'):
