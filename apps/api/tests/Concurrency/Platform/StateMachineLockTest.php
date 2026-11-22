@@ -9,9 +9,9 @@ use App\Platform\StateMachine\InvalidTransition;
 use App\Platform\StateMachine\StateMachineRunner;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
+use Tests\Support\Concurrency\ConcurrencyTestCase;
 
-final class StateMachineLockTest extends TestCase
+final class StateMachineLockTest extends ConcurrencyTestCase
 {
     public function test_same_row_waits_for_a_competing_writer_and_only_transitions_once(): void
     {

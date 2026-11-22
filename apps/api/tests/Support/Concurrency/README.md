@@ -1,27 +1,24 @@
 # PostgreSQL concurrency harness
 
-Run from `apps/api` with PHP 8.4, installed Composer dependencies, PostgreSQL 16
-and Redis 7. CI's `integration` job already provisions both services and runs:
+Run from `apps/api` with PHP 8.4 (pdo_pgsql and redis extensions), installed
+Composer dev dependencies and a running Docker daemon accessible to your user:
 
 ```sh
-php artisan migrate --force
+touch .env
 php artisan test --testsuite=Concurrency
 ```
 
-For local Docker services:
-
-```sh
-docker run -d --name elzara-test-postgres -p 127.0.0.1:5432:5432 \
-  -e POSTGRES_DB=elzara_test -e POSTGRES_USER=elzara -e POSTGRES_PASSWORD=elzara postgres:16-alpine
-docker run -d --name elzara-test-redis -p 127.0.0.1:6379:6379 redis:7-alpine
-export DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432
-export DB_DATABASE=elzara_test DB_USERNAME=elzara DB_PASSWORD=elzara
-export REDIS_HOST=127.0.0.1 REDIS_PORT=6379
-touch .env
-```
-
-Wait for PostgreSQL readiness before migrating. Set a testing `APP_KEY` and
-`APP_ENV=testing` when running Artisan outside PHPUnit.
+No pre-existing database or Redis is needed. Use an empty `.env` (move any local
+E2E environment aside first). `ConcurrencyTestCase` starts one suite-owned pair
+of `postgres:16-alpine` and `redis:7-alpine` containers through
+`testcontainers/testcontainers`, waits for readiness and runs migrations before
+Laravel boots. Host ports are random. DB/Redis URL and connection settings are
+overridden, including the explicit environment passed to fresh worker processes.
+The harness bypasses the normal cached Laravel config. Containers are stopped
+and auto-removed at PHP shutdown, including after test failures; startup failures
+also clean up containers already started. Docker/image-pull errors fail the suite
+rather than skipping it. CI's integration step uses this same lifecycle, not its
+Feature/Contract/Schema service database. There is no external-service opt-out.
 
 `StockQuotaFixture` creates committed rows in a random schema. Always call
 `close()` in `finally`; do not use a parent test transaction. `ParallelRunner::run`

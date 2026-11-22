@@ -26,7 +26,7 @@ final class ParallelRunner
         try {
             for ($i = 0; $i < $workers; $i++) {
                 $input = new InputStream;
-                $process = new Process([PHP_BINARY, __DIR__.'/worker.php'], base_path(), timeout: $timeout);
+                $process = new Process([PHP_BINARY, __DIR__.'/worker.php'], base_path(), ContainerEnvironment::start(), timeout: $timeout);
                 $process->setInput($input);
                 $processes[] = $process;
                 $inputs[] = $input;

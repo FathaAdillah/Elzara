@@ -94,7 +94,7 @@ jobs:
     timeout-minutes: 25
     needs: unit
     # SQLite eksplisit tidak cukup: ia tidak memvalidasi locking Postgres, prasyarat ADR-005 (K-4, B-11).
-    # Testcontainers adalah alternatif bila suite butuh instance per kelas; service container dipakai di sini.
+    # Feature/Contract/Schema memakai services; Concurrency membuat instance Testcontainers sendiri.
     services:
       postgres:
         image: postgres:16-alpine
@@ -183,7 +183,7 @@ jobs:
           docker exec storage-edge nginx -t
       - run: php artisan test --testsuite=Feature,Contract,Schema
         working-directory: apps/api
-      - name: Suite konkurensi ikut integration, bukan pekerjaan manual (K-4)
+      - name: Suite konkurensi Testcontainers (PostgreSQL + Redis terisolasi, K-4)
         run: php artisan test --testsuite=Concurrency
         working-directory: apps/api
 
