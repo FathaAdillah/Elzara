@@ -15,15 +15,19 @@ final class TransitionGraph
     /** @var array<string, array<string, list<string>>>|null */
     private static ?array $edges = null;
 
-    public static function allows(Axis $axis, string $from, string $to, ?FulfillmentLane $lane = null): bool
+    public static function allows(Axis $axis, string $from, string $to, ?FulfillmentLane $lane = null, ?OrderStatus $orderStatus = null): bool
     {
-        return in_array($to, self::allowedTargets($axis, $from, $lane), true);
+        return in_array($to, self::allowedTargets($axis, $from, $lane, $orderStatus), true);
     }
 
     /** @return list<string> */
-    public static function allowedTargets(Axis $axis, string $from, ?FulfillmentLane $lane = null): array
+    public static function allowedTargets(Axis $axis, string $from, ?FulfillmentLane $lane = null, ?OrderStatus $orderStatus = null): array
     {
         if ($axis === Axis::Fulfillment && $lane !== null) {
+            if ($lane === FulfillmentLane::ReadyToShip && $orderStatus === OrderStatus::Expired && $from === FulfillmentStatus::Reserved->value) {
+                return [FulfillmentStatus::Unprocessed->value];
+            }
+
             $stages = $lane->stages();
             $index = array_search(FulfillmentStatus::tryFrom($from), $stages, true);
             if ($index === false || ! isset($stages[$index + 1])) {

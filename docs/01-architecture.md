@@ -422,7 +422,7 @@ Manfaat: satu order PO bisa simultan `order_status = processing`, `payment_statu
 
 Bayaran yang kami terima sadar: (a) setiap transisi perlu guard per sumbu, (b) test matriks transisi jadi wajib (Doc 11 §5: "state machine test per transisi"), (c) label customer harus dipetakan lewat satu fungsi turunan yang teruji, bukan dirangkai di Blade atau di komponen React. Mesin status didefinisikan deklaratif (config per status + guard + action); **setiap transisi menulis riwayat append-only** (`order_events`, diproyeksikan sebagai `order_status_history` — Doc 11 §4.1). Tidak ada transisi yang menghapus jejak; koreksi = transisi balik dengan `reason` wajib.
 
-Pada fondasi Sprint 0, `StateMachineRunner` menyediakan `TransitionSink` opsional. Jika dipasang, sink menerima sumbu, nilai sebelum dan sesudah, serta alasan yang wajib diisi, hanya setelah perubahan status berhasil. Sink memakai koneksi database yang dipilih untuk transisi dan menulis dalam transaksi yang sama. Exception dari sink membatalkan perubahan status. Integrasi produksi Orders/Audit untuk menyimpan riwayat append-only masih menjadi pekerjaan lanjutan.
+Command checkout Orders memakai `StateMachineRunner` untuk reservasi, capture, dan kedaluwarsa. `AuditLogTransitionSink` menambah satu entri `audit_logs` per perubahan sumbu yang berhasil, dengan nilai sebelum dan sesudah, alasan wajib, identitas aktor (kosong untuk worker), dan request ID. Penulisan memakai koneksi dan transaksi yang sama dengan perubahan status; kegagalan audit membatalkan perubahan. Riwayat bisnis `order_status_history` tetap merupakan proyeksi `order_events`.
 
 ### 5.3 Diagram jalur
 
@@ -450,7 +450,7 @@ Order dengan banyak item boleh menghasilkan **split shipment** dan **split procu
 
 `fulfillment_lane` adalah **pemilih tahap**, bukan sumbu kelima (salinan setia Doc 11 §8.3):
 
-- `rts`: `unprocessed → reserved → picking → packed → handed_over → in_transit → delivered (→ returned)`
+- `rts`: `unprocessed → reserved → picking → packed → handed_over → in_transit → delivered (→ returned)`. Jika order kedaluwarsa saat `reserved`, reservasi dilepas dan status kembali ke `unprocessed`, bukan lanjut ke `picking`.
 - `import_po`: `unprocessed → awaiting_batch → at_warehouse → ready_to_ship → picking → packed → handed_over → in_transit → delivered (→ returned)`; tahap luar negeri (`sourcing … customs … received`) **tidak** ditulis di sini, itu milik `procurement_status`.
 - `request`: sama dengan `rts` setelah kuotasi diterima; sebelum itu statusnya ada di `product_requests.status` dan `procurement_status`.
 - `marketplace_purchase` (D5): jalur pendek `unprocessed → handed_over → in_transit → delivered` karena barang berangkat dari penjual pihak ketiga.

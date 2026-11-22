@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Platform\StateMachine;
 
+use App\Platform\Domain\Statuses\OrderStatus;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -24,6 +25,7 @@ final class StateMachineRunner
         string $to,
         ?string $ifFrom = null,
         ?string $reason = null,
+        ?int $actorId = null,
     ): string {
         if (! $axis->isValue($to)) {
             throw new InvalidTransition($axis, $ifFrom ?? '', $to);
@@ -36,9 +38,9 @@ final class StateMachineRunner
 
         $connection = $this->db();
 
-        return $connection->transaction(function () use ($connection, $table, $aggregateId, $axis, $to, $ifFrom, $reason): string {
+        return $connection->transaction(function () use ($connection, $table, $aggregateId, $axis, $to, $ifFrom, $reason, $actorId): string {
             $column = $axis->value;
-            $columns = $axis === Axis::Fulfillment ? [$column, 'fulfillment_lane'] : [$column];
+            $columns = $axis === Axis::Fulfillment ? ['*'] : [$column];
             $row = $connection->table($table)->where('id', $aggregateId)->lockForUpdate()->first($columns);
             if ($row === null) {
                 throw new InvalidTransition($axis, '', $to);
@@ -60,7 +62,9 @@ final class StateMachineRunner
                 }
             }
 
-            if ($from === $to || ! TransitionGraph::allows($axis, $from, $to, $lane)) {
+            $orderValue = $row->order_status ?? null;
+            $orderStatus = is_string($orderValue) ? OrderStatus::tryFrom($orderValue) : null;
+            if ($from === $to || ! TransitionGraph::allows($axis, $from, $to, $lane, $orderStatus)) {
                 throw new InvalidTransition($axis, $from, $to);
             }
 
@@ -74,7 +78,7 @@ final class StateMachineRunner
                 throw new InvalidTransition($axis, $from, $to);
             }
 
-            $this->sink?->record($connection, $table, $aggregateId, $axis, $from, $to, $reason);
+            $this->sink?->record($connection, $table, $aggregateId, $axis, $from, $to, $reason, $actorId);
 
             return $to;
         });

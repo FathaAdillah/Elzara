@@ -17,5 +17,6 @@ interface TransitionSink
         string $from,
         string $to,
         string $reason,
+        ?int $actorId = null,
     ): void;
 }

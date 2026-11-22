@@ -10,6 +10,11 @@ use App\Modules\Inventory\Contracts\StockReservations;
 use App\Modules\Orders\Application\CheckoutProblem;
 use App\Modules\Payments\Contracts\CheckoutPaymentIntents;
 use App\Modules\Payments\Contracts\FakePaymentAvailability;
+use App\Platform\Domain\Statuses\FulfillmentStatus;
+use App\Platform\Domain\Statuses\OrderStatus;
+use App\Platform\Domain\Statuses\PaymentStatus;
+use App\Platform\StateMachine\Axis;
+use App\Platform\StateMachine\StateMachineRunner;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -20,6 +25,7 @@ final class ResolveFakeCheckout
         private readonly StockReservations $stock,
         private readonly CheckoutInvoices $invoices,
         private readonly ReadyStockCheckout $checkout,
+        private readonly StateMachineRunner $states,
     ) {}
 
     /** @return array{order_id:string, status:string} */
@@ -41,8 +47,8 @@ final class ResolveFakeCheckout
                 CheckoutProblem::raise(404, 'PAYMENT_INTENT_NOT_FOUND');
             }
 
-            $result = ['order_id' => $orderCode, 'status' => 'paid'];
-            if ($order->order_status === 'paid' && $intent->status === 'captured') {
+            $result = ['order_id' => $orderCode, 'status' => OrderStatus::Paid->value];
+            if ($order->order_status === OrderStatus::Paid->value && $intent->status === 'captured') {
                 return $result;
             }
 
@@ -50,14 +56,17 @@ final class ResolveFakeCheckout
             if ($intent->status === 'expired' || $intent->expiresAt->lte($now)) {
                 CheckoutProblem::raise(409, 'PAYMENT_INTENT_EXPIRED');
             }
-            if ($intent->status !== 'requires_action' || $order->order_status !== 'awaiting_payment' || $order->payment_status !== 'unpaid') {
+            if ($intent->status !== 'requires_action' || $order->order_status !== OrderStatus::AwaitingPayment->value || $order->payment_status !== PaymentStatus::Unpaid->value) {
                 CheckoutProblem::raise(409, 'PAYMENT_INTENT_NOT_ACTIONABLE');
             }
 
             $this->stock->commit($id, $now);
             $this->payments->capture($intent, $now);
             $this->invoices->pay($intent->invoiceId, $now);
-            $this->finish($id, ['order_status' => 'paid', 'payment_status' => 'paid', 'paid_at' => $now]);
+            $reason = 'Pembayaran simulasi berhasil.';
+            $this->states->transition('orders', $id, Axis::Order, OrderStatus::Paid->value, OrderStatus::AwaitingPayment->value, $reason, $user);
+            $this->states->transition('orders', $id, Axis::Payment, PaymentStatus::Paid->value, PaymentStatus::Unpaid->value, $reason, $user);
+            DB::table('orders')->where('id', $id)->update(['paid_at' => $now]);
             $this->checkout->consumePaidItems($id);
 
             return $result;
@@ -71,7 +80,7 @@ final class ResolveFakeCheckout
         foreach ($this->stock->dueOrders($now, $limit) as $id) {
             $expired += (int) DB::transaction(function () use ($id, $now): bool {
                 $order = DB::table('orders')->where('id', $id)->lockForUpdate()->first();
-                if ($order === null || $order->order_status !== 'awaiting_payment' || $order->payment_status !== 'unpaid') {
+                if ($order === null || $order->order_status !== OrderStatus::AwaitingPayment->value || $order->payment_status !== PaymentStatus::Unpaid->value) {
                     return false;
                 }
                 $intents = $this->payments->lockForOrder($id);
@@ -83,21 +92,14 @@ final class ResolveFakeCheckout
                 $this->stock->expire($id, $now);
                 $this->payments->expire($intent, $now);
                 $this->invoices->void($intent->invoiceId, $now);
-                $this->finish($id, ['order_status' => 'expired', 'fulfillment_status' => 'unprocessed']);
+                $reason = 'Reservasi checkout kedaluwarsa.';
+                $this->states->transition('orders', $id, Axis::Order, OrderStatus::Expired->value, OrderStatus::AwaitingPayment->value, $reason);
+                $this->states->transition('orders', $id, Axis::Fulfillment, FulfillmentStatus::Unprocessed->value, FulfillmentStatus::Reserved->value, $reason);
 
                 return true;
             }, 3);
         }
 
         return $expired;
-    }
-
-    /** @param array<string,mixed> $values */
-    private function finish(int $id, array $values): void
-    {
-        if (DB::table('orders')->where('id', $id)->where('order_status', 'awaiting_payment')->where('payment_status', 'unpaid')
-            ->update($values + ['updated_at' => now()]) !== 1) {
-            throw new LogicException('Checkout order changed while locked.');
-        }
     }
 }

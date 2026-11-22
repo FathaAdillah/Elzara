@@ -65,21 +65,28 @@ final class EnumCheckConstraintTest extends TestCase
 
     public function test_catalog_constraint_values_match_enum_cases_without_drift(): void
     {
-        foreach (Axis::cases() as $axis) {
-            $constraint = DB::selectOne(
-                'SELECT pg_get_constraintdef(oid) AS definition, convalidated FROM pg_constraint
-                 WHERE conrelid = ?::regclass AND conname = ? AND contype = \'c\'',
-                [self::TABLE, EnumCheckConstraint::name(self::TABLE, $axis->value)],
-            );
-            $this->assertNotNull($constraint);
-            $this->assertTrue($constraint->convalidated);
-            preg_match_all("/'((?:[^']|'')*)'/", $constraint->definition, $matches);
-            $actual = array_map(static fn (string $value): string => str_replace("''", "'", $value), $matches[1]);
-            $expected = array_column($axis->enumClass()::cases(), 'value');
-            sort($actual);
-            sort($expected);
-            $this->assertSame($expected, $actual);
+        foreach ([self::TABLE, 'orders'] as $table) {
+            foreach (Axis::cases() as $axis) {
+                $this->assertCatalogConstraint($table, $axis);
+            }
         }
+    }
+
+    private function assertCatalogConstraint(string $table, Axis $axis): void
+    {
+        $constraint = DB::selectOne(
+            'SELECT pg_get_constraintdef(oid) AS definition, convalidated FROM pg_constraint
+                 WHERE conrelid = ?::regclass AND conname = ? AND contype = \'c\'',
+            [$table, EnumCheckConstraint::name($table, $axis->value)],
+        );
+        $this->assertNotNull($constraint);
+        $this->assertTrue($constraint->convalidated);
+        preg_match_all("/'((?:[^']|'')*)'/", $constraint->definition, $matches);
+        $actual = array_map(static fn (string $value): string => str_replace("''", "'", $value), $matches[1]);
+        $expected = array_column($axis->enumClass()::cases(), 'value');
+        sort($actual);
+        sort($expected);
+        $this->assertSame($expected, $actual);
     }
 
     public function test_repeated_add_and_drop_are_safe_and_drop_removes_enforcement(): void
