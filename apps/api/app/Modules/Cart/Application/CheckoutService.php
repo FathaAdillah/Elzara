@@ -124,6 +124,35 @@ final class CheckoutService implements ReadyStockCheckout
         CheckoutSession::query()->whereKey($sessionId)->update(['status' => 'converted', 'converted_order_id' => $orderId]);
     }
 
+    public function consumePaidItems(int $orderId): void
+    {
+        $session = CheckoutSession::query()->where('converted_order_id', $orderId)->where('status', 'converted')->first();
+        if ($session === null) {
+            return;
+        }
+        $cart = CartRecord::query()->whereKey($session->cart_id)->where('status', 'active')->lockForUpdate()->first();
+        $group = data_get($session->snapshot, 'cart.groups.0.items');
+        if ($cart === null || ! is_array($group)) {
+            return;
+        }
+
+        foreach ($group as $line) {
+            if (! is_array($line) || ! is_string($line['id'] ?? null) || ! is_int($line['quantity'] ?? null) || $line['quantity'] < 1) {
+                continue;
+            }
+            $item = CartItem::query()->where('cart_id', $cart->id)->find(PublicId::decode($line['id'], 'citem'));
+            if ($item === null) {
+                continue;
+            }
+            if ($item->qty <= $line['quantity']) {
+                $item->delete();
+            } else {
+                $item->qty -= $line['quantity'];
+                $item->save();
+            }
+        }
+    }
+
     public function create(int $user, string $addressId, string $hash): CheckoutSession
     {
         return DB::transaction(function () use ($user, $addressId, $hash): CheckoutSession {

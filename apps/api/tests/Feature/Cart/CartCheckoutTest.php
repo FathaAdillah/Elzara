@@ -124,6 +124,7 @@ final class CartCheckoutTest extends TestCase
         $this->send('POST', $path, $body, $paymentKey)->assertOk()->assertJsonPath('status', 'paid');
         $this->send('POST', $path, $body, $paymentKey)->assertOk()->assertHeader('Idempotency-Replayed', 'true');
         $this->send('POST', $path, $body)->assertOk()->assertJsonPath('status', 'paid');
+        $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonCount(0, 'groups');
         $this->travel(3)->minutes();
         $this->artisan('inventory:expire-checkout-reservations')->expectsOutput('expired=0')->assertSuccessful();
         $this->assertDatabaseHas('orders', ['code' => $order['id'], 'order_status' => 'paid', 'payment_status' => 'paid']);
@@ -131,6 +132,20 @@ final class CartCheckoutTest extends TestCase
         $this->assertDatabaseHas('payment_intents', ['code' => $order['payment_intent']['id'], 'status' => 'captured']);
         $this->assertDatabaseHas('stock_reservations', ['variant_id' => $this->variant, 'status' => 'committed']);
         $this->assertDatabaseHas('stock_items', ['variant_id' => $this->variant, 'reserved' => 1, 'on_hand' => 5]);
+    }
+
+    public function test_payment_only_consumes_purchased_quantity_once(): void
+    {
+        $this->enableFakePayment();
+        $payload = $this->quoteForOrder($this->checkout()->assertCreated()->json());
+        $order = $this->send('POST', '/api/v1/orders', $payload)->assertCreated()->json();
+        $this->add(2)->assertCreated();
+
+        $path = '/api/v1/orders/'.$order['id'].'/fake-payment';
+        $body = ['payment_intent_id' => $order['payment_intent']['id']];
+        $this->send('POST', $path, $body)->assertOk();
+        $this->send('POST', $path, $body)->assertOk();
+        $this->send('GET', '/api/v1/cart')->assertOk()->assertJsonPath('groups.0.items.0.quantity', 2);
     }
 
     public function test_expiry_releases_inventory_and_leaves_the_cart_retryable(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Orders\Application\Commands;
 
 use App\Modules\Billing\Contracts\CheckoutInvoices;
+use App\Modules\Cart\Contracts\ReadyStockCheckout;
 use App\Modules\Inventory\Contracts\StockReservations;
 use App\Modules\Orders\Application\CheckoutProblem;
 use App\Modules\Payments\Contracts\CheckoutPaymentIntents;
@@ -18,6 +19,7 @@ final class ResolveFakeCheckout
         private readonly CheckoutPaymentIntents $payments,
         private readonly StockReservations $stock,
         private readonly CheckoutInvoices $invoices,
+        private readonly ReadyStockCheckout $checkout,
     ) {}
 
     /** @return array{order_id:string, status:string} */
@@ -56,6 +58,7 @@ final class ResolveFakeCheckout
             $this->payments->capture($intent, $now);
             $this->invoices->pay($intent->invoiceId, $now);
             $this->finish($id, ['order_status' => 'paid', 'payment_status' => 'paid', 'paid_at' => $now]);
+            $this->checkout->consumePaidItems($id);
 
             return $result;
         });

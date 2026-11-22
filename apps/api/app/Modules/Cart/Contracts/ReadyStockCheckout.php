@@ -9,4 +9,6 @@ interface ReadyStockCheckout
     public function prepare(int $user, string $sessionCode, string $addressCode): ReadyStockQuote;
 
     public function convert(int $sessionId, int $orderId): void;
+
+    public function consumePaidItems(int $orderId): void;
 }
