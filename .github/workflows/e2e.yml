@@ -1,0 +1,67 @@
+name: storefront-e2e
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions: { contents: read }
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: elzara_e2e
+          POSTGRES_USER: elzara
+          POSTGRES_PASSWORD: elzara
+        ports: ['5432/tcp']
+        options: --health-cmd "pg_isready -U elzara -d elzara_e2e" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379/tcp']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, redis, intl, gd, bcmath, zip, opcache
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            e2e/package-lock.json
+            apps/web/package-lock.json
+      - uses: ramsey/composer-install@v3
+        with: { working-directory: apps/api }
+      - name: Install Chromium system dependencies
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Build, seed, serve and exercise journeys
+        env:
+          E2E_EXTERNAL_SERVICES: '1'
+          DB_PORT: ${{ job.services.postgres.ports[5432] }}
+          REDIS_PORT: ${{ job.services.redis.ports[6379] }}
+        run: scripts/e2e-local.sh
+      - name: Keep HTML report, videos, screenshots, failure traces and stack logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storefront-e2e-${{ github.run_attempt }}
+          retention-days: 14
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+            e2e/logs/
