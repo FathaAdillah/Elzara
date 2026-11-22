@@ -44,7 +44,15 @@ async function search(more = false) {
 
 function toggleFacet(field: string, value: string) {
   const current = filters.value[field] ?? []
-  filters.value = { ...filters.value, [field]: current.includes(value) ? current.filter(item => item !== value) : [...current, value] }
+  const next = current.includes(value) ? current.filter(item => item !== value) : [...current, value]
+  filters.value = { ...filters.value, [field]: next }
+  if (field === 'status') status.value = next.length === 1 ? next[0]! : 'all'
+  search()
+}
+
+function pickStatus() {
+  const { status: _status, ...rest } = filters.value
+  filters.value = rest
   search()
 }
 
@@ -141,7 +149,7 @@ onMounted(() => search())
             <UInput v-model="query" class="w-full" icon="i-lucide-search" :maxlength="200" placeholder="mis. kaos neko, tshirt, SKU" />
           </UFormField>
           <UFormField label="Status">
-            <USelect v-model="status" :items="statuses" class="w-44" @update:model-value="search()" />
+            <USelect v-model="status" :items="statuses" class="w-44" @update:model-value="pickStatus()" />
           </UFormField>
           <UButton type="submit" :loading="searching">Cari</UButton>
         </form>
