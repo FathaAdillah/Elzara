@@ -234,8 +234,9 @@ user_identities                           [Identity]      baru (Doc 11 §4.4 C) 
   idx user_identities_user (user_id)
   -- Penggabungan akun HANYA lewat email terverifikasi, bukan email mentah dari provider
   --   (kalau tidak, mendaftar di provider dengan email korban = pengambilalihan akun).
-  -- Admin tidak punya jalur sosial (Doc 11 §4.4 A). Provider OIDC menyusul bila Q-2
-  --   dijawab "klien punya IdP sendiri" (ADR-007 D-6a), bukan mengganti mekanisme sesi.
+  -- Admin tidak punya jalur sosial (Doc 11 §4.4 A). Q-2 dijawab pemilik proyek
+  --   2026-11-22: klien tidak punya IdP/SSO sendiri; sesi Sanctum dua guard tetap,
+  --   tidak ada provider OIDC (ADR-007 D-6a).
 
 staff_2fa_secrets                         [Identity]      2FA admin wajib (Doc 01 §9.4; Doc 11 §4.4 A)
   user_id bigint NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE
@@ -1833,7 +1834,12 @@ audit_logs                                [Audit]         append-only (S-6) — 
   before jsonb, after jsonb              diff, bukan salinan penuh
   reason varchar(320) NOT NULL           wajib untuk aksi berisiko (Doc 01 §3.3 AuditThis)
   ip inet, user_agent varchar(255), occurred_at timestamptz NOT NULL DEFAULT now()
-  request_id varchar(26) NOT NULL               ULID yang sama dengan header X-Request-Id (Doc 12 §3.2)
+  request_id varchar(26) NOT NULL               ID audit; pemetaan X-Request-Id dijelaskan di bawah (Doc 12 §3.2)
+  -- AttachRequestId menerima tepat satu header X-Request-Id dengan pola
+  --   [A-Za-z0-9._-]{1,128}; header tidak sah/tidak ada diganti ULID.
+  -- DatabaseAuditRecorder meneruskan ID <=26 karakter apa adanya (tanpa validasi
+  --   format ULID). ID >26 karakter diganti ULID pada kolom ini; ID klien asli
+  --   disimpan pada after._context.request_id. Header respons tetap ID klien.
   --
   CHECK ck_audit_logs_reason (length(trim(reason)) > 0)
   idx audit_target (target_type, target_id, occurred_at DESC)
