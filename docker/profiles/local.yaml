@@ -6,6 +6,7 @@ services:
     <<: *local-runtime
     environment:
       SESSION_SECURE_COOKIE: "false"
+      ADMIN_2FA_ENABLED: ${ADMIN_2FA_ENABLED:-true}
       ELZARA_LOCAL_ADMIN_PASSWORD_ONLY_EMAIL: ${ELZARA_LOCAL_ADMIN_PASSWORD_ONLY_EMAIL:-}
   web: { <<: *local-runtime }
   admin: { <<: *local-runtime }

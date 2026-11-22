@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use OTPHP\TOTP;
@@ -137,6 +138,65 @@ final class AdminLoginTest extends TestCase
         config(['auth.local_admin_password_only_email' => null]);
         $this->request('GET', self::SESSION, $admin)->assertUnauthorized();
         $this->assertTrue(DB::table('user_sessions')->whereNotNull('revoked_at')->exists());
+    }
+
+    public function test_disabled_two_factor_allows_non_production_login_without_enrollment(): void
+    {
+        Log::spy();
+        config(['auth.admin_2fa_enabled' => false]);
+
+        foreach (['local', 'staging'] as $environment) {
+            app()->instance('env', $environment);
+            $operator = $this->operator(withFactor: false);
+            $response = $this->request('POST', self::LOGIN, $this->csrf([], login: true), $this->credentials($operator))
+                ->assertOk()->assertJsonPath('two_factor_required', false)->assertJsonPath('authenticated', true)
+                ->assertJsonMissingPath('challenge_id');
+            $admin = $this->cookieJar($response);
+            $this->assertArrayHasKey(self::SESSION_COOKIE, $admin);
+            $this->request('GET', self::SESSION, $admin)->assertOk()->assertJsonPath('user.email', $operator);
+
+            app()->instance('env', 'production');
+            $this->request('GET', self::SESSION, $admin)->assertUnauthorized();
+        }
+
+        Log::shouldHaveReceived('warning')->with('Admin two-factor authentication bypass is active.', \Mockery::type('array'))->twice();
+        $this->assertDatabaseCount('staff_2fa_secrets', 0);
+    }
+
+    public function test_disabled_two_factor_does_not_bypass_credentials_or_operator_checks(): void
+    {
+        app()->instance('env', 'local');
+        config(['auth.admin_2fa_enabled' => false]);
+        $operator = $this->operator(withFactor: false);
+        $customer = $this->operator(false, withFactor: false);
+        $suspended = $this->operator(status: 'suspended', withFactor: false);
+        $cookies = $this->csrf([], login: true);
+
+        $this->request('POST', self::LOGIN, $cookies, $this->credentials($operator, 'wrong-password'))->assertUnauthorized();
+        $this->request('POST', self::LOGIN, $cookies, $this->credentials('missing@example.test'))->assertUnauthorized();
+        $this->request('POST', self::LOGIN, $cookies, $this->credentials($customer))->assertForbidden();
+        $this->request('POST', self::LOGIN, $cookies, $this->credentials($suspended))->assertForbidden();
+        $this->assertDatabaseCount('user_sessions', 0);
+    }
+
+    public function test_disabled_two_factor_is_ignored_in_production(): void
+    {
+        app()->instance('env', 'production');
+        config(['auth.admin_2fa_enabled' => false]);
+        $this->challenge($this->operator());
+        $unenrolled = $this->operator(withFactor: false);
+        $this->request('POST', self::LOGIN, $this->csrf([], login: true), $this->credentials($unenrolled))->assertForbidden();
+        $this->assertDatabaseCount('user_sessions', 0);
+    }
+
+    public function test_two_factor_is_enabled_by_default_in_local_environment(): void
+    {
+        app()->instance('env', 'local');
+        $this->assertTrue(config('auth.admin_2fa_enabled'));
+        $this->challenge($this->operator());
+        $unenrolled = $this->operator(withFactor: false);
+        $this->request('POST', self::LOGIN, $this->csrf([], login: true), $this->credentials($unenrolled))->assertForbidden();
+        $this->assertDatabaseCount('user_sessions', 0);
     }
 
     public function test_enrollment_stores_ten_argon2id_recovery_hashes(): void

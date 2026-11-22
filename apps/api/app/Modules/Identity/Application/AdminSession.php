@@ -8,6 +8,7 @@ use App\Modules\Identity\Infrastructure\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class AdminSession
@@ -20,6 +21,14 @@ final class AdminSession
 
     public function allowsLocalPasswordOnly(User $user): bool
     {
+        if (app()->environment('production')) {
+            return false;
+        }
+
+        if (config('auth.admin_2fa_enabled', true) === false) {
+            return true;
+        }
+
         $email = config('auth.local_admin_password_only_email');
 
         return app()->environment('local') && is_string($email) && $email !== ''
@@ -55,6 +64,9 @@ final class AdminSession
 
         $session->setName(self::AUTH_COOKIE);
         $request->attributes->set('expire_admin_cookie', self::CHALLENGE_COOKIE);
+        if ($localPasswordOnly) {
+            Log::warning('Admin two-factor authentication bypass is active.', ['user_id' => $user->getKey()]);
+        }
     }
 
     public function activeUser(Request $request): User
