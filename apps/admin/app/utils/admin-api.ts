@@ -28,6 +28,16 @@ export async function adminMutate<T>(path: string, method: 'POST' | 'DELETE' | '
   })
 }
 
+export async function adminDownload(path: string, filename: string) {
+  const blob = await $fetch<Blob>(`/api/v1/admin${path}`, {
+    credentials: 'same-origin', headers: { Accept: 'text/csv, application/problem+json' }, cache: 'no-store', retry: 0, responseType: 'blob',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = Object.assign(document.createElement('a'), { href: url, download: filename })
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function adminUpload<T>(path: string, body: FormData) {
   const token = await adminXsrfToken()
   return $fetch<T>(`/api/v1/admin${path}`, {

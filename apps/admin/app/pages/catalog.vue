@@ -83,6 +83,20 @@ async function importCsv() {
   }
 }
 
+const exporting = ref(false)
+async function exportCsv() {
+  if (exporting.value) return
+  exporting.value = true
+  reindexNotice.value = ''
+  try {
+    await adminDownload('/catalog/products/export', `katalog-${new Date().toISOString().slice(0, 10)}.csv`)
+  } catch (cause) {
+    reindexNotice.value = catalogError(cause)
+  } finally {
+    exporting.value = false
+  }
+}
+
 const reindexing = ref(false)
 const reindexNotice = ref('')
 async function reindex() {
@@ -114,7 +128,7 @@ onMounted(() => search())
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-semibold">Katalog</h1>
       <div v-if="can('catalog.view')" class="flex flex-wrap gap-2">
-        <UButton variant="outline" icon="i-lucide-download" href="/api/v1/admin/catalog/products/export" external>Ekspor CSV</UButton>
+        <UButton variant="outline" icon="i-lucide-download" :loading="exporting" @click="exportCsv()">Ekspor CSV</UButton>
         <UButton v-if="can('catalog.update')" variant="outline" icon="i-lucide-refresh-cw" :loading="reindexing" @click="reindex()">Reindex pencarian</UButton>
       </div>
     </div>
