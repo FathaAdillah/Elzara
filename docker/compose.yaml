@@ -87,6 +87,7 @@ services:
       BITESHIP_ORIGIN_POSTCODE: ${BITESHIP_ORIGIN_POSTCODE:-}
       BITESHIP_COURIERS: ${BITESHIP_COURIERS:-jne,jnt}
       BITESHIP_TIMEOUT_SECONDS: ${BITESHIP_TIMEOUT_SECONDS:-10}
+      ELZARA_STOREFRONT_PROXY_KEY: ${ELZARA_STOREFRONT_PROXY_KEY:?ELZARA_STOREFRONT_PROXY_KEY wajib diisi - kunci server-ke-server web -> api, minimal 32 karakter}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -163,6 +164,7 @@ services:
     environment:
       NODE_ENV: production
       API_INTERNAL_URL: http://nginx:8080
+      ELZARA_STOREFRONT_PROXY_KEY: ${ELZARA_STOREFRONT_PROXY_KEY:?ELZARA_STOREFRONT_PROXY_KEY wajib diisi}
       MEDIA_PUBLIC_ORIGIN: ${MINIO_PUBLIC_ENDPOINT}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL wajib diisi}
     depends_on:

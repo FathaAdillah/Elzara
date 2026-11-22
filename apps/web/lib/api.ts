@@ -1,5 +1,6 @@
 import createClient from "openapi-fetch";
 import type { paths } from "@elzara/api-client";
+import { shopperIdentityHeaders } from "./shopper-identity";
 import { childTraceparent } from "./trace";
 
 /**
@@ -32,17 +33,25 @@ export const apiBaseUrl: string =
 
 export const api = createClient<paths>({ baseUrl: apiBaseUrl });
 
-// Server component meneruskan trace request halaman ke API (web → api → job, Doc 01 §12).
+// Server component meneruskan trace request halaman ke API (web → api → job, Doc 01 §12)
+// dan identitas pembeli untuk rate limit per-pembeli (lib/shopper-identity.ts).
 // Di luar request scope (build, ISR) `headers()` melempar; request tetap jalan sebagai trace baru di API.
 if (typeof window === "undefined") {
   api.use({
     async onRequest({ request }) {
       try {
         const { headers } = await import("next/headers");
-        const incoming = (await headers()).get("traceparent");
+        const incomingHeaders = await headers();
+        const incoming = incomingHeaders.get("traceparent");
         if (incoming && !request.headers.has("traceparent")) {
           request.headers.set("traceparent", childTraceparent(incoming));
         }
+        const identity = shopperIdentityHeaders(
+          incomingHeaders,
+          process.env.ELZARA_STOREFRONT_PROXY_KEY,
+        );
+        for (const [name, value] of Object.entries(identity))
+          request.headers.set(name, value);
       } catch {
         // tanpa request scope
       }
