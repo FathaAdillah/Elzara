@@ -148,6 +148,14 @@ class AuditorsTest(unittest.TestCase):
         source.rename(source.with_name("0845_Catalog_create_categories_table.php"))
         self.assert_defect("check_layout.py", "outside documented sprint band")
 
+    def test_layout_table_band_cannot_override_ownership(self):
+        for number in (15, 1600):
+            with self.subTest(number=number):
+                path = self.repo / f"apps/api/app/Modules/Catalog/Infrastructure/Database/Migrations/{number:04}_Catalog_create_media_table.php"
+                path.write_text("<?php public function up(): void { Schema::create('media', function ($t) {}); }", encoding="utf-8")
+                self.assert_defect("check_layout.py", "table ownership differs from Doc 09")
+                path.unlink()
+
     def test_layout_alteration_before_creation_band(self):
         path = self.repo / "apps/api/app/Modules/Billing/Infrastructure/Database/Migrations/0245_Billing_add_grace_days_to_invoices.php"
         path.parent.mkdir(parents=True, exist_ok=True)

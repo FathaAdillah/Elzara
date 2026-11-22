@@ -161,6 +161,8 @@ def check():
         changed = set(re.findall(r"(?:Schema|DB)::table\(\s*['\"]([a-z][a-z0-9_]*)['\"]", source))
         changed.update(re.findall(r"\bALTER TABLE\s+([a-z][a-z0-9_]*)", source, re.I))
         owned = set(owners.get(module, [])) if module != "Platform" else set(owners["Lintas modul"]) | FRAMEWORK_TABLES
+        if (created | changed) - owned:
+            fail(path, 1, "M-1 table ownership differs from Doc 09")
         def bands(table):
             return MIGRATION_TABLE_BANDS.get(table, MIGRATION_BANDS.get(module, ()))
         if created:
