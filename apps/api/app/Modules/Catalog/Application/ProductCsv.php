@@ -21,12 +21,12 @@ use stdClass;
  */
 final class ProductCsv
 {
-    public const COLUMNS = ['product_slug', 'product_name', 'category_slug', 'brand_slug', 'series', 'status', 'origin_country', 'fulfillment_modes',
-        'description', 'sku', 'variant_label', 'base_price', 'currency_code', 'track_stock', 'is_active'];
+    public const COLUMNS = ['product_slug', 'product_name', 'category_slug', 'brand_slug', 'series', 'status', 'origin_country', 'unit_weight_g',
+        'fulfillment_modes', 'description', 'sku', 'variant_label', 'base_price', 'currency_code', 'track_stock', 'is_active'];
 
     public const MAX_ROWS = 5000;
 
-    private const PRODUCT_FIELDS = ['product_name', 'category_slug', 'brand_slug', 'series', 'status', 'origin_country', 'fulfillment_modes', 'description'];
+    private const PRODUCT_FIELDS = ['product_name', 'category_slug', 'brand_slug', 'series', 'status', 'origin_country', 'unit_weight_g', 'fulfillment_modes', 'description'];
 
     public function __construct(private readonly AuditRecorder $audit, private readonly ProductEvents $events) {}
 
@@ -89,7 +89,7 @@ final class ProductCsv
                     'name' => $row['product_name'], 'category_id' => $categories[$row['category_slug']],
                     'brand_id' => $row['brand_slug'] === '' ? null : $brands[$row['brand_slug']], 'series' => self::nullable($row['series']),
                     'status' => $row['status'] === '' ? 'draft' : $row['status'], 'origin_country' => $row['origin_country'],
-                    'description' => self::nullable($row['description']),
+                    'unit_weight_g' => $row['unit_weight_g'] === '' ? null : (int) $row['unit_weight_g'], 'description' => self::nullable($row['description']),
                 ];
                 $existing = DB::table('products')->where('slug', $slug)->lockForUpdate()->first();
                 $scope->assertCovers($values['category_id']);
@@ -138,11 +138,11 @@ final class ProductCsv
             })
             ->whereNull('p.deleted_at')
             ->when(! $scope->isGlobal(), static fn (Builder $query): Builder => $scope->constrain($query, 'p.category_id'))
-            ->select(['p.slug', 'p.name', 'c.slug as category_slug', 'b.slug as brand_slug', 'p.series', 'p.status', 'p.origin_country', 'p.fulfillment_modes',
+            ->select(['p.slug', 'p.name', 'c.slug as category_slug', 'b.slug as brand_slug', 'p.series', 'p.status', 'p.origin_country', 'p.unit_weight_g', 'p.fulfillment_modes',
                 'p.description', 'v.sku', 'v.label', 'v.base_price', 'v.currency_code', 'v.track_stock', 'v.is_active', 'p.id', DB::raw('COALESCE(v.id, 0) AS variant_order')])
             ->orderBy('p.id')->orderBy('variant_order')
             ->each(static function (stdClass $row) use ($output): void {
-                $cells = [$row->slug, $row->name, $row->category_slug, $row->brand_slug, $row->series, $row->status, $row->origin_country,
+                $cells = [$row->slug, $row->name, $row->category_slug, $row->brand_slug, $row->series, $row->status, $row->origin_country, $row->unit_weight_g,
                     implode('|', ProductAdminService::pgArray($row->fulfillment_modes)), $row->description, $row->sku, $row->label, $row->base_price,
                     $row->currency_code, $row->sku === null ? null : ($row->track_stock ? 'true' : 'false'), $row->sku === null ? null : ($row->is_active ? 'true' : 'false')];
                 fputcsv($output, array_map(self::cell(...), $cells), ',', '"', '');
@@ -229,6 +229,7 @@ final class ProductCsv
             'series' => ['max:120'],
             'status' => ['nullable', Rule::in(ProductRules::STATUSES)],
             'origin_country' => ['required', 'regex:/\A[A-Z]{2}\z/'],
+            'unit_weight_g' => ['nullable', 'regex:/\A[1-9]\d{0,6}\z/', 'integer', 'between:1,1000000'],
             'fulfillment_modes' => ['nullable', 'regex:/\A(?:rts|po|request)(?:\|(?:rts|po|request))*\z/'],
             'description' => ['max:20000'],
             'sku' => ['nullable', 'max:64', 'regex:/\A[A-Za-z0-9][A-Za-z0-9._-]*\z/'],

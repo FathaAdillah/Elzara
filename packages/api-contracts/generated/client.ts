@@ -1497,7 +1497,7 @@ export interface components {
         CatalogCsvImportUpload: {
             /**
              * Format: binary
-             * @description CSV UTF-8 maks 5 MB / 5000 baris; header persis: product_slug,product_name,category_slug,brand_slug,series,status,origin_country,fulfillment_modes,description,sku,variant_label,base_price,currency_code,track_stock,is_active
+             * @description CSV UTF-8 maks 5 MB / 5000 baris; header persis: product_slug,product_name,category_slug,brand_slug,series,status,origin_country,unit_weight_g,fulfillment_modes,description,sku,variant_label,base_price,currency_code,track_stock,is_active; unit_weight_g = berat produk dalam gram (1-1000000, kosong = belum diisi), sama di semua baris satu produk
              */
             file: string;
             /** @enum {string} */

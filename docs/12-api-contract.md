@@ -318,7 +318,7 @@ Catatan kelompok S: semua mutasi memakai `X-XSRF-TOKEN` (§3.1). Untuk login dan
 | GET | `/admin/catalog/products` | Daftar produk (cursor, filter status/kategori/brand) | admin | — |
 | POST | `/admin/catalog/products` | Buat produk + varian + koleksi; `ProductUpdated` ke outbox (antrean `imports`) | admin | UUID |
 | GET | `/admin/catalog/products/export` | Ekspor CSV satu baris per varian; sel formula dinetralkan | admin | — |
-| POST | `/admin/catalog/products/import` | Import CSV multipart, `dry_run` opsional; semua-atau-tidak, galat `/rows/{baris}/{kolom}`; butuh `catalog.create` + `catalog.update` | admin | — |
+| POST | `/admin/catalog/products/import` | Import CSV multipart, `dry_run` opsional; kolom `unit_weight_g` (gram, dipakai ongkir checkout) ikut diimpor/diekspor; semua-atau-tidak, galat `/rows/{baris}/{kolom}`; butuh `catalog.create` + `catalog.update` | admin | — |
 | GET | `/admin/catalog/products/{id}` | Detail produk + varian + `collection_ids` | admin | — |
 | PATCH | `/admin/catalog/products/{id}` | Ubah produk dengan `version` (K6) | admin | UUID |
 | DELETE | `/admin/catalog/products/{id}?version=` | Soft delete + `archived`; dokumen indeks dihapus | admin | UUID |
