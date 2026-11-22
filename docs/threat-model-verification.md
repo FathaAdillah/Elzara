@@ -158,7 +158,7 @@ Perintah **API** = API(Kelas) §2 untuk setiap kelas di sel bukti. **Gate/Checke
 | S-4 | §1 TB-11: outbound provider retry+jitter/circuit breaker | — | — | Tidak ada bukti lintas payment/kurir/WA; ongkir saja tidak cukup. | belum diimplementasi |
 | S-5 | §3 X-Actor-Type diisi server dari guard | — | — | ⚑ Belum ditemukan asersi khusus anti-spoofing X-Actor-Type. | tanpa tes |
 | S-6 | §4 tujuh batas KI/kredensial/observasi | DemoAssetProvenanceTest::test_ten_original_svgs_match_the_manifest | API | Hanya manifest aset; tujuh aturan tetap review manusia (T-35/26). | sebagian |
-| S-7 | §6 sign-off pemilik, konfirmasi klien, Q-2 | docs/threat-model.md §6: Fatharoni, chat bot Product Engineer 2026-11-22 | Review manusia | ⚑ Bukti keputusan manusia, bukan tes atau bukti persetujuan mendahului kode. | tanpa tes |
+| S-7 | §6 sign-off pemilik, konfirmasi klien, Q-2 | docs/threat-model.md §6: Fatharoni, chat bot Product Engineer 2026-11-22 | Review manusia | ⚑ Bukti keputusan manusia, bukan tes. Pemilik menerima sign-off ini secara retroaktif untuk prasyarat Task 19 (disampaikan Product Engineer 2026-11-22); bukan klaim kronologi. | tanpa tes |
 | S-8 | §7 register dan artefak ZAP/drill/load/bypass | gate dokumen | Gate | Auditor docs bukan runtime; ZAP/drill/load/bypass staging belum tercatat. | sebagian |
 
 ## 4. Ringkasan dan gap
@@ -171,8 +171,8 @@ Hasil hitung baris §3: **94 kontrol/paket** — **25 teruji**, **35 sebagian**,
 4. WAF/Waiting Room/bypass, cache poisoning antar pelanggan, kapasitas/isolasi/TLS staging, k6/Playwright dan checker header runtime belum memiliki artefak run pada register ini.
 5. PII scrub log bukan pembuktian Sentry/provider/query presigned. Secret scanning/rotasi/expiry, retensi, SBOM/provenance/runtime hardening, approval template WA serta review KI/observasi tetap gap.
 6. Reader/relink backup bukan restore offsite PostgreSQL+object/PITR terintegrasi sebelum launch. Skrip drill bukan hasil RPO/RTO staging.
-7. Sign-off Fatharoni 2026-11-22 dan Q-2 adalah keputusan manusia; tidak membuktikan persetujuan **sebelum** implementasi auth. Kode auth sudah ada pada basis audit sebelumnya.
+7. Sign-off Fatharoni 2026-11-22 dan Q-2 adalah keputusan manusia. Pemilik menerima sign-off setelah fakta sebagai pemenuhan prasyarat keras Task 19 sebelum kode auth ditulis (disampaikan Product Engineer pada 2026-11-22); ini penerimaan retroaktif, bukan klaim persetujuan mendahului implementasi atau bukti teknis kontrol.
 
-**Verdict P0.10: tetap parsial.** Register tersedia dan interim ADR-008 menjadi keputusan berlaku; gateway/kurir/WA/brand/PO cukup dilacak (Doc 03 0.15/§9), tidak diklaim sudah diputus. Namun sign-off-before-auth belum terbukti dan host admin aktual belum diselaraskan/di-sign-off sesuai ADR-007. Tidak mengubah acceptance checklist demi mencentangnya; register bukan penutupan semua kontrol atau Phase 0.
+**Verdict P0.10: tetap parsial.** Register tersedia dan interim ADR-008 menjadi keputusan berlaku; gateway/kurir/WA/brand/PO cukup dilacak (Doc 03 0.15/§9), tidak diklaim sudah diputus. Prasyarat sign-off diterima pemilik secara retroaktif pada 2026-11-22 (disampaikan Product Engineer), bukan diklaim terpenuhi menurut kronologi semula. Satu-satunya blocker P0.10 tersisa adalah keputusan topologi host admin produksi (satu host vs subdomain terpisah); jawaban pemilik masih ditunggu. Register bukan penutupan semua kontrol atau Phase 0.
 
 Pemilik tindak lanjut: pemilik modul untuk tes fitur, penanggung jawab rilis untuk gate/artefak lingkungan, pemilik proyek/klien untuk keputusan eksternal dan topologi. Tambahkan tanggal/perintah/artefak run nyata saat tersedia.
