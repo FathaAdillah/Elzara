@@ -22,6 +22,18 @@
     location /api/v1/internal/ { return 404; }
     location = /api/v1/internal { return 404; }
 
+    # Impor CSV katalog: aplikasi menerima berkas hingga 5 MB.
+    location = /api/v1/admin/catalog/products/import {
+        limit_req zone=api burst=50 nodelay;
+        client_max_body_size 6m;
+        fastcgi_pass api_fpm;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME /app/public/index.php;
+        fastcgi_param DOCUMENT_ROOT /app/public;
+        fastcgi_param HTTPS $edge_https if_not_empty;
+        fastcgi_read_timeout 60s;
+    }
+
     location /api/ {
         limit_req zone=api burst=50 nodelay;
         fastcgi_pass api_fpm;
