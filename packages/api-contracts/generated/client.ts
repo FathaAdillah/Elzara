@@ -583,6 +583,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/checkout/sessions/{id}/shipping-selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replace all group selections using stored session quotes; totals are calculated server-side. */
+        put: operations["selectCheckoutShipping"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/checkout/sessions/{id}/shipping-options": {
         parameters: {
             query?: never;
@@ -1727,7 +1744,15 @@ export interface components {
             eta: string | null;
             options: components["schemas"]["ShippingRate"][];
         };
+        ShippingSelection: {
+            group_index: number;
+            courier_code: string;
+            service_code: string;
+        };
         CheckoutSnapshot: {
+            shipping_selection?: components["schemas"]["ShippingSelection"][];
+            shipping_estimate?: number;
+            total?: number;
             cart: components["schemas"]["CartRead"];
             address: components["schemas"]["AddressRead"];
             shipping_options?: components["schemas"]["ShippingGroup"][];
@@ -3997,6 +4022,44 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutSessionRead"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    selectCheckoutShipping: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Wajib pada SETIAP mutasi (POST/PATCH/PUT/DELETE) yang memakai sesi web/admin, tanpa pengecualian untuk admin. Nilai dibaca JavaScript dari cookie XSRF-TOKEN (sengaja tidak HttpOnly) setelah GET /sanctum/csrf-cookie; token tidak cocok/kedaluwarsa -> 419 (Doc 12 §4.3). */
+                "X-XSRF-TOKEN": components["parameters"]["XsrfToken"];
+                /** @description UUIDv4 atau ULID. Key sama + payload beda = 409 (Doc 12 §3.4). */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    selections: components["schemas"]["ShippingSelection"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Selections saved */
             200: {
                 headers: {
                     [name: string]: unknown;

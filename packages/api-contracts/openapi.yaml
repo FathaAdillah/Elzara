@@ -1910,6 +1910,88 @@ paths:
     }
   }
 
+  /checkout/sessions/{id}/shipping-selection: {
+    "put": {
+      "operationId": "selectCheckoutShipping",
+      "description": "Replace all group selections using stored session quotes; totals are calculated server-side.",
+      "tags": [
+        "Cart"
+      ],
+      "x-elzara-auth": "customer",
+      "security": [
+        {
+          "webSession": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "$ref": "#/components/parameters/XsrfToken"
+        },
+        {
+          "$ref": "#/components/parameters/IdempotencyKey"
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "selections"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "selections": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/components/schemas/ShippingSelection"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Selections saved",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutSessionRead"
+              }
+            }
+          }
+        },
+        "401": {
+          "$ref": "#/components/responses/Problem"
+        },
+        "404": {
+          "$ref": "#/components/responses/Problem"
+        },
+        "409": {
+          "$ref": "#/components/responses/Problem"
+        },
+        "422": {
+          "$ref": "#/components/responses/Problem"
+        },
+        "429": {
+          "$ref": "#/components/responses/RateLimited"
+        }
+      }
+    }
+  }
+
   /checkout/sessions/{id}/shipping-options: {
     "post": {
       "operationId": "checkoutShippingOptions",
@@ -3999,6 +4081,27 @@ components:
         }
       }
     }
+    ShippingSelection: {
+      "type": "object",
+      "required": [
+        "group_index",
+        "courier_code",
+        "service_code"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "group_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "courier_code": {
+          "type": "string"
+        },
+        "service_code": {
+          "type": "string"
+        }
+      }
+    }
     CheckoutSnapshot: {
       "type": "object",
       "required": [
@@ -4006,6 +4109,9 @@ components:
         "address"
       ],
       "properties": {
+        "shipping_selection": {"type": "array", "items": {"$ref": "#/components/schemas/ShippingSelection"}},
+        "shipping_estimate": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0},
         "cart": {
           "$ref": "#/components/schemas/CartRead"
         },

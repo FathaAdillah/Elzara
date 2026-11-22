@@ -79,6 +79,7 @@ final class CheckoutService
             }
             $quoted = [];
             $estimate = 0;
+            $selection = [];
             foreach ($cart['groups'] as $index => $group) {
                 if (! is_array($group) || ! is_array($group['items'] ?? null)) {
                     throw new \UnexpectedValueException('Invalid checkout group');
@@ -98,16 +99,80 @@ final class CheckoutService
                     $this->problem(503, 'SHIPPING_PROVIDER_UNAVAILABLE');
                 }
                 if ($rates !== []) {
-                    $estimate += min(array_map(fn ($r): int => $r->amountMinor, $rates));
+                    $cheapest = $rates[0];
+                    foreach ($rates as $rate) {
+                        if ($rate->amountMinor < $cheapest->amountMinor) {
+                            $cheapest = $rate;
+                        }
+                    }
+                    $estimate += $cheapest->amountMinor;
+                    $selection[] = ['group_index' => $index, 'courier_code' => $cheapest->courierCode, 'service_code' => $cheapest->serviceCode];
                 }
                 $quoted[] = ['group_index' => $index, 'mode' => $group['mode'] ?? 'rts', 'eta' => $group['eta'] ?? null, 'options' => $rates];
             }
             $snapshot['shipping_options'] = $quoted;
+            $snapshot['shipping_selection'] = $selection;
+            $snapshot['shipping_estimate'] = $estimate;
+            $snapshot['total'] = $session->subtotal + $estimate;
             $session->snapshot = $snapshot;
             $session->shipping_estimate = $estimate;
             $session->save();
 
             return ['groups' => $quoted, 'checkout' => $this->read($session)];
+        });
+    }
+
+    /**
+     * @param  array<mixed>  $selections
+     * @return array<string,mixed>
+     */
+    public function select(int $user, string $id, array $selections): array
+    {
+        return DB::transaction(function () use ($user, $id, $selections): array {
+            $session = CheckoutSession::query()->where('user_id', $user)->where('code', $id)->lockForUpdate()->firstOrFail();
+            if ($session->expires_at->isPast() || $session->status !== 'open') {
+                $this->problem(422, 'CHECKOUT_SESSION_EXPIRED');
+            }
+            $snapshot = $session->snapshot;
+            $quotes = $snapshot['shipping_options'] ?? null;
+            if (! is_array($quotes) || $quotes === []) {
+                $this->problem(409, 'SHIPPING_QUOTES_REQUIRED');
+            }
+            if (count($selections) !== count($quotes)) {
+                $this->problem(422, 'SHIPPING_SELECTION_INCOMPLETE');
+            }
+            $chosen = [];
+            $estimate = 0;
+            foreach ($selections as $selection) {
+                if (! is_array($selection) || count($selection) !== 3 || ! is_int($selection['group_index'] ?? null) || ! is_string($selection['courier_code'] ?? null) || ! is_string($selection['service_code'] ?? null)) {
+                    $this->problem(422, 'SHIPPING_SELECTION_INVALID');
+                }
+                $index = $selection['group_index'];
+                if (isset($chosen[$index]) || ! isset($quotes[$index]) || ! is_array($quotes[$index]) || ! is_array($quotes[$index]['options'] ?? null)) {
+                    $this->problem(409, 'SHIPPING_SELECTION_INVALID');
+                }
+                $matched = null;
+                foreach ($quotes[$index]['options'] as $rate) {
+                    if (is_array($rate) && ($rate['courierCode'] ?? null) === $selection['courier_code'] && ($rate['serviceCode'] ?? null) === $selection['service_code']) {
+                        $matched = $rate;
+                        break;
+                    }
+                }
+                if ($matched === null || ! is_int($matched['amountMinor'] ?? null) || $matched['amountMinor'] < 0 || ($matched['currency'] ?? null) !== 'IDR') {
+                    $this->problem(409, 'SHIPPING_SELECTION_INVALID');
+                }
+                $estimate += $matched['amountMinor'];
+                $chosen[$index] = ['group_index' => $index, 'courier_code' => $selection['courier_code'], 'service_code' => $selection['service_code']];
+            }
+            ksort($chosen);
+            $snapshot['shipping_selection'] = array_values($chosen);
+            $snapshot['shipping_estimate'] = $estimate;
+            $snapshot['total'] = $session->subtotal + $estimate;
+            $session->snapshot = $snapshot;
+            $session->shipping_estimate = $estimate;
+            $session->save();
+
+            return $this->read($session);
         });
     }
 

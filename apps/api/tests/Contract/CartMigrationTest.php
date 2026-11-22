@@ -24,6 +24,7 @@ final class CartMigrationTest extends TestCase
             $files = glob(app_path('Modules/Cart/Infrastructure/Database/Migrations/*.php'));
             $this->assertCount(3, $files);
             foreach ($files as $f) {
+                $this->assertMatchesRegularExpression('/\/\/ modul: Cart \| level: L[234] \| sprint: 3 \| tier: 0 \| expand: ya \| contract: tidak ada/', file_get_contents($f));
                 (require $f)->up();
             }
             foreach (['carts' => ['id' => 'int8', 'expires_at' => 'timestamptz', 'converted_order_id' => 'int8'], 'cart_items' => ['unit_price_snapshot' => 'int8', 'batch_offer_id' => 'int8'], 'checkout_sessions' => ['snapshot' => 'jsonb', 'subtotal' => 'int8', 'shipping_estimate' => 'int8']] as $table => $types) {

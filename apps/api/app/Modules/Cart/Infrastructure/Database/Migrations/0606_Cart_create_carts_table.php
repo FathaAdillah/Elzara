@@ -1,5 +1,7 @@
 <?php
 
+// modul: Cart | level: L2 | sprint: 3 | tier: 0 | expand: ya | contract: tidak ada
+
 declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

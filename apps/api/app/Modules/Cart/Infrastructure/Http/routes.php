@@ -16,4 +16,5 @@ Route::middleware(['rate:web', EnsureWebSession::class, RequireCustomerSession::
     Route::post('checkout/sessions', [CheckoutController::class, 'store'])->middleware('idempotency:createCheckoutSession,web,86400');
     Route::get('checkout/sessions/{id}', [CheckoutController::class, 'show']);
     Route::post('checkout/sessions/{id}/shipping-options', [CheckoutController::class, 'options']);
+    Route::put('checkout/sessions/{id}/shipping-selection', [CheckoutController::class, 'selection'])->middleware('idempotency:selectCheckoutShipping,web,86400');
 });

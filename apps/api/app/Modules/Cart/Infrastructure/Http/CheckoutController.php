@@ -41,4 +41,11 @@ final class CheckoutController
 
         return response()->json($this->checkout->options($this->actor(), $id))->header('Cache-Control', 'no-store');
     }
+
+    public function selection(Request $r, string $id): JsonResponse
+    {
+        StrictValidation::validate($r, ['selections' => 'required|array|min:1']);
+
+        return response()->json($this->checkout->select($this->actor(), $id, $r->array('selections')))->header('Cache-Control', 'no-store');
+    }
 }

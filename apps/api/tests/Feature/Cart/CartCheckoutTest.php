@@ -6,6 +6,7 @@ namespace Tests\Feature\Cart;
 
 use App\Modules\Fulfillment\Contracts\InvalidDestination;
 use App\Modules\Fulfillment\Contracts\ProviderUnavailable;
+use App\Modules\Fulfillment\Contracts\ShippingRate;
 use App\Modules\Fulfillment\Contracts\ShippingRateProvider;
 use App\Modules\Fulfillment\Contracts\ShippingRateRequest;
 use App\Modules\Identity\Application\ActiveOrderAddressUsage;
@@ -236,6 +237,72 @@ final class CartCheckoutTest extends TestCase
             }
         });
         $this->send('POST', '/api/v1/checkout/sessions/'.$id.'/shipping-options')->assertStatus(422)->assertJsonPath('code', 'ADDRESS_INVALID')->assertJsonFragment(['pointer' => '/shipping_address_id']);
+    }
+
+    public function test_shipping_selection_uses_all_stored_quotes_and_replays_idempotently(): void
+    {
+        $product = DB::table('products')->insertGetId(['slug' => 'shipping-po', 'name' => 'PO', 'category_id' => DB::table('categories')->where('slug', 'cart-test')->value('id'), 'status' => 'active', 'origin_country' => 'ID', 'fulfillment_modes' => '{po}', 'unit_weight_g' => 100]);
+        $variant = DB::table('product_variants')->insertGetId(['product_id' => $product, 'sku' => 'shipping-po', 'label' => 'PO', 'base_price' => 10]);
+        $this->send('POST', '/api/v1/cart/items', ['variant_id' => PublicId::encode('var', $variant), 'quantity' => 1])->assertCreated();
+        $session = $this->checkout()->assertCreated();
+        $id = $session->json('id');
+        $subtotal = $session->json('subtotal.amount_minor');
+        $provider = new class implements ShippingRateProvider
+        {
+            public int $calls = 0;
+
+            public function rates(ShippingRateRequest $request): array
+            {
+                $this->calls++;
+
+                return [new ShippingRate('jne', 'REG', 'Regular', 9000, 'IDR', null, null, 'fake'), new ShippingRate('jne', 'YES', 'Express', 24000, 'IDR', 1, 2, 'fake')];
+            }
+        };
+        $this->app->instance(ShippingRateProvider::class, $provider);
+        $url = '/api/v1/checkout/sessions/'.$id;
+        $this->send('POST', $url.'/shipping-options')->assertOk()->assertJsonPath('checkout.shipping_estimate.amount_minor', 18000);
+        $choices = [['group_index' => 0, 'courier_code' => 'jne', 'service_code' => 'YES'], ['group_index' => 1, 'courier_code' => 'jne', 'service_code' => 'REG']];
+        $key = (string) Str::uuid();
+        $response = $this->send('PUT', $url.'/shipping-selection', ['selections' => $choices], $key)->assertOk()
+            ->assertJsonPath('shipping_estimate.amount_minor', 33000)->assertJsonPath('total.amount_minor', $subtotal + 33000)
+            ->assertJsonPath('snapshot.shipping_estimate', 33000)->assertJsonPath('snapshot.total', $subtotal + 33000)
+            ->assertJsonPath('snapshot.shipping_selection.0.service_code', 'YES');
+        $this->assertSame($response->json(), $this->send('PUT', $url.'/shipping-selection', ['selections' => $choices], $key)->assertOk()->json());
+        $this->send('GET', $url)->assertOk()->assertJsonPath('shipping_estimate.amount_minor', 33000);
+        $this->assertSame(2, $provider->calls);
+        foreach ([
+            [[], 422],
+            [[$choices[0]], 422],
+            [[$choices[0], $choices[0]], 409],
+            [[array_replace($choices[0], ['service_code' => 'FAKE']), $choices[1]], 409],
+            [[array_replace($choices[0], ['group_index' => 99]), $choices[1]], 409],
+            [[array_replace($choices[0], ['amountMinor' => 1]), $choices[1]], 422],
+        ] as [$invalid, $status]) {
+            $this->send('PUT', $url.'/shipping-selection', ['selections' => $invalid])->assertStatus($status);
+        }
+        $this->send('GET', $url)->assertOk()->assertJsonPath('total.amount_minor', $subtotal + 33000);
+        $this->send('POST', $url.'/shipping-options')->assertOk()->assertJsonPath('checkout.shipping_estimate.amount_minor', 18000)->assertJsonPath('checkout.snapshot.shipping_selection.0.service_code', 'REG');
+    }
+
+    public function test_shipping_selection_rejects_missing_quotes_expiry_locked_and_foreign_sessions(): void
+    {
+        $id = $this->checkout()->assertCreated()->json('id');
+        $url = '/api/v1/checkout/sessions/'.$id.'/shipping-selection';
+        $payload = ['selections' => [['group_index' => 0, 'courier_code' => 'jne', 'service_code' => 'REG']]];
+        $this->send('PUT', $url, $payload)->assertStatus(409)->assertJsonPath('code', 'SHIPPING_QUOTES_REQUIRED');
+        $this->send('POST', '/api/v1/checkout/sessions/'.$id.'/shipping-options')->assertOk();
+        $this->send('PUT', $url, $payload)->assertStatus(409)->assertJsonPath('code', 'SHIPPING_SELECTION_INVALID');
+        DB::table('checkout_sessions')->where('code', $id)->update(['status' => 'locked']);
+        $this->send('PUT', $url, $payload)->assertStatus(422)->assertJsonPath('code', 'CHECKOUT_SESSION_EXPIRED');
+        DB::table('checkout_sessions')->where('code', $id)->update(['status' => 'open']);
+        $this->travel(121)->minutes();
+        Cache::flush();
+        $this->send('PUT', $url, $payload)->assertStatus(422)->assertJsonPath('code', 'CHECKOUT_SESSION_EXPIRED');
+        $this->travelBack();
+        Cache::flush();
+        $other = User::factory()->create();
+        DB::table('checkout_sessions')->where('code', $id)->update(['user_id' => $other->id]);
+        $this->send('PUT', $url, $payload)->assertNotFound();
     }
 
     public function test_empty_rates_and_missing_weight(): void

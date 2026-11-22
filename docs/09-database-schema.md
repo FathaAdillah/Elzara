@@ -919,8 +919,10 @@ checkout_sessions                         [Cart]          tabel baru (BP §6, Do
 
   P1.04 quote: semua grup mode/ETA memakai paket_besar (parcel standar), berat
   unit_weight_g × qty dari snapshot. Berat kosong → SHIPPING_WEIGHT_MISSING.
-  Estimasi ongkir = jumlah tarif termurah tiap grup; pilihan kurir UI sementara
-  sampai konfirmasi ongkir/order di P1.05 (belum ada reservasi stok/pembayaran).
+  Quote baru memilih tarif termurah tiap grup sebagai default. PUT shipping-selection
+  mengganti seluruh pilihan, memvalidasi courier/service terhadap quote tersimpan,
+  lalu menyimpan shipping_selection, shipping_estimate, total pada snapshot.
+  Total selalu dihitung server dari tarif terpilih (belum ada reservasi/pembayaran).
 
 wishlist_items                            [Cart]         tabel baru (Doc 11 §4.2) — **bukan** Blueprint; turunan produk Doc 05 M3 ("favorit" / "kabari saya" di PDP)
   user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE

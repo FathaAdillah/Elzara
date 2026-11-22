@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@elzara/ui";
-import { getCart, getAddresses, saveAddress, createCheckout, shippingOptions } from "@/lib/commerce-api";
+import { getCart, getAddresses, saveAddress, createCheckout, shippingOptions, selectShipping } from "@/lib/commerce-api";
 import { CommerceError, modeLabel, rupiah, type Address, type Cart, type Checkout, type Shipping, type AddressWrite } from "@/lib/commerce";
 const fields: { name: keyof AddressWrite; label: string; max: number }[] = [
   { name: "recipient", label: "Nama penerima", max: 120 }, { name: "phone", label: "Nomor ponsel Indonesia", max: 20 },
@@ -36,8 +36,22 @@ export function CheckoutPanel() {
     if (!cart) return; setBusy(true); setError(""); setShipping(undefined);
     try {
       const s = await createCheckout(selected, cart.items_hash); setSession(s);
-      const rates = await shippingOptions(s.id); setShipping(rates); setSession(rates.checkout); setChoices({});
+      const rates = await shippingOptions(s.id); setShipping(rates); setSession(rates.checkout); setChoices(Object.fromEntries((rates.checkout.snapshot.shipping_selection ?? []).map((v) => [v.group_index, v.courier_code + ":" + v.service_code])));
     } catch (e) { report(e); setCart(await getCart().catch(() => undefined)); } finally { setBusy(false); }
+  }
+  async function choose(groupIndex: number, courierCode: string, serviceCode: string) {
+    if (!session || !shipping || busy) return;
+    const next = { ...choices, [groupIndex]: courierCode + ":" + serviceCode };
+    const selections = shipping.groups.flatMap((g) => {
+      const rate = g.options.find((r) => r.courierCode + ":" + r.serviceCode === next[g.group_index]);
+      return rate ? [{ group_index: g.group_index, courier_code: rate.courierCode, service_code: rate.serviceCode }] : [];
+    });
+    setBusy(true); setError("");
+    try {
+      const updated = await selectShipping(session.id, selections);
+      setSession(updated);
+      setChoices(Object.fromEntries((updated.snapshot.shipping_selection ?? []).map((v) => [v.group_index, v.courier_code + ":" + v.service_code])));
+    } catch (e) { report(e); } finally { setBusy(false); }
   }
   return <div className="grid gap-8 lg:grid-cols-2">
     <div className="space-y-6">
@@ -70,14 +84,14 @@ export function CheckoutPanel() {
         <legend className="px-1 font-medium">Kurir · {modeLabel[g.mode]}</legend>
         {g.options.length === 0 && <p>Tidak ada layanan untuk grup ini. Coba alamat lain.</p>}
         {g.options.map((r) => { const key = r.courierCode + ":" + r.serviceCode; return <label key={key} className="flex min-h-touch items-center gap-3">
-          <input type="radio" name={"shipping-" + g.group_index} value={key} checked={choices[g.group_index] === key} onChange={() => setChoices({ ...choices, [g.group_index]: key })} className="accent-brand-text" />
+          <input type="radio" name={"shipping-" + g.group_index} value={key} checked={choices[g.group_index] === key} disabled={busy} onChange={() => void choose(g.group_index, r.courierCode, r.serviceCode)} className="accent-brand-text" />
           <span>{r.courierCode.toUpperCase()} · {r.serviceName} · {rupiah(r.amountMinor)}<br /><small>ETA: {r.etaMinDays === null ? "belum tersedia" : r.etaMinDays + "–" + r.etaMaxDays + " hari"}</small></span>
         </label>; })}
       </fieldset>)}
       <div className="space-y-2 rounded-card bg-brand-ink p-5">
         <p>Subtotal: {rupiah(session?.subtotal.amount_minor ?? cart?.subtotal.amount_minor ?? 0)}</p>
-        {session && <><p>Estimasi ongkir terendah: {rupiah(session.shipping_estimate.amount_minor)}</p><p className="font-semibold">Estimasi total: {rupiah(session.total.amount_minor)}</p><p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
-        <p className="text-sm">Pilihan kurir sementara; estimasi server memakai tarif terendah per grup. Konfirmasi ongkir dan pembayaran hadir di P1.05. Belum ada reservasi stok.</p>
+        {session && <><p>Ongkir terpilih: {rupiah(session.shipping_estimate.amount_minor)}</p><p className="font-semibold">Total: {rupiah(session.total.amount_minor)}</p><p className="text-xs">Sesi berlaku hingga {new Date(session.expires_at).toLocaleString("id-ID")}.</p></>}
+        <p className="text-sm">Ongkir dan total dihitung server dari pilihan kurir yang tersimpan. Pembayaran hadir di P1.05. Belum ada reservasi stok.</p>
       </div>
       <Button block disabled>Bayar</Button>
     </div>

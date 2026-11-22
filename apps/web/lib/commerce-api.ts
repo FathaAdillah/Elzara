@@ -25,3 +25,7 @@ export async function shippingOptions(id: string) {
   await ensureCsrfCookie();
   return result(api.POST("/checkout/sessions/{id}/shipping-options", { ...read, params: { header: xsrfHeader(), path: { id } } }));
 }
+export async function selectShipping(id: string, selections: { group_index: number; courier_code: string; service_code: string }[]) {
+  const options = await mutation();
+  return result(api.PUT("/checkout/sessions/{id}/shipping-selection", { ...options, params: { ...options.params, path: { id } }, body: { selections } }));
+}
