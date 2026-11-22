@@ -11,6 +11,8 @@ use App\Platform\Domain\Exception\IdempotencyKeyReuse;
 use App\Platform\Domain\Exception\InsufficientStock;
 use App\Platform\Domain\Exception\MediaValidationFailed;
 use App\Platform\Domain\Exception\QuotationVersionStale;
+use App\Platform\Domain\Exception\ResourceInUse;
+use App\Platform\Domain\Exception\VersionStale;
 use App\Platform\StateMachine\InvalidTransition;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -43,6 +45,8 @@ final class ApiProblemRenderer
         InsufficientStock::class => [422, 'inventory', 'insufficient-stock', 'Stok tidak mencukupi', 'INSUFFICIENT_STOCK', false],
         MediaValidationFailed::class => [422, 'media', 'validation-failed', 'Berkas media ditolak', 'MEDIA_VALIDATION_FAILED', false],
         QuotationVersionStale::class => [409, 'quotation', 'version-stale', 'Versi kuotasi tidak terkini', 'QUOTATION_VERSION_STALE', false],
+        ResourceInUse::class => [409, 'conflict', 'resource-in-use', 'Data masih dipakai', 'RESOURCE_IN_USE', false],
+        VersionStale::class => [409, 'conflict', 'version-stale', 'Versi data tidak terkini', 'VERSION_STALE', false],
     ];
 
     public function render(Throwable $exception, Request $request): ?Response

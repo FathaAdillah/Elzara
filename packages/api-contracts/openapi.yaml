@@ -181,6 +181,1145 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/categories:
+    get:
+      operationId: adminCatalogCategoriesList
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Daftar kategori (cursor)"
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+        - { name: is_active, in: query, required: false, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: "Daftar kategori (cursor)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/CatalogCategory" } }, meta: { $ref: "#/components/schemas/CursorMeta" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      operationId: adminCatalogCategoriesCreate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.create
+      security: [{ adminSession: [] }]
+      description: "Buat kategori; diaudit"
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogCategoryCreate" }
+      responses:
+        "201":
+          description: "Buat kategori"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogCategory" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/categories/{id}:
+    get:
+      operationId: adminCatalogCategoriesGet
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Detail kategori"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: "Detail kategori"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogCategory" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    patch:
+      operationId: adminCatalogCategoriesUpdate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      security: [{ adminSession: [] }]
+      description: "Ubah kategori; version basi -> 409 VERSION_STALE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogCategoryUpdate" }
+      responses:
+        "200":
+          description: "Ubah kategori"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogCategory" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      operationId: adminCatalogCategoriesDelete
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.delete
+      security: [{ adminSession: [] }]
+      description: "Hapus kategori; masih dirujuk -> 409 RESOURCE_IN_USE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: version, in: query, required: true, description: "K6: version terkini; tidak cocok -> 409 VERSION_STALE.", schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "204":
+          description: "Hapus kategori"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/brands:
+    get:
+      operationId: adminCatalogBrandsList
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Daftar brand (cursor)"
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+        - { name: is_active, in: query, required: false, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: "Daftar brand (cursor)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/CatalogBrand" } }, meta: { $ref: "#/components/schemas/CursorMeta" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      operationId: adminCatalogBrandsCreate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.create
+      security: [{ adminSession: [] }]
+      description: "Buat brand; diaudit"
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogBrandCreate" }
+      responses:
+        "201":
+          description: "Buat brand"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogBrand" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/brands/{id}:
+    get:
+      operationId: adminCatalogBrandsGet
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Detail brand"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: "Detail brand"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogBrand" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    patch:
+      operationId: adminCatalogBrandsUpdate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      security: [{ adminSession: [] }]
+      description: "Ubah brand; version basi -> 409 VERSION_STALE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogBrandUpdate" }
+      responses:
+        "200":
+          description: "Ubah brand"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogBrand" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      operationId: adminCatalogBrandsDelete
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.delete
+      security: [{ adminSession: [] }]
+      description: "Hapus brand; masih dirujuk -> 409 RESOURCE_IN_USE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: version, in: query, required: true, description: "K6: version terkini; tidak cocok -> 409 VERSION_STALE.", schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "204":
+          description: "Hapus brand"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/collections:
+    get:
+      operationId: adminCatalogCollectionsList
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Daftar koleksi (cursor)"
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+        - { name: is_active, in: query, required: false, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: "Daftar koleksi (cursor)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/CatalogCollection" } }, meta: { $ref: "#/components/schemas/CursorMeta" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      operationId: adminCatalogCollectionsCreate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.create
+      security: [{ adminSession: [] }]
+      description: "Buat koleksi; diaudit"
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogCollectionCreate" }
+      responses:
+        "201":
+          description: "Buat koleksi"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogCollection" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/collections/{id}:
+    get:
+      operationId: adminCatalogCollectionsGet
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Detail koleksi"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: "Detail koleksi"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogCollection" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    patch:
+      operationId: adminCatalogCollectionsUpdate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      security: [{ adminSession: [] }]
+      description: "Ubah koleksi; version basi -> 409 VERSION_STALE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogCollectionUpdate" }
+      responses:
+        "200":
+          description: "Ubah koleksi"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogCollection" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      operationId: adminCatalogCollectionsDelete
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.delete
+      security: [{ adminSession: [] }]
+      description: "Hapus koleksi; masih dirujuk -> 409 RESOURCE_IN_USE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: version, in: query, required: true, description: "K6: version terkini; tidak cocok -> 409 VERSION_STALE.", schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "204":
+          description: "Hapus koleksi"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/price-lists:
+    get:
+      operationId: adminCatalogPriceListsList
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Daftar price list (cursor)"
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+        - { name: is_active, in: query, required: false, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: "Daftar price list (cursor)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/CatalogPriceList" } }, meta: { $ref: "#/components/schemas/CursorMeta" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      operationId: adminCatalogPriceListsCreate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.create
+      security: [{ adminSession: [] }]
+      description: "Buat price list; diaudit"
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogPriceListCreate" }
+      responses:
+        "201":
+          description: "Buat price list"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogPriceList" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/price-lists/{id}:
+    get:
+      operationId: adminCatalogPriceListsGet
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Detail price list"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: "Detail price list"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogPriceList" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    patch:
+      operationId: adminCatalogPriceListsUpdate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      security: [{ adminSession: [] }]
+      description: "Ubah price list; version basi -> 409 VERSION_STALE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogPriceListUpdate" }
+      responses:
+        "200":
+          description: "Ubah price list"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogPriceList" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      operationId: adminCatalogPriceListsDelete
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.delete
+      security: [{ adminSession: [] }]
+      description: "Hapus price list; masih dirujuk -> 409 RESOURCE_IN_USE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: version, in: query, required: true, description: "K6: version terkini; tidak cocok -> 409 VERSION_STALE.", schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "204":
+          description: "Hapus price list"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/price-lists/{id}/entries:
+    get:
+      operationId: adminCatalogPriceListEntriesList
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Harga per varian dalam price list"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: "Harga per varian dalam price list"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: "#/components/schemas/CatalogPriceListEntry" } } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    put:
+      operationId: adminCatalogPriceListEntriesReplace
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      security: [{ adminSession: [] }]
+      description: "Ganti seluruh entri price list secara atomik; menaikkan version price list"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogPriceListEntriesReplace" }
+      responses:
+        "200":
+          description: "Ganti seluruh entri price list secara atomik"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: "#/components/schemas/CatalogPriceListEntry" } } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/products:
+    get:
+      operationId: adminCatalogProductsList
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Daftar produk aktif (cursor)"
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [draft, active, archived] } }
+        - { name: category_id, in: query, required: false, schema: { type: integer } }
+        - { name: brand_id, in: query, required: false, schema: { type: integer } }
+      responses:
+        "200":
+          description: "Daftar produk aktif (cursor)"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/CatalogProductAdminSummary" } }, meta: { $ref: "#/components/schemas/CursorMeta" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      operationId: adminCatalogProductsCreate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.create
+      security: [{ adminSession: [] }]
+      description: "Buat produk beserta varian; menulis ProductUpdated ke outbox (antrean imports)"
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogProductCreate" }
+      responses:
+        "201":
+          description: "Buat produk beserta varian"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogProductAdmin" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/products/export:
+    get:
+      operationId: adminCatalogProductsExport
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Ekspor CSV satu baris per varian; sel berawalan = + - @ dinetralkan"
+      responses:
+        "200":
+          description: "Ekspor CSV satu baris per varian"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            text/csv:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/products/import:
+    post:
+      operationId: adminCatalogProductsImport
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      x-elzara-additional-permissions: [catalog.create]
+      security: [{ adminSession: [] }]
+      description: "Import CSV tervalidasi semua-atau-tidak; galat per baris di errors[].pointer /rows/{baris}/{kolom}; butuh catalog.create dan catalog.update"
+      parameters:
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/CatalogCsvImportUpload" }
+      responses:
+        "201":
+          description: "Import CSV tervalidasi semua-atau-tidak"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogCsvImportResult" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "413": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "200":
+          description: "Hasil dry run tanpa menulis"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogCsvImportResult" } } }
+  /admin/catalog/products/{id}:
+    get:
+      operationId: adminCatalogProductsGet
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Detail produk dengan varian dan koleksi"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: "Detail produk dengan varian dan koleksi"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogProductAdmin" } } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    patch:
+      operationId: adminCatalogProductsUpdate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      security: [{ adminSession: [] }]
+      description: "Ubah produk; version basi -> 409 VERSION_STALE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogProductUpdate" }
+      responses:
+        "200":
+          description: "Ubah produk"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogProductAdmin" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      operationId: adminCatalogProductsDelete
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.delete
+      security: [{ adminSession: [] }]
+      description: "Soft delete + status archived; dokumen indeks dihapus lewat ProductUpdated"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: version, in: query, required: true, description: "K6: version terkini; tidak cocok -> 409 VERSION_STALE.", schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "204":
+          description: "Soft delete + status archived"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/products/{id}/variants:
+    post:
+      operationId: adminCatalogVariantsCreate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.create
+      security: [{ adminSession: [] }]
+      description: "Tambah varian/SKU"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogVariantCreate" }
+      responses:
+        "201":
+          description: "Tambah varian/SKU"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogVariantAdmin" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/variants/{id}:
+    patch:
+      operationId: adminCatalogVariantsUpdate
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      security: [{ adminSession: [] }]
+      description: "Ubah varian; version basi -> 409 VERSION_STALE"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogVariantUpdate" }
+      responses:
+        "200":
+          description: "Ubah varian"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/CatalogVariantAdmin" } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      operationId: adminCatalogVariantsDelete
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.delete
+      security: [{ adminSession: [] }]
+      description: "Soft delete varian"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: version, in: query, required: true, description: "K6: version terkini; tidak cocok -> 409 VERSION_STALE.", schema: { type: integer, minimum: 1 } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "204":
+          description: "Soft delete varian"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/search:
+    get:
+      operationId: adminCatalogSearch
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.view
+      security: [{ adminSession: [] }]
+      description: "Pencarian Elasticsearch: multi_match fuzziness AUTO, prefiks edge n-gram, sinonim eksplisit, filter + facet keyword"
+      parameters:
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 200 } }
+        - { name: brand, in: query, required: false, description: "Daftar dipisah koma", schema: { type: string, maxLength: 2000 } }
+        - { name: category, in: query, required: false, description: "Daftar dipisah koma", schema: { type: string, maxLength: 2000 } }
+        - { name: collections, in: query, required: false, description: "Daftar dipisah koma", schema: { type: string, maxLength: 2000 } }
+        - { name: origin_country, in: query, required: false, description: "Daftar dipisah koma", schema: { type: string, maxLength: 2000 } }
+        - { name: fulfillment_modes, in: query, required: false, description: "Daftar dipisah koma", schema: { type: string, maxLength: 2000 } }
+        - { name: status, in: query, required: false, description: "Daftar dipisah koma", schema: { type: string, maxLength: 2000 } }
+        - { name: price_min, in: query, required: false, schema: { type: integer, minimum: 0 } }
+        - { name: price_max, in: query, required: false, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: "Pencarian Elasticsearch: multi_match fuzziness AUTO, prefiks edge n-gram, sinonim eksplisit, filter + facet keyword"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogSearchResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /admin/catalog/search/reindex:
+    post:
+      operationId: adminCatalogSearchReindex
+      tags: [Catalog]
+      x-elzara-auth: admin
+      x-elzara-permission: catalog.update
+      security: [{ adminSession: [] }]
+      description: "Antrekan rebuild penuh indeks dari PostgreSQL lalu swap alias"
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/XsrfToken" }
+      responses:
+        "202":
+          description: "Antrekan rebuild penuh indeks dari PostgreSQL lalu swap alias"
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/RateLimitReset" }
+            X-RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+            X-Displayed-Timezone: { $ref: "#/components/headers/DisplayedTimezone" }
+            Idempotency-Replayed: { $ref: "#/components/headers/IdempotencyReplayed" }
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object, required: [queued, queue], properties: { queued: { type: boolean }, queue: { type: string, const: imports } } } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "419": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
   /admin/feature-flags:
     get:
       operationId: adminFeatureFlagsList
@@ -1568,6 +2707,31 @@ components:
         application/problem+json:
           schema: { $ref: "#/components/schemas/ProblemDetails" }
   schemas:
+    CatalogCategory: { type: object, required: [id, slug, name_key, is_active, version], properties: { id: { type: integer }, version: { type: integer, minimum: 1 }, slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name_key: { type: string, maxLength: 96 }, parent_id: { type: ["integer", "null"] }, image_alt_key: { type: ["string", "null"], maxLength: 96 }, position: { type: integer, minimum: 0, maximum: 32767 }, is_active: { type: boolean }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CatalogCategoryCreate: { type: object, additionalProperties: false, required: [slug, name_key], properties: { slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name_key: { type: string, maxLength: 96 }, parent_id: { type: ["integer", "null"] }, image_alt_key: { type: ["string", "null"], maxLength: 96 }, position: { type: integer, minimum: 0, maximum: 32767 }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 } } }
+    CatalogCategoryUpdate: { type: object, additionalProperties: false, required: [version], properties: { slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name_key: { type: string, maxLength: 96 }, parent_id: { type: ["integer", "null"] }, image_alt_key: { type: ["string", "null"], maxLength: 96 }, position: { type: integer, minimum: 0, maximum: 32767 }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 }, version: { type: integer, minimum: 1 } } }
+    CatalogBrand: { type: object, required: [id, slug, name, is_active, version], properties: { id: { type: integer }, version: { type: integer, minimum: 1 }, slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name: { type: string, maxLength: 120 }, country: { type: ["string", "null"], pattern: "^[A-Z]{2}$" }, description_key: { type: ["string", "null"], maxLength: 2000 }, is_active: { type: boolean }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CatalogBrandCreate: { type: object, additionalProperties: false, required: [slug, name], properties: { slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name: { type: string, maxLength: 120 }, country: { type: ["string", "null"], pattern: "^[A-Z]{2}$" }, description_key: { type: ["string", "null"], maxLength: 2000 }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 } } }
+    CatalogBrandUpdate: { type: object, additionalProperties: false, required: [version], properties: { slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name: { type: string, maxLength: 120 }, country: { type: ["string", "null"], pattern: "^[A-Z]{2}$" }, description_key: { type: ["string", "null"], maxLength: 2000 }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 }, version: { type: integer, minimum: 1 } } }
+    CatalogCollection: { type: object, required: [id, slug, name_key, kind, is_active, version], properties: { id: { type: integer }, version: { type: integer, minimum: 1 }, slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name_key: { type: string, maxLength: 96 }, kind: { type: string, enum: [fandom, ip, kolaborasi, tema] }, description_key: { type: ["string", "null"], maxLength: 2000 }, is_active: { type: boolean }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CatalogCollectionCreate: { type: object, additionalProperties: false, required: [slug, name_key], properties: { slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name_key: { type: string, maxLength: 96 }, kind: { type: string, enum: [fandom, ip, kolaborasi, tema] }, description_key: { type: ["string", "null"], maxLength: 2000 }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 } } }
+    CatalogCollectionUpdate: { type: object, additionalProperties: false, required: [version], properties: { slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name_key: { type: string, maxLength: 96 }, kind: { type: string, enum: [fandom, ip, kolaborasi, tema] }, description_key: { type: ["string", "null"], maxLength: 2000 }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 }, version: { type: integer, minimum: 1 } } }
+    CatalogPriceList: { type: object, required: [id, code, name, currency_code, kind, is_active, version], properties: { id: { type: integer }, version: { type: integer, minimum: 1 }, code: { type: string, maxLength: 32, pattern: "^[A-Z0-9_-]+$" }, name: { type: string, maxLength: 120 }, currency_code: { type: string, pattern: "^[A-Z]{3}$" }, kind: { type: string, enum: [retail, wholesale, member, contract] }, valid_from: { type: ["string", "null"], format: date-time }, valid_to: { type: ["string", "null"], format: date-time }, is_active: { type: boolean }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CatalogPriceListCreate: { type: object, additionalProperties: false, required: [code, name], properties: { code: { type: string, maxLength: 32, pattern: "^[A-Z0-9_-]+$" }, name: { type: string, maxLength: 120 }, currency_code: { type: string, pattern: "^[A-Z]{3}$" }, kind: { type: string, enum: [retail, wholesale, member, contract] }, valid_from: { type: ["string", "null"], format: date-time }, valid_to: { type: ["string", "null"], format: date-time }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 } } }
+    CatalogPriceListUpdate: { type: object, additionalProperties: false, required: [version], properties: { code: { type: string, maxLength: 32, pattern: "^[A-Z0-9_-]+$" }, name: { type: string, maxLength: 120 }, currency_code: { type: string, pattern: "^[A-Z]{3}$" }, kind: { type: string, enum: [retail, wholesale, member, contract] }, valid_from: { type: ["string", "null"], format: date-time }, valid_to: { type: ["string", "null"], format: date-time }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 }, version: { type: integer, minimum: 1 } } }
+    CatalogPriceListEntry: { type: object, required: [variant_id, price, currency_code], properties: { variant_id: { type: integer }, price: { type: integer, minimum: 0 }, currency_code: { type: string, pattern: "^[A-Z]{3}$" } } }
+    CatalogPriceListEntriesReplace: { type: object, additionalProperties: false, required: [version, entries], properties: { version: { type: integer, minimum: 1 }, reason: { type: string, minLength: 5, maxLength: 320 }, entries: { type: array, maxItems: 5000, items: { type: object, additionalProperties: false, required: [variant_id, price], properties: { variant_id: { type: integer }, price: { type: integer, minimum: 0 } } } } } }
+    CatalogVariantAdmin: { type: object, required: [id, product_id, sku, label, base_price, currency_code, track_stock, is_active, version], properties: { id: { type: integer }, version: { type: integer, minimum: 1 }, product_id: { type: integer }, sku: { type: string, maxLength: 64, pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$" }, label: { type: string, maxLength: 160 }, base_price: { type: integer, minimum: 0, description: "Minor unit (IDR tanpa desimal)" }, currency_code: { type: string, pattern: "^[A-Z]{3}$" }, track_stock: { type: boolean }, is_active: { type: boolean }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CatalogVariantCreate: { type: object, additionalProperties: false, required: [sku, label, base_price], properties: { sku: { type: string, maxLength: 64, pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$" }, label: { type: string, maxLength: 160 }, base_price: { type: integer, minimum: 0, description: "Minor unit (IDR tanpa desimal)" }, currency_code: { type: string, pattern: "^[A-Z]{3}$" }, track_stock: { type: boolean }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 } } }
+    CatalogVariantUpdate: { type: object, additionalProperties: false, required: [version], properties: { sku: { type: string, maxLength: 64, pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$" }, label: { type: string, maxLength: 160 }, base_price: { type: integer, minimum: 0, description: "Minor unit (IDR tanpa desimal)" }, currency_code: { type: string, pattern: "^[A-Z]{3}$" }, track_stock: { type: boolean }, is_active: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 320 }, version: { type: integer, minimum: 1 } } }
+    CatalogProductAdminSummary: { type: object, required: [id, slug, name, category_id, status, origin_country, version], properties: { id: { type: integer }, version: { type: integer, minimum: 1 }, slug: { type: string }, name: { type: string }, brand_id: { type: ["integer", "null"] }, category_id: { type: integer }, status: { type: string, enum: [draft, active, archived] }, origin_country: { type: string }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CatalogProductAdmin: { type: object, required: [id, slug, name, category_id, status, origin_country, fulfillment_modes, collection_ids, variants, version], properties: { id: { type: integer }, version: { type: integer, minimum: 1 }, slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name: { type: string, maxLength: 200 }, brand_id: { type: ["integer", "null"] }, series: { type: ["string", "null"], maxLength: 120 }, category_id: { type: integer }, status: { type: string, enum: [draft, active, archived] }, origin_country: { type: string, pattern: "^[A-Z]{2}$" }, unit_weight_g: { type: ["integer", "null"], minimum: 1 }, hs_code: { type: ["string", "null"], maxLength: 12 }, description: { type: ["string", "null"] }, care_notes: { type: ["string", "null"] }, return_policy_notes: { type: ["string", "null"] }, meta_title: { type: ["string", "null"], maxLength: 120 }, meta_description: { type: ["string", "null"], maxLength: 300 }, fulfillment_modes: { type: array, maxItems: 3, uniqueItems: true, items: { type: string, enum: [rts, po, request] } }, collection_ids: { type: array, maxItems: 50, uniqueItems: true, items: { type: integer } }, variants: { type: array, items: { $ref: "#/components/schemas/CatalogVariantAdmin" } }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CatalogProductCreate: { type: object, additionalProperties: false, required: [slug, name, category_id, origin_country], properties: { slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name: { type: string, maxLength: 200 }, brand_id: { type: ["integer", "null"] }, series: { type: ["string", "null"], maxLength: 120 }, category_id: { type: integer }, status: { type: string, enum: [draft, active, archived] }, origin_country: { type: string, pattern: "^[A-Z]{2}$" }, unit_weight_g: { type: ["integer", "null"], minimum: 1 }, hs_code: { type: ["string", "null"], maxLength: 12 }, description: { type: ["string", "null"] }, care_notes: { type: ["string", "null"] }, return_policy_notes: { type: ["string", "null"] }, meta_title: { type: ["string", "null"], maxLength: 120 }, meta_description: { type: ["string", "null"], maxLength: 300 }, fulfillment_modes: { type: array, maxItems: 3, uniqueItems: true, items: { type: string, enum: [rts, po, request] } }, collection_ids: { type: array, maxItems: 50, uniqueItems: true, items: { type: integer } }, reason: { type: string, minLength: 5, maxLength: 320 }, variants: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/CatalogVariantCreate" } } } }
+    CatalogProductUpdate: { type: object, additionalProperties: false, required: [version], properties: { slug: { type: string, maxLength: 120, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }, name: { type: string, maxLength: 200 }, brand_id: { type: ["integer", "null"] }, series: { type: ["string", "null"], maxLength: 120 }, category_id: { type: integer }, status: { type: string, enum: [draft, active, archived] }, origin_country: { type: string, pattern: "^[A-Z]{2}$" }, unit_weight_g: { type: ["integer", "null"], minimum: 1 }, hs_code: { type: ["string", "null"], maxLength: 12 }, description: { type: ["string", "null"] }, care_notes: { type: ["string", "null"] }, return_policy_notes: { type: ["string", "null"] }, meta_title: { type: ["string", "null"], maxLength: 120 }, meta_description: { type: ["string", "null"], maxLength: 300 }, fulfillment_modes: { type: array, maxItems: 3, uniqueItems: true, items: { type: string, enum: [rts, po, request] } }, collection_ids: { type: array, maxItems: 50, uniqueItems: true, items: { type: integer } }, reason: { type: string, minLength: 5, maxLength: 320 }, version: { type: integer, minimum: 1 } } }
+    CatalogCsvImportUpload: { type: object, required: [file], properties: { file: { type: string, format: binary, description: "CSV UTF-8 maks 5 MB / 5000 baris; header persis: product_slug,product_name,category_slug,brand_slug,series,status,origin_country,fulfillment_modes,description,sku,variant_label,base_price,currency_code,track_stock,is_active" }, dry_run: { type: string, enum: ["true", "false", "1", "0"] }, reason: { type: string, minLength: 5, maxLength: 320 } } }
+    CatalogCsvImportResult: { type: object, required: [dry_run, rows, products_created, products_updated, variants_created, variants_updated], properties: { dry_run: { type: boolean }, rows: { type: integer }, products_created: { type: integer }, products_updated: { type: integer }, variants_created: { type: integer }, variants_updated: { type: integer } } }
+    CatalogSearchHit: { type: object, required: [id, slug, name, status], properties: { id: { type: integer }, slug: { type: string }, name: { type: string }, brand: { type: ["string", "null"] }, brand_name: { type: ["string", "null"] }, category: { type: string }, collections: { type: array, items: { type: string } }, status: { type: string }, origin_country: { type: string }, fulfillment_modes: { type: array, items: { type: string } }, skus: { type: array, items: { type: string } }, price_min: { type: ["integer", "null"] }, price_max: { type: ["integer", "null"] }, currency_code: { type: string }, updated_at: { type: string, format: date-time } } }
+    CatalogSearchResult: { type: object, required: [data, facets, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/CatalogSearchHit" } }, facets: { type: object, additionalProperties: { type: array, items: { type: object, required: [value, count], properties: { value: { type: string }, count: { type: integer } } } } }, meta: { type: object, required: [limit, total, has_more, next_cursor], properties: { limit: { type: integer }, total: { type: integer }, has_more: { type: boolean }, next_cursor: { type: ["string", "null"] } } } } }
     AdminAccessReason:
       type: object
       additionalProperties: false

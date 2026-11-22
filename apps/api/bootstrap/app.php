@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Identity\Infrastructure\Console\CreateAdminOperator;
 use App\Modules\Identity\Infrastructure\Console\EnrollAdminTwoFactor;
 use App\Modules\Identity\Infrastructure\Http\SelectAdminSession;
+use App\Modules\Search\Infrastructure\Console\ReindexProductsCommand;
 use App\Platform\Http\ApiProblemRenderer;
 use App\Platform\Http\ApiResponseHeaders;
 use App\Platform\Http\AttachRequestId;
@@ -27,7 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withCommands([CreateAdminOperator::class, EnrollAdminTwoFactor::class])
+    ->withCommands([CreateAdminOperator::class, EnrollAdminTwoFactor::class, ReindexProductsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend([RecordRequestMetrics::class, AttachRequestId::class, TraceContext::class, SelectAdminSession::class, ApiResponseHeaders::class]);
 

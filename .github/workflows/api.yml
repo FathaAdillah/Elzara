@@ -105,6 +105,16 @@ jobs:
         image: redis:7-alpine
         ports: ["6379:6379"]
         options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+      # Proyeksi pencarian katalog (P1.02): Basic, single-node, tanpa TLS khusus CI.
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.19.25
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: "false"
+          xpack.license.self_generated.type: basic
+          ES_JAVA_OPTS: -Xms512m -Xmx512m
+        ports: ["9200:9200"]
+        options: --health-cmd "curl -fs http://localhost:9200/_cluster/health?wait_for_status=yellow" --health-interval 10s --health-timeout 5s --health-retries 30
     env:
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
@@ -119,6 +129,7 @@ jobs:
       SESSION_DRIVER: redis
       MINIO_TEST_ENDPOINT: http://127.0.0.1:9000
       MINIO_TEST_PUBLIC_ENDPOINT: http://storage.localhost:9080
+      ELASTICSEARCH_TEST_URL: http://127.0.0.1:9200
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
