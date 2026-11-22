@@ -1,5 +1,5 @@
 import { Button, Input } from "@elzara/ui";
-import type { Category, SearchParams } from "@/lib/catalog";
+import { catalogHref, type Category, type SearchParams } from "@/lib/catalog";
 
 export function SearchBar({ value }: { value: string }) {
   return (
@@ -27,7 +27,12 @@ export function FacetPanel({
   const value = (name: string) =>
     typeof params[name] === "string" ? (params[name] as string) : "";
   return (
-    <form action="/catalog" method="get" className="space-y-6">
+    <form
+      key={catalogHref(params)}
+      action="/catalog"
+      method="get"
+      className="space-y-6"
+    >
       <SearchBar value={value("q")} />
       <fieldset className="space-y-4">
         <legend className="mb-4 text-xs font-semibold uppercase tracking-widest text-ink-muted">
