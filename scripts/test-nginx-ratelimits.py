@@ -36,6 +36,7 @@ def main():
         (root / 'stub.conf').write_text('''server {
     listen 3000;
     location = /_nuxt/missing.js { return 404; }
+    location = /real-ip { return 200 "$http_x_real_ip"; }
     location / { return 200 "stub\\n"; }
 }
 ''')
@@ -65,17 +66,28 @@ def main():
                          '-v', f'{root}/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro',
                          '-v', f'{root}/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro',
                          '-v', f'{root}/certs:/etc/nginx/certs:ro', 'nginx:1.27-alpine')
+            dokploy = start('dokploy', '-p', '127.0.0.1::8080',
+                            '-e', 'ELZARA_ADMIN_HOST=admin.localhost', '-e', 'ELZARA_EDGE_URL=http://web.localhost',
+                            '-e', 'MINIO_PUBLIC_ENDPOINT=http://storage.localhost',
+                            '-e', 'NGINX_ENVSUBST_FILTER=^(ELZARA_(ADMIN_HOST|EDGE_URL)|MINIO_PUBLIC_ENDPOINT)$',
+                            '-v', f'{root}/nginx:/etc/nginx/elzara:ro',
+                            '-v', f'{root}/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro',
+                            '-v', f'{root}/nginx/dokploy.conf:/etc/nginx/conf.d/default.conf:ro', 'nginx:1.27-alpine')
             port = int(run('docker', 'port', edge, '8080/tcp').rsplit(':', 1)[1])
+            dokploy_port = int(run('docker', 'port', dokploy, '8080/tcp').rsplit(':', 1)[1])
 
-            def request(path, host):
-                conn = HTTPConnection('127.0.0.1', port, timeout=15)
+            def fetch(path, host, headers=None, target=None):
+                conn = HTTPConnection('127.0.0.1', target or port, timeout=15)
                 try:
-                    conn.request('GET', path, headers={'Host': host})
+                    conn.request('GET', path, headers={'Host': host, **(headers or {})})
                     response = conn.getresponse()
-                    response.read()
-                    return response.status, dict(response.getheaders())
+                    body = response.read().decode()
+                    return response.status, dict(response.getheaders()), body
                 finally:
                     conn.close()
+
+            def request(path, host):
+                return fetch(path, host)[:2]
 
             for attempt in range(60):
                 try:
@@ -86,6 +98,29 @@ def main():
                 time.sleep(0.25)
             else:
                 raise RuntimeError(run('docker', 'logs', edge))
+
+            for attempt in range(60):
+                try:
+                    if fetch('/nginx-healthz', 'admin.localhost', target=dokploy_port)[0] == 200:
+                        break
+                except OSError:
+                    pass
+                time.sleep(0.25)
+            else:
+                raise RuntimeError(run('docker', 'logs', dokploy))
+
+            # The storefront forwards X-Real-IP to the API as the shopper identity: clients cannot set it,
+            # and behind Traefik (dokploy.conf) it is the hop Traefik appended, not a spoofed leftmost one.
+            for label, target, headers, expected in (
+                ('dev ignores client X-Real-IP', port, {'X-Real-IP': '203.0.113.99', 'X-Forwarded-For': '203.0.113.98'}, None),
+                ('dokploy uses Traefik client IP', dokploy_port, {'X-Forwarded-For': '198.51.100.7'}, '198.51.100.7'),
+                ('dokploy ignores spoofed hops', dokploy_port, {'X-Real-IP': '203.0.113.99', 'X-Forwarded-For': '203.0.113.98, 198.51.100.7'}, '198.51.100.7'),
+            ):
+                status, _, body = fetch('/real-ip', 'web.localhost', headers, target)
+                ok = status == 200 and body and not body.startswith('203.0.113.') and (expected is None or body == expected)
+                print(f'{"PASS" if ok else "FAIL"} {label}: {body!r}', flush=True)
+                if not ok:
+                    failures.append(label)
 
             # Validate all entrypoints against the rendered production template.
             for variant in ('dev', 'tls', 'dokploy'):
