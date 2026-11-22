@@ -274,6 +274,25 @@ level aktual cart_items saat ini L4, bukan L5 pada graf lengkap Appendix A.
 | 0401 | `0401_Cart_create_checkout_sessions_table.php` | checkout_sessions | L3 |
 | 0402 | `0402_Cart_create_cart_items_table.php` | cart_items | L4 |
 
+### 4.7 Alokasi PreOrder — P0.23 / Phase 2
+
+Batch dan item mengikuti band katalog Sprint 1 `0200–0399` (§4.1), tetap dimiliki
+modul PreOrder. Slot `0300–0301` belum terpakai; keduanya berjalan setelah
+`0207_Catalog_create_product_variants_table.php`. Enrollment memakai band
+pre-order penuh Sprint 4 `0800–0999`, setelah `0403` orders dan `0404` order_items.
+Header sprint mengikuti band alokasi; level/tier mengikuti dependensi FK.
+
+| Nomor | Basename | Isi | Level |
+|---|---|---|---|
+| 0300 | `0300_PreOrder_create_preorder_batches_table.php` | preorder_batches; kebijakan deposit/due, ETA, public_id dan shipping_mode | L2 |
+| 0301 | `0301_PreOrder_create_preorder_batch_items_table.php` | preorder_batch_items; kuota, max_per_account, jendela item dan public_id | L4 |
+| 0802 | `0802_PreOrder_create_preorder_enrollments_table.php` | preorder_enrollments; user_id untuk batas per akun, deposit_amount snapshot dan expiry slot | L6 |
+
+Ketiga tabel memakai `created_at`/`updated_at`; rincian kolom dan constraint ada
+di Doc 09 §4. Seluruh migrasi langkah ini hanya menulis skema milik PreOrder;
+tidak menambah migrasi Orders, Cart atau Billing. Basename ini masih lokal dan
+belum dijalankan di environment bersama; penomoran ulang sebelum merge sah (M-4).
+
 ## 5. Aturan anti-tabrakan (bagian yang menjawab "usahakan tidak saling bertabrakan")
 
 ### 5.1 Kepemilikan

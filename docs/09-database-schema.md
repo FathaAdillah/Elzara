@@ -374,9 +374,10 @@ price_list_entries                        [Catalog]       tabel baru (BP §6, Do
 
 ```
 preorder_batches                          [PreOrder]      rename po_batches (Doc 11 §4.1)
+  public_id varchar(32) NOT NULL UNIQUE    identitas publik batch_<ulid>; code adalah kode operasional
   code varchar(24) NOT NULL UNIQUE       "BATCH-2026-11"
   title varchar(140) NOT NULL
-  status varchar(20) NOT NULL DEFAULT 'draft'
+  status varchar(24) NOT NULL DEFAULT 'draft'
         draft | open | closed | received | cancelled_by_supplier | archived
   order_window_open_at timestamptz NOT NULL
   order_window_close_at timestamptz NOT NULL
@@ -393,20 +394,30 @@ preorder_batches                          [PreOrder]      rename po_batches (Doc
   intl_fee_min bigint NOT NULL DEFAULT 0
   intl_fee_max bigint NOT NULL DEFAULT 0
   currency_code char(3) NOT NULL DEFAULT 'IDR'
+  shipping_mode varchar(24) NOT NULL DEFAULT 'charged_at_release'
+        charged_at_release                ongkir ditagih saat release; checkout deposit tidak memilih kurir
   closed_at timestamptz, cancelled_at timestamptz, cancel_reason text
-  created_by bigint REFERENCES users(id)
+  created_by bigint REFERENCES users(id) ON DELETE RESTRICT
+  created_at timestamptz, updated_at timestamptz
   --
   CHECK (order_window_close_at > order_window_open_at)
-  CHECK (intl_fee_max >= intl_fee_min)
+  CHECK (intl_fee_min >= 0 AND intl_fee_max >= intl_fee_min)
   CHECK (deposit_kind IN ('percent','flat'))
   CHECK (deposit_value >= 0)
+  CHECK (deposit_kind <> 'percent' OR deposit_value <= 10000)
+  CHECK (balance_due_days >= 0 AND grace_days >= 0 AND max_extensions >= 0)
+  CHECK (forfeit_policy IN ('forfeit','voucher','extend_once'))
+  CHECK (shipping_mode = 'charged_at_release')
+  CHECK (status IN ('draft','open','closed','received','cancelled_by_supplier','archived'))
   idx preorder_batches_status_window (status, order_window_close_at)
 
 preorder_batch_items                      [PreOrder]      rename batch_offers (Doc 11 §4.1); penawaran + kuota DALAM satu batch (D1)
+  public_id varchar(40) NOT NULL UNIQUE    identitas publik bitem_<ulid>
   batch_id bigint NOT NULL REFERENCES preorder_batches(id) ON DELETE RESTRICT
   variant_id bigint NOT NULL REFERENCES product_variants(id) ON DELETE RESTRICT
   quota integer NOT NULL                          kuota lembut batch, bukan stok fisik
   reserved_qty integer NOT NULL DEFAULT 0         dijaga UPDATE atomic BP §8.5 (dulu taken_qty)
+  max_per_account integer                        NULL = tanpa batas; jumlah enrollment akun yang belum expired/released/cancelled
   price bigint NOT NULL                           snapshot harga pada batch ini (S-8)
   currency_code char(3) NOT NULL DEFAULT 'IDR'
   price_valid_until timestamptz                   D7: harga bisa kedaluwarsa sebelum dikonfirmasi
@@ -414,10 +425,12 @@ preorder_batch_items                      [PreOrder]      rename batch_offers (D
   opens_at timestamptz, closes_at timestamptz     jendela kuota item (BP §8.5)
   origin_country varchar(2), origin_shop varchar(120)    dari toko/negara mana dibeli (Doc 05 §3 P-5)
   is_active boolean NOT NULL DEFAULT true
+  created_at timestamptz, updated_at timestamptz
   --
   uq preorder_batch_items_slot (batch_id, variant_id)
   CHECK (quota >= 0 AND reserved_qty >= 0 AND reserved_qty <= quota)
   CHECK (price >= 0)
+  CHECK (max_per_account IS NULL OR max_per_account > 0)
   CHECK (status IN ('open','closed'))
   idx preorder_batch_items_variant (variant_id) WHERE is_active
   -- BP §8.5 atomic quota (TOCTOU-safe; primary correctness control):
@@ -435,15 +448,22 @@ preorder_enrollments                      [PreOrder]      rename po_lines (Doc 1
   order_id bigint NOT NULL REFERENCES orders(id) ON DELETE CASCADE
   order_item_id bigint NOT NULL REFERENCES order_items(id) ON DELETE CASCADE
   batch_item_id bigint NOT NULL REFERENCES preorder_batch_items(id) ON DELETE RESTRICT
+  user_id bigint NOT NULL REFERENCES users(id) ON DELETE RESTRICT
+        snapshot pemilik order untuk batas per akun tanpa membaca tabel Orders lintas modul
   qty integer NOT NULL CHECK (qty > 0)
   state varchar(24) NOT NULL DEFAULT 'reserved'
         reserved | deposit_paid | awaiting_balance | on_hold | fully_paid | received | shipped | released | expired | cancelled
   slot_reserved_at timestamptz NOT NULL
   slot_expires_at timestamptz NOT NULL            slot batchexpire, bukan stok fisik (Doc 03 Sprint 3)
   received_qty integer NOT NULL DEFAULT 0         partial goods receipt per item (Doc 06 §3.1)
+  deposit_amount bigint NOT NULL                 snapshot deposit baris dalam minor unit; percent dibulatkan ke atas, flat per baris, dibatasi total baris
+  created_at timestamptz, updated_at timestamptz
   --
   uq preorder_enrollments_one_per_item (order_item_id, batch_item_id)
   idx preorder_enrollments_batch_state (batch_id, state)
+  idx preorder_enrollments_account (batch_item_id, user_id)
+  CHECK (received_qty >= 0 AND received_qty <= qty AND deposit_amount >= 0)
+  CHECK (state IN ('reserved','deposit_paid','awaiting_balance','on_hold','fully_paid','received','shipped','released','expired','cancelled'))
   idx preorder_enrollments_expiry (slot_expires_at) WHERE state = 'reserved'
 
 preorder_allocations                      [PreOrder]      tabel baru (BP §6, Doc 11 §4.2) — alokasi stok fisik yang TIBA ke enrollment
