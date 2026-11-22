@@ -10,6 +10,15 @@ on:
       - docker/**
       - scripts/**
       - docs/**
+      - apps/api/app/Platform/Outbox/QueueRouting.php
+      - apps/api/config/filesystems.php
+      - apps/api/app/Modules/*/Infrastructure/Database/Migrations/**
+      - apps/api/app/Platform/Infrastructure/Database/Migrations/**
+      - apps/api/database/migrations/**
+      - apps/web/package.json
+      - apps/web/package-lock.json
+      - apps/admin/package.json
+      - apps/admin/package-lock.json
       - .agents/skills/doc-verification-gates/**
       - .codex/plans/tasklist.md
       - .github/workflows/contracts.yml
@@ -20,6 +29,15 @@ on:
       - docker/**
       - scripts/**
       - docs/**
+      - apps/api/app/Platform/Outbox/QueueRouting.php
+      - apps/api/config/filesystems.php
+      - apps/api/app/Modules/*/Infrastructure/Database/Migrations/**
+      - apps/api/app/Platform/Infrastructure/Database/Migrations/**
+      - apps/api/database/migrations/**
+      - apps/web/package.json
+      - apps/web/package-lock.json
+      - apps/admin/package.json
+      - apps/admin/package-lock.json
       - .agents/skills/doc-verification-gates/**
       - .codex/plans/tasklist.md
       - .github/workflows/contracts.yml
