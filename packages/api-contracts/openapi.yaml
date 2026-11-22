@@ -1056,7 +1056,7 @@ paths:
       tags: [Identity]
       x-elzara-auth: public
       security: []
-      description: "Callback OAuth. Identitas sosial disimpan di user_identities (provider, provider_user_id) unik per provider. Penggabungan akun HANYA lewat email terverifikasi, bukan email mentah dari provider (Doc 11 §4.4 C). Sukses: sesi web dibuka + redirect ke app; state/code tidak valid -> 401 problem, bukan redirect diam-diam."
+      description: "Callback OAuth. Identitas sosial disimpan di user_identities (provider, provider_user_id) unik per provider. Penggabungan akun HANYA lewat email terverifikasi, bukan email mentah dari provider (Doc 11 §4.4 C). Penautan tidak aman atau identitas yang sudah tertaut ke akun lain -> 409 Problem Details. Sukses: sesi web dibuka + redirect ke app; state/code tidak valid -> 401 problem, bukan redirect diam-diam."
       parameters:
         - { name: provider, in: path, required: true, schema: { type: string, enum: [google, x] } }
         - { name: code, in: query, required: true, schema: { type: string, maxLength: 512 } }
@@ -1069,6 +1069,7 @@ paths:
             Location: { description: "URL app tujuan (same-origin)", schema: { type: string, format: uri } }
             Set-Cookie: { $ref: "#/components/headers/WebSessionCookie" }
         "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
 

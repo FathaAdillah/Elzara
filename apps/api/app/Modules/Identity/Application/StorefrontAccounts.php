@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Identity\Infrastructure\Http;
+namespace App\Modules\Identity\Application;
 
 use App\Modules\Identity\Infrastructure\Models\User;
 use App\Platform\Http\WireTime;
@@ -65,6 +65,28 @@ final class StorefrontAccounts
             $user->forceFill(['password_hash' => Hash::make($password), 'email_verified_at' => $user->email_verified_at ?? now()])->save();
             $this->revokeSessions($user);
         });
+    }
+
+    /** @return array{user_id: string, name: string, email: string, email_verified_at: ?string, timezone: string} */
+    public static function userRead(User $user): array
+    {
+        return [
+            'user_id' => $user->public_id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'email_verified_at' => $user->email_verified_at === null ? null : WireTime::format($user->email_verified_at),
+            'timezone' => $user->timezone,
+        ];
+    }
+
+    public function activeUserByEmail(string $email): ?User
+    {
+        return User::query()->where('email', $email)->where('status', 'active')->first();
+    }
+
+    public function activeUserById(?int $userId): ?User
+    {
+        return $userId === null ? null : User::query()->whereKey($userId)->where('status', 'active')->first();
     }
 
     private function revokeSessions(User $user): void

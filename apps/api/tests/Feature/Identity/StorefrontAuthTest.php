@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Identity;
 
-use App\Modules\Identity\Infrastructure\Http\SocialAccountResolver;
+use App\Modules\Identity\Application\SocialAccountResolver;
 use App\Modules\Identity\Infrastructure\Mail\OneTimeCodeMail;
 use App\Modules\Identity\Infrastructure\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;

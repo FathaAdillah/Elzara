@@ -10,6 +10,11 @@ use App\Modules\Identity\Infrastructure\Models\User;
 
 final class UserAccess
 {
+    public function target(string $publicId): User
+    {
+        return User::query()->where('public_id', $publicId)->firstOrFail();
+    }
+
     /** @return array<string, mixed> */
     public function forUser(User $user): array
     {

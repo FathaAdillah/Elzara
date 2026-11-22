@@ -56,6 +56,9 @@
         "deptrac": [
             "@php vendor/bin/deptrac analyse --cache-file=.deptrac.cache"
         ],
+        "deptrac:b2": [
+            "@php vendor/bin/deptrac analyse --config-file=deptrac-b2.yaml --cache-file=.deptrac-b2.cache"
+        ],
         "lint": [
             "@php vendor/bin/pint --test"
         ],

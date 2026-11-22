@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Identity\Infrastructure\Http;
+namespace App\Modules\Identity\Application;
 
+use App\Modules\Identity\Infrastructure\Mail\OneTimeCodeMail;
 use App\Modules\Identity\Infrastructure\Models\User;
+use App\Platform\Http\WireTime;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 // OTP dan token reset sekali-pakai di otp_challenges. Rahasia di-hash Argon2id (keputusan
@@ -22,6 +25,28 @@ final class OneTimeSecrets
     private const RESET_CHANNEL = 'email';
 
     private const RESET_PURPOSE = 'reset_password';
+
+    public function sendOtp(User $user, string $purpose): CarbonImmutable
+    {
+        [$code, $expiresAt] = $this->issueOtp($user, 'email', $purpose);
+        $this->mailAfterResponse($user, new OneTimeCodeMail($purpose, $code, WireTime::format($expiresAt)));
+
+        return $expiresAt;
+    }
+
+    // Kirim setelah respons agar waktu respons tidak membedakan email terdaftar dari yang tidak;
+    // tetap di proses yang sama supaya rahasia mentah tidak pernah ditulis ke antrean.
+    private function mailAfterResponse(User $user, OneTimeCodeMail $mail): void
+    {
+        $email = $user->email;
+        dispatch(fn () => Mail::to($email)->send($mail))->afterResponse();
+    }
+
+    public function sendPasswordReset(User $user): void
+    {
+        [$token, $expiresAt] = $this->issueResetToken($user);
+        $this->mailAfterResponse($user, new OneTimeCodeMail('reset_password_link', $token, WireTime::format($expiresAt)));
+    }
 
     /** @return array{0: string, 1: CarbonImmutable} */
     public function issueOtp(User $user, string $channel, string $purpose): array

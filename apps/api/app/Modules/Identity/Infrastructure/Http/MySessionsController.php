@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Identity\Infrastructure\Http;
 
+use App\Modules\Identity\Application\WebSession;
 use App\Platform\Http\StrictValidation;
 use App\Platform\Http\WireTime;
 use Carbon\CarbonImmutable;
