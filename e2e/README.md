@@ -20,6 +20,9 @@ Satu jalur container dipakai lokal dan CI (`.github/workflows/e2e.yml`):
   migrasi, seeder dan `artisan serve` semuanya berjalan di image ini.
 - PostgreSQL 16 dan Redis 7 adalah container sekali pakai pada network privat.
   `migrate:fresh` hanya menyentuh database `elzara_e2e` di network tersebut.
+  Cache konfigurasi/rute/provider Laravel memakai direktori acak baru di volume
+  container, bukan cache checkout host. Sebelum migrasi, koneksi efektif harus
+  cocok dengan PostgreSQL E2E; URL atau override read/write ditolak.
 - Playwright memakai image resmi `mcr.microsoft.com/playwright:v<versi>-noble`.
   Versinya dibaca dari `e2e/package-lock.json` melalui `node:22`, sehingga browser
   dan `@playwright/test` selalu cocok tanpa instalasi browser di host.

@@ -1,10 +1,15 @@
 import { randomBytes } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+
+const cache = mkdtempSync('/workspace/e2e/laravel-cache-');
 
 const environment = {
   APP_ENV: 'local', APP_DEBUG: 'false', APP_URL: 'http://127.0.0.1:3080',
   APP_KEY: `base64:${randomBytes(32).toString('base64')}`,
   APP_MAINTENANCE_DRIVER: 'file',
+  APP_CONFIG_CACHE: `${cache}/config.php`, APP_ROUTES_CACHE: `${cache}/routes.php`,
+  APP_EVENTS_CACHE: `${cache}/events.php`, APP_SERVICES_CACHE: `${cache}/services.php`,
+  APP_PACKAGES_CACHE: `${cache}/packages.php`,
   DB_CONNECTION: 'pgsql', DB_HOST: 'postgres', DB_PORT: '5432', DB_DATABASE: 'elzara_e2e',
   DB_USERNAME: 'elzara', DB_PASSWORD: 'elzara',
   REDIS_HOST: 'redis', REDIS_PORT: '6379', REDIS_PREFIX: 'e2e_', CACHE_STORE: 'redis',

@@ -8,7 +8,7 @@ case "$mode" in
   install)
     cd apps/api
     composer install --no-interaction --prefer-dist
-    php artisan migrate:fresh --force
+    php /workspace/e2e/migrate.php
     php artisan db:seed --class=E2eSeeder --force
     ;;
   build)
