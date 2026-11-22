@@ -40,7 +40,7 @@ export function CheckoutPanel() {
     } catch (e) {
       if (e instanceof CommerceError && e.problem.code === "CHECKOUT_SNAPSHOT_STALE") {
         setSession(undefined); setShipping(undefined); setChoices({});
-        setError("Keranjang Anda berubah. Periksa kembali lalu lanjutkan checkout.");
+        setError(e.message);
       } else { report(e); }
       setCart(await getCart().catch(() => undefined));
     } finally { setBusy(false); }

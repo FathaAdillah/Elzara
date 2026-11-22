@@ -6,7 +6,7 @@ async function result<T>(request: Promise<{ data?: T; error?: unknown; response:
   if (response.status === 401 && typeof window !== "undefined") {
     window.location.assign("/account/login?next=" + encodeURIComponent(window.location.pathname));
   }
-  if (!response.ok) throw new CommerceError(typeof error === "object" && error !== null ? error : {});
+  if (!response.ok) throw new CommerceError({ ...(typeof error === "object" && error !== null ? error : {}), status: response.status });
   return data as T;
 }
 async function mutation() {

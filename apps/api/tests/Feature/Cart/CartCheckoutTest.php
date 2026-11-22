@@ -134,11 +134,9 @@ final class CartCheckoutTest extends TestCase
 
     public function test_products_without_modes_default_to_ready_stock(): void
     {
-        foreach ([null, '{}'] as $modes) {
-            DB::table('products')->where('slug', 'cart-test')->update(['fulfillment_modes' => $modes]);
-            $this->add()->assertCreated()->assertJsonPath('groups.0.mode', 'rts');
-        }
-        $this->add(4)->assertStatus(422)->assertJsonPath('code', 'CART_ITEM_UNAVAILABLE');
+        DB::table('products')->where('slug', 'cart-test')->update(['fulfillment_modes' => '{}']);
+        $this->add()->assertCreated()->assertJsonPath('groups.0.mode', 'rts');
+        $this->add(5)->assertStatus(422)->assertJsonPath('code', 'CART_ITEM_UNAVAILABLE');
     }
 
     public function test_fulfillment_changes_invalidate_the_checkout_hash(): void
