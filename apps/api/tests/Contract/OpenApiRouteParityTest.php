@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Contract;
 
 use App\Modules\Identity\Infrastructure\Http\RequireAdminPermission;
-use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
 use App\Modules\Identity\Infrastructure\Http\RequireCustomerSession;
+use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
 use App\Modules\Settings\Infrastructure\Http\Middleware\EnsureCheckoutEnabled;
 use App\Modules\Settings\Infrastructure\Http\RequireUuidIdempotencyKey;
 use Illuminate\Http\Request;
