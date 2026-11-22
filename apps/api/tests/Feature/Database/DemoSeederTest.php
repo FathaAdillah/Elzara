@@ -7,6 +7,7 @@ namespace Tests\Feature\Database;
 use App\Modules\Content\Infrastructure\Models\Media;
 use App\Modules\Identity\Infrastructure\Models\User;
 use Database\Seeders\Demo\DemoAccountSeeder;
+use Database\Seeders\Demo\DemoCatalogSeeder;
 use Database\Seeders\Demo\DemoMediaSeeder;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -33,7 +34,7 @@ final class DemoSeederTest extends TestCase
     {
         $this->app['env'] = 'production';
 
-        foreach ([DemoAccountSeeder::class, DemoMediaSeeder::class] as $seeder) {
+        foreach ([DemoAccountSeeder::class, DemoMediaSeeder::class, DemoCatalogSeeder::class] as $seeder) {
             try {
                 (new $seeder)->run();
                 $this->fail("{$seeder} ran in production");
@@ -81,6 +82,12 @@ final class DemoSeederTest extends TestCase
 
         $this->seed(DemoSeeder::class);
         $this->seed(DemoSeeder::class);
+
+        $this->assertDatabaseCount('products', 10);
+        $this->assertDatabaseCount('product_variants', 40);
+        $this->assertDatabaseCount('product_media', 10);
+        $this->assertDatabaseHas('products', ['slug' => 'nova-keychain', 'fulfillment_modes' => '{po}']);
+        $this->assertDatabaseHas('stock_items', ['on_hand' => 0]);
 
         $operator = User::query()->where('email', DemoAccountSeeder::OPERATOR_EMAIL)->firstOrFail();
         $this->assertTrue($operator->canAccessAdmin());

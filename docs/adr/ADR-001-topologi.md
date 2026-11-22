@@ -25,10 +25,10 @@ Kita memilih Opsi A: satu aplikasi Laravel modular dengan worker queue dan sched
 
 ## Keputusan
 
-1. Bangun sebagai modular monolith dengan 16 modul (§3 `01-architecture.md`) dan aturan boundary B1–B6.
+1. Bangun sebagai modular monolith dengan modul mengikuti Doc 01 §3.3 dan aturan boundary B1–B6.
 2. `outbox` dan dispatcher event wajib ada di Sprint 0, bukan ditambahkan nanti.
 3. Semua mutasi lewat Command, semua baca lewat Query/DTO → memungkinkan HTTP API headless tanpa mengubah domain.
-4. Ekstraksi ke B hanya kalau trigger terjadi, dan diurutkan dari `Search` → `Notification` → `Payments` → `Shipping` → `Quotes` → `Orders`.
+4. Ekstraksi ke B hanya kalau trigger terjadi, dan diurutkan dari `Search` → `Notification` → `Payments` → `Fulfillment` → `Sourcing` → `Orders`.
 5. Setiap keputusan boundary yang diambil di luar aturan B1–B6 harus ditulis sebagai ADR baru (contoh: relasi lintas modul untuk laporan boleh lewat read model materialized view, tidak lewat relasi Eloquent).
 
 ## Konsekuensi

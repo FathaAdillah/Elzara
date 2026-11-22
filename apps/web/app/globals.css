@@ -2,3 +2,9 @@
 @import "@elzara/ui/tokens.css";
 @source "../node_modules/@elzara/ui/src/components";
 @config "@elzara/ui/tailwind.preset";
+
+@layer base {
+  :focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 4px; }
+  body { font-family: var(--font-body); }
+  select { min-height: var(--touch-target-min); }
+}

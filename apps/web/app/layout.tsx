@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { brand, resolveBrandTheme } from "@/config/brand";
 import { SkipLink } from "./skip-link";
+import { SiteFooter, SiteHeader } from "@/components/shop/site-chrome";
+import { siteUrl } from "@/lib/seo";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +19,8 @@ export const metadata: Metadata = {
     template: `%s · ${brand.name}`,
   },
   description: brand.tagline || undefined,
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost"),
-  openGraph: { siteName: brand.seo.siteName, images: [brand.seo.defaultOg] },
+  metadataBase: new URL(siteUrl()),
+  openGraph: { siteName: brand.seo.siteName, images: brand.seo.defaultOg ? [brand.seo.defaultOg] : [] },
 };
 
 export const viewport: Viewport = {
@@ -33,7 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           (Doc 04 §5.2) — bukan hiasan, dan tidak memakai warna lokal. */}
       <body className="bg-surface text-ink antialiased">
         <SkipLink />
+        <SiteHeader />
         {children}
+        <SiteFooter />
       </body>
     </html>
   );

@@ -50,7 +50,7 @@ Header: Home · Shop · Drops · Favorit · Keranjang · Akun (3 yang terakhir m
 Elemen teramati: galeri multi-gambar dengan penghitung slide · badge mode + asal negara · blok "jadwal pemesanan/periode PO" · dimensi varian **karakter × ukuran** (dropdown `variantId`, contoh 3 karakter × 1 ukuran) · penghitung "terjual" · indikator stok dengan angka besar (stok batch = kuota, bukan fisik) · harga · qty dengan batas (input terkunci sampai varian dipilih) · CTA ganda (masuk keranjang + beli-now) · tombol favorit di PDP · blok penjelasan layanan · blok ulasan.
 
 Temuan yang mengubah desain kita:
-- **P-1 Varian dua dimensi eksplisit** (karakter × ukuran) → `variants` harus mendukung sumbu berlabel per produk, bukan kombinasi hardcoded.
+- **P-1 Varian dua dimensi eksplisit** (karakter × ukuran) → `product_variants` harus mendukung sumbu berlabel per produk, bukan kombinasi hardcoded.
 - **P-2 Stok batch = kuota** (angka sangat besar untuk barang PO) → `Inventory` perlu dua semantik: stok fisik (RTS) dan kuota batch (PO) dengan aturan habis-kuota berbeda.
 - **P-3 Periode PO tampil di PDP** (buka/tutup + estimasi) → `preorder_batches` (dahulu `po_batches`, Doc 11 §4.1) wajib expose window + ETA ke storefront, dan PDP mengikat ke batch aktif.
 - **P-4 Ulasan gated**: kosong dengan pesan "belum ada ulasan yang **disetujui**" + "ulasan terbuka setelah pesanan selesai" → ada moderasi admin + kunci hak menulis pada order selesai. Ini fitur dua sisi (customer + antrean moderasi admin).

@@ -78,7 +78,7 @@ Gerbang akhir Sprint 0: `composer dev:up` → 3 app jalan → login admin → st
 | 1.6 | Playwright scaffold 3 journey (RTS, Pre-order, Request) + artefak CI | 1,5 d | B-11 |
 | 1.7 | k6 baseline: RPS katalog & checkout di staging → laporan kapasitas teruji pertama ke klien | 1,5 d | **Q-4**; prasyarat ADR-009 |
 | 1.8 | Runbook kelompok A (4) — pasangan skenario ↔ file per Doc 11 §8.2: `payment-callback-late.md`, `webhook-replay.md`, `queue-stuck.md`, `emergency-disable-checkout.md` | 2 d | B-12 |
-| 1.9 | ADR-005 (gateway & settlement) dan ADR-009 (Waiting Room) **dibuka, tidak ditutup** — butuh Q-7/Q-6/Q-4 | 1 d | Doc 11 §3/§6 |
+| 1.9 | ADR-006 (gateway & settlement) dan ADR-009 (Waiting Room) **dibuka, tidak ditutup** — butuh Q-7/Q-6/Q-4 | 1 d | Doc 11 §3/§6 |
 | 1.10 | Sign-off threat model oleh klien — **prasyarat keras sebelum kode auth Sprint 1 ditulis** (ADR-007 (BFF/sesi) D-6a) | (paralel) | persetujuan pemilik proyek dan klien dikonfirmasi pada 2026-11-20, dengan lokasi artefak masih ditunggu. Q-2 tersisa hanya "apakah klien punya IdP/SSO sendiri" (kalau ya: tambah provider OIDC di jalur login yang sama, bukan mengganti sesi) |
 
 Gerbang akhir Phase 0: kontrak OpenAPI 3.1 di-review klien; CI memerah bila spec tidak ikut berubah; staging bisa dipakai demo; restore drill pernah dijalankan nyata.

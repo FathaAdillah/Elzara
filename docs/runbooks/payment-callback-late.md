@@ -16,7 +16,7 @@
 | `webhook_receipts.status = 'received'` berumur > 5 menit (ACK tersimpan, proses belum jalan) | query §3.3 | ≥ 5 baris ⇒ SEV-2 (ini masalah **worker**, lihat `queue-stuck.md`) |
 | Tidak ada `webhook_receipts` sama sekali padahal intent `requires_action`/`pending` sudah lewat `expires_at` | `payment_intents.expires_at` (Doc 01 §5 U2/U3 + ADR-002) | ≥ 1 ⇒ masuk §3.2 |
 | `intent expired vs captured` | dashboard minimum Doc 01 §11 | rasio expired naik tajam 1 jam ⇒ SEV-2 |
-| Order `payment_status = pending` > 24 h | dashboard Doc 01 §11 | ≥ 1 ⇒ SEV-2; ≥ 10 ⇒ SEV-1 |
+| Order `payment_status = unpaid` > 24 h | dashboard Doc 01 §11 | ≥ 1 ⇒ SEV-2; ≥ 10 ⇒ SEV-1 |
 | Provider mengirim **report/summary** tapi ledger kita berbeda | rekonsiliasi harian (U5) | selisih ≠ 0 ⇒ SEV-1, masuk §3.5 |
 | Horizon antrian `payments` lag / `failed_jobs` bertambah | Blueprint §9, §15 | lihat `queue-stuck.md` |
 

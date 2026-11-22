@@ -6,6 +6,7 @@ use App\Modules\Catalog\Application\CatalogResources;
 use App\Modules\Catalog\Infrastructure\Http\Controllers\AdminCatalogCsvController;
 use App\Modules\Catalog\Infrastructure\Http\Controllers\AdminCatalogEntityController;
 use App\Modules\Catalog\Infrastructure\Http\Controllers\AdminProductController;
+use App\Modules\Catalog\Infrastructure\Http\PublicCatalogController;
 use App\Modules\Identity\Infrastructure\Http\RequireAdminPermission;
 use App\Modules\Identity\Infrastructure\Http\VerifySessionCsrf;
 use App\Modules\Settings\Infrastructure\Http\RequireUuidIdempotencyKey;
@@ -39,4 +40,10 @@ Route::prefix('admin/catalog')->whereNumber('id')->group(function () use ($view,
     Route::post('products/{id}/variants', [AdminProductController::class, 'storeVariant'])->middleware($mutate('create', 'adminCatalogVariantsCreate'));
     Route::patch('variants/{id}', [AdminProductController::class, 'updateVariant'])->middleware($mutate('update', 'adminCatalogVariantsUpdate'));
     Route::delete('variants/{id}', [AdminProductController::class, 'destroyVariant'])->middleware($mutate('delete', 'adminCatalogVariantsDelete'));
+});
+
+Route::middleware('rate:public')->group(function (): void {
+    Route::get('products', [PublicCatalogController::class, 'index']);
+    Route::get('products/{slug}', [PublicCatalogController::class, 'show'])->where('slug', '[a-z0-9-]{1,120}');
+    Route::get('categories', [PublicCatalogController::class, 'categories']);
 });

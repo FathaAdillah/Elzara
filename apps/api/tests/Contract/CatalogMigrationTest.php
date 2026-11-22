@@ -21,10 +21,11 @@ final class CatalogMigrationTest extends TestCase
             DB::statement("SET LOCAL search_path TO {$schema}, public");
             DB::statement('CREATE TABLE media (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY)');
             $files = glob(app_path('Modules/Catalog/Infrastructure/Database/Migrations/*.php'));
-            $this->assertCount(13, $files);
+            $this->assertCount(14, $files);
             foreach ($files as $file) {
                 (require $file)->up();
             }
+            $this->assertTrue(collect(Schema::getIndexes('products'))->contains('name', 'idx_products_name_trgm'));
             foreach (['categories', 'brands', 'collections', 'products', 'product_options', 'product_option_values', 'product_variants', 'product_media', 'price_lists', 'price_list_entries'] as $table) {
                 $columns = collect(Schema::getColumns($table))->keyBy('name');
                 $this->assertSame('int8', $columns['id']['type_name']);
@@ -67,7 +68,10 @@ final class CatalogMigrationTest extends TestCase
             $this->rejects('23505', fn () => DB::table('categories')->insert(['slug' => 'cat', 'name_key' => 'duplicate']));
             foreach (array_reverse($files) as $file) {
                 (require $file)->down();
-                if (preg_match('/^\\d+_Catalog_create_(.*)_table.php$/', basename($file), $match) === 1) {
+                $name = basename($file);
+                if ($name === '0212_Catalog_add_product_trigram_search.php') {
+                    $this->assertFalse(collect(Schema::getIndexes('products'))->contains('name', 'idx_products_name_trgm'));
+                } elseif (preg_match('/^\\d+_Catalog_create_(.*)_table.php$/', $name, $match) === 1) {
                     $this->assertFalse(Schema::hasTable("{$schema}.{$match[1]}"));
                 } else {
                     $this->assertFalse(Schema::hasColumn("{$schema}.products", 'version'));
