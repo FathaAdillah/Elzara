@@ -12,11 +12,11 @@ use LogicException;
 
 final class DatabaseCheckoutInvoices implements CheckoutInvoices
 {
-    public function issue(int $order, int $amount, CarbonInterface $expires): array
+    public function issue(int $order, int $amount, CarbonInterface $expires, string $type = 'balance'): array
     {
         $code = 'inv_'.Str::ulid();
         $id = DB::table('invoices')->insertGetId([
-            'code' => $code, 'order_id' => $order, 'type' => 'balance', 'amount' => $amount,
+            'code' => $code, 'order_id' => $order, 'type' => $type, 'amount' => $amount,
             'due_at' => $expires, 'created_at' => now(), 'updated_at' => now(),
         ]);
 

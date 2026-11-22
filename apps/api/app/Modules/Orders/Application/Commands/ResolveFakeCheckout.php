@@ -10,8 +10,10 @@ use App\Modules\Inventory\Contracts\StockReservations;
 use App\Modules\Orders\Application\CheckoutProblem;
 use App\Modules\Payments\Contracts\CheckoutPaymentIntents;
 use App\Modules\Payments\Contracts\FakePaymentAvailability;
+use App\Modules\PreOrder\Contracts\BatchCheckout;
 use App\Platform\Domain\Statuses\FulfillmentStatus;
 use App\Platform\Domain\Statuses\OrderStatus;
+use App\Platform\Domain\Statuses\OrderType;
 use App\Platform\Domain\Statuses\PaymentStatus;
 use App\Platform\StateMachine\Axis;
 use App\Platform\StateMachine\StateMachineRunner;
@@ -26,6 +28,7 @@ final class ResolveFakeCheckout
         private readonly CheckoutInvoices $invoices,
         private readonly ReadyStockCheckout $checkout,
         private readonly StateMachineRunner $states,
+        private readonly BatchCheckout $batches,
     ) {}
 
     /** @return array{order_id:string, status:string} */
@@ -60,12 +63,18 @@ final class ResolveFakeCheckout
                 CheckoutProblem::raise(409, 'PAYMENT_INTENT_NOT_ACTIONABLE');
             }
 
-            $this->stock->commit($id, $now);
+            $paymentStatus = PaymentStatus::Paid;
+            if ($order->order_type === OrderType::Preorder->value) {
+                $paid = $this->batches->capture($id, $now);
+                $paymentStatus = $paid < $order->total ? PaymentStatus::PartiallyPaid : PaymentStatus::Paid;
+            } else {
+                $this->stock->commit($id, $now);
+            }
             $this->payments->capture($intent, $now);
             $this->invoices->pay($intent->invoiceId, $now);
             $reason = 'Pembayaran simulasi berhasil.';
             $this->states->transition('orders', $id, Axis::Order, OrderStatus::Paid->value, OrderStatus::AwaitingPayment->value, $reason, $user);
-            $this->states->transition('orders', $id, Axis::Payment, PaymentStatus::Paid->value, PaymentStatus::Unpaid->value, $reason, $user);
+            $this->states->transition('orders', $id, Axis::Payment, $paymentStatus->value, PaymentStatus::Unpaid->value, $reason, $user);
             DB::table('orders')->where('id', $id)->update(['paid_at' => $now]);
             $this->checkout->consumePaidItems($id);
 
@@ -77,7 +86,8 @@ final class ResolveFakeCheckout
     {
         $now = now();
         $expired = 0;
-        foreach ($this->stock->dueOrders($now, $limit) as $id) {
+        $due = array_slice(array_unique([...$this->stock->dueOrders($now, $limit), ...$this->batches->dueOrders($now, $limit)]), 0, $limit);
+        foreach ($due as $id) {
             $expired += (int) DB::transaction(function () use ($id, $now): bool {
                 $order = DB::table('orders')->where('id', $id)->lockForUpdate()->first();
                 if ($order === null || $order->order_status !== OrderStatus::AwaitingPayment->value || $order->payment_status !== PaymentStatus::Unpaid->value) {
@@ -89,12 +99,19 @@ final class ResolveFakeCheckout
                     return false;
                 }
 
-                $this->stock->expire($id, $now);
+                $preorder = $order->order_type === OrderType::Preorder->value;
+                if ($preorder) {
+                    $this->batches->expire($id, $now);
+                } else {
+                    $this->stock->expire($id, $now);
+                }
                 $this->payments->expire($intent, $now);
                 $this->invoices->void($intent->invoiceId, $now);
                 $reason = 'Reservasi checkout kedaluwarsa.';
                 $this->states->transition('orders', $id, Axis::Order, OrderStatus::Expired->value, OrderStatus::AwaitingPayment->value, $reason);
-                $this->states->transition('orders', $id, Axis::Fulfillment, FulfillmentStatus::Unprocessed->value, FulfillmentStatus::Reserved->value, $reason);
+                if (! $preorder) {
+                    $this->states->transition('orders', $id, Axis::Fulfillment, FulfillmentStatus::Unprocessed->value, FulfillmentStatus::Reserved->value, $reason);
+                }
 
                 return true;
             }, 3);

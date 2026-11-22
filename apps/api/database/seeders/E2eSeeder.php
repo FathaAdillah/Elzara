@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use Database\Seeders\Demo\DemoAccountSeeder;
 use Database\Seeders\Demo\DemoCatalogSeeder;
 use Database\Seeders\Demo\DemoEnvironment;
+use Database\Seeders\Demo\DemoPreorderSeeder;
 use Database\Seeders\Demo\DemoShippingSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ final class E2eSeeder extends Seeder
     public function run(): void
     {
         DemoEnvironment::assertNotProduction();
-        $this->call([ReferenceSeeder::class, DemoAccountSeeder::class, DemoCatalogSeeder::class, DemoShippingSeeder::class]);
+        $this->call([ReferenceSeeder::class, DemoAccountSeeder::class, DemoCatalogSeeder::class, DemoShippingSeeder::class, DemoPreorderSeeder::class]);
 
         $product = DB::table('products')->where('slug', 'e2e-request-charm')->value('id');
         if ($product === null) {

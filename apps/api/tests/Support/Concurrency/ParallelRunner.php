@@ -16,7 +16,7 @@ final class ParallelRunner
     /** @return list<array{pid: int, backend: int, accepted: int, observations: list<int>}> */
     public function run(string $schema, string $kind, int $workers = 2, int $attempts = 20, float $timeout = 10, string $mode = 'reserve'): array
     {
-        if (! preg_match('/^harness_[a-f0-9]{16}$/D', $schema) || ! in_array($kind, ['stock', 'quota'], true)
+        if (! preg_match('/^harness_[a-f0-9]{16}$/D', $schema) || ! in_array($kind, ['stock', 'quota', 'preorder'], true)
             || $workers < 1 || $attempts < 0 || $timeout <= 0 || ! in_array($mode, ['reserve', 'fail', 'timeout'], true)) {
             throw new InvalidArgumentException('Invalid parallel workload.');
         }

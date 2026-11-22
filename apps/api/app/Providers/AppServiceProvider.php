@@ -39,6 +39,8 @@ use App\Modules\Payments\Application\DatabaseCheckoutPaymentIntents;
 use App\Modules\Payments\Contracts\CheckoutPaymentIntents;
 use App\Modules\Payments\Contracts\PaymentProvider;
 use App\Modules\Payments\Infrastructure\Providers\FakePaymentProvider;
+use App\Modules\PreOrder\Application\DatabaseBatchCheckout;
+use App\Modules\PreOrder\Contracts\BatchCheckout;
 use App\Modules\Search\Application\SyncProductSearchIndex;
 use App\Modules\Settings\Application\DatabaseSettingValueQuery;
 use App\Modules\Settings\Application\FeatureFlagService;
@@ -78,6 +80,7 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->bind(CategoryScopes::class, CatalogScopes::class);
         $this->app->bind(ReadyStockCheckout::class, CheckoutService::class);
         $this->app->bind(StockReservations::class, DatabaseStockReservations::class);
+        $this->app->bind(BatchCheckout::class, DatabaseBatchCheckout::class);
         $this->app->bind(CheckoutInvoices::class, DatabaseCheckoutInvoices::class);
         $this->app->bind(CheckoutPaymentIntents::class, DatabaseCheckoutPaymentIntents::class);
         $this->app->bind(PaymentProvider::class, FakePaymentProvider::class);

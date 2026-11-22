@@ -1561,14 +1561,7 @@ paths:
           headers: { X-Request-Id: { $ref: "#/components/headers/RequestId" } }
           content:
             application/json:
-              schema:
-                allOf:
-                  - { $ref: "#/components/schemas/PreorderBatchSummary" }
-                  - type: object
-                    required: [items, allocation_policy]
-                    properties:
-                      items: { type: array, items: { $ref: "#/components/schemas/ProductSummary" } }
-                      allocation_policy: { type: string, enum: [fifo, priority, manual] }
+              schema: { $ref: "#/components/schemas/PreorderBatchDetail" }
         "404": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
 
@@ -4289,12 +4282,47 @@ components:
         changed_at: { type: string, format: date-time }
     PreorderBatchSummary:
       type: object
-      required: [id, name, status, closes_at]
+      required: [id, name, status, opens_at, closes_at, now, eta_min_date, eta_max_date, deposit_policy, currency, shipping_mode]
       properties:
         id: { type: string, pattern: "^batch_[0-9A-Za-z]{20,32}$" }
         name: { type: string }
-        status: { type: string, enum: [open, closing, closed, cancelled] }
+        status: { type: string, enum: [draft, open, closed, received, cancelled_by_supplier, archived] }
+        opens_at: { type: string, format: date-time }
         closes_at: { type: string, format: date-time }
+        now: { type: string, format: date-time }
+        eta_min_date: { type: [string, "null"], format: date }
+        eta_max_date: { type: [string, "null"], format: date }
+        currency: { type: string, enum: [IDR] }
+        shipping_mode: { type: string, enum: [charged_at_release] }
+        deposit_policy:
+          type: object
+          required: [kind, value]
+          properties:
+            kind: { type: string, enum: [percent, flat] }
+            value: { type: integer, minimum: 0, description: "Basis points for percent; minor units per line for flat. Percent rounds up and deposit is capped at line total." }
+    PreorderBatchDetail:
+      allOf:
+        - { $ref: "#/components/schemas/PreorderBatchSummary" }
+        - type: object
+          required: [items]
+          properties:
+            items: { type: array, items: { $ref: "#/components/schemas/PreorderBatchItem" } }
+    PreorderBatchItem:
+      type: object
+      required: [id, variant_id, product_name, product_slug, variant_name, price, quota, remaining, max_per_account, opens_at, closes_at, status]
+      properties:
+        id: { type: string, pattern: "^bitem_[0-9A-Za-z]{26}$" }
+        variant_id: { type: string }
+        product_name: { type: string }
+        product_slug: { type: string }
+        variant_name: { type: string }
+        price: { $ref: "#/components/schemas/Money" }
+        quota: { type: integer, minimum: 0 }
+        remaining: { type: integer, minimum: 0 }
+        max_per_account: { type: [integer, "null"], minimum: 1 }
+        opens_at: { type: string, format: date-time }
+        closes_at: { type: string, format: date-time }
+        status: { type: string, enum: [open, closed] }
     ProductRequestRead:
       type: object
       required: [id, status, created_at]

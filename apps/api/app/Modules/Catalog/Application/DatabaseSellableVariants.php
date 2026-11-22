@@ -14,7 +14,7 @@ final class DatabaseSellableVariants implements SellableVariants
     {
         $row = DB::table('product_variants as v')->join('products as p', 'p.id', '=', 'v.product_id')
             ->where('v.id', $variantId)->where('v.is_active', true)->where('v.currency_code', 'IDR')->whereNull('v.deleted_at')->where('p.status', 'active')->whereNull('p.deleted_at')
-            ->select('v.id', 'v.label', 'v.sku', 'p.name', 'p.unit_weight_g', 'p.fulfillment_modes')
+            ->select('v.id', 'v.label', 'v.sku', 'p.name', 'p.slug', 'p.unit_weight_g', 'p.fulfillment_modes')
             ->selectRaw("COALESCE((SELECT e.price FROM price_list_entries e JOIN price_lists l ON l.id=e.price_list_id WHERE e.variant_id=v.id AND l.is_active AND l.kind='retail' AND l.currency_code=v.currency_code AND e.currency_code=v.currency_code AND (l.valid_from IS NULL OR l.valid_from<=CURRENT_TIMESTAMP) AND (l.valid_to IS NULL OR l.valid_to>CURRENT_TIMESTAMP) ORDER BY l.valid_from DESC NULLS LAST,l.id DESC LIMIT 1),v.base_price) AS price")
             ->selectRaw('COALESCE((SELECT SUM(GREATEST(s.available_to_sell,0)) FROM stock_items s WHERE s.variant_id=v.id),0) AS available')->first();
         if ($row === null || ! is_string($row->name) || ! is_string($row->label) || ! is_string($row->sku)) {
@@ -29,6 +29,6 @@ final class DatabaseSellableVariants implements SellableVariants
             return null;
         }
 
-        return new SellableVariant($variantId, $row->name, $price, $available, $mode, null, $weight === false ? null : $weight, $row->label, $row->sku);
+        return new SellableVariant($variantId, $row->name, $price, $available, $mode, null, $weight === false ? null : $weight, $row->label, $row->sku, is_string($row->slug) ? $row->slug : '');
     }
 }

@@ -15,3 +15,4 @@ require base_path('app/Modules/Settings/Infrastructure/Http/routes.php');
 require base_path('app/Modules/Orders/Infrastructure/Http/routes.php');
 require base_path('app/Modules/Search/Infrastructure/Http/routes.php');
 require base_path('app/Modules/Cart/Infrastructure/Http/routes.php');
+require base_path('app/Modules/PreOrder/Infrastructure/Http/routes.php');

@@ -1846,9 +1846,47 @@ export interface components {
             id: string;
             name: string;
             /** @enum {string} */
-            status: "open" | "closing" | "closed" | "cancelled";
+            status: "draft" | "open" | "closed" | "received" | "cancelled_by_supplier" | "archived";
+            /** Format: date-time */
+            opens_at: string;
             /** Format: date-time */
             closes_at: string;
+            /** Format: date-time */
+            now: string;
+            /** Format: date */
+            eta_min_date: string | null;
+            /** Format: date */
+            eta_max_date: string | null;
+            /** @enum {string} */
+            currency: "IDR";
+            /** @enum {string} */
+            shipping_mode: "charged_at_release";
+            deposit_policy: {
+                /** @enum {string} */
+                kind: "percent" | "flat";
+                /** @description Basis points for percent; minor units per line for flat. Percent rounds up and deposit is capped at line total. */
+                value: number;
+            };
+        };
+        PreorderBatchDetail: components["schemas"]["PreorderBatchSummary"] & {
+            items: components["schemas"]["PreorderBatchItem"][];
+        };
+        PreorderBatchItem: {
+            id: string;
+            variant_id: string;
+            product_name: string;
+            product_slug: string;
+            variant_name: string;
+            price: components["schemas"]["Money"];
+            quota: number;
+            remaining: number;
+            max_per_account: number | null;
+            /** Format: date-time */
+            opens_at: string;
+            /** Format: date-time */
+            closes_at: string;
+            /** @enum {string} */
+            status: "open" | "closed";
         };
         ProductRequestRead: {
             id: string;
@@ -3887,11 +3925,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PreorderBatchSummary"] & {
-                        items: components["schemas"]["ProductSummary"][];
-                        /** @enum {string} */
-                        allocation_policy: "fifo" | "priority" | "manual";
-                    };
+                    "application/json": components["schemas"]["PreorderBatchDetail"];
                 };
             };
             404: components["responses"]["Problem"];

@@ -51,14 +51,15 @@ final class CheckoutService implements ReadyStockCheckout
         $oldCart = $snapshot['cart'] ?? null;
         $groups = is_array($oldCart) ? ($oldCart['groups'] ?? null) : null;
         $group = is_array($groups) && count($groups) === 1 ? ($groups[0] ?? null) : null;
-        if (! is_array($group) || ($group['mode'] ?? null) !== 'rts' || ! is_array($group['items'] ?? null)) {
-            $this->problem(422, 'CHECKOUT_RTS_ONLY');
+        if (! is_array($group) || ! in_array($group['mode'] ?? null, ['rts', 'pre_order'], true) || ! is_array($group['items'] ?? null)) {
+            $this->problem(422, 'CHECKOUT_MIXED_MODES');
         }
+        $preorder = $group['mode'] === 'pre_order';
         $selections = $snapshot['shipping_selection'] ?? null;
         $selection = is_array($selections) && is_array($selections[0] ?? null) ? $selections[0] : [];
         $courier = $selection['courier_code'] ?? null;
         $service = $selection['service_code'] ?? null;
-        if (! is_string($courier) || ! is_string($service) || ! is_int($snapshot['shipping_estimate'] ?? null)) {
+        if (! $preorder && (! is_string($courier) || ! is_string($service) || ! is_int($snapshot['shipping_estimate'] ?? null))) {
             $this->problem(409, 'SHIPPING_SELECTION_REQUIRED');
         }
         $cart = CartRecord::query()->whereKey($session->cart_id)->where('user_id', $user)->where('status', 'active')
@@ -81,10 +82,10 @@ final class CheckoutService implements ReadyStockCheckout
                 $this->problem(409, 'CHECKOUT_SNAPSHOT_STALE');
             }
             $variant = $this->variants->find($item->variant_id);
-            if ($variant === null || $variant->mode !== 'rts') {
+            if ($variant === null || $variant->mode !== $group['mode']) {
                 $this->problem(422, 'CART_ITEM_UNAVAILABLE');
             }
-            if ($variant->weightGrams === null || $variant->weightGrams < 1) {
+            if (! $preorder && ($variant->weightGrams === null || $variant->weightGrams < 1)) {
                 $this->problem(422, 'SHIPPING_WEIGHT_MISSING');
             }
             $code = PublicId::encode('var', $variant->id);
@@ -93,7 +94,10 @@ final class CheckoutService implements ReadyStockCheckout
             }
             $lines[] = ['variant_id' => $variant->id, 'qty' => $item->qty, 'name' => $variant->name, 'sku' => $variant->sku, 'price' => $variant->price, 'old_price' => $oldPrice];
             $subtotal += $variant->price * $item->qty;
-            $weight += $variant->weightGrams * $item->qty;
+            $weight += ($variant->weightGrams ?? 0) * $item->qty;
+        }
+        if ($preorder) {
+            return new ReadyStockQuote($session->id, $address, '', '', $lines, $subtotal, 0, $changes, 'pre_order');
         }
         try {
             $rates = $this->shipping->rates(new ShippingRateRequest(Config::string('checkout.origin_country'), $address->province, $address->city, $address->district, $address->postal_code, $weight, 'paket_besar', fresh: true));
@@ -165,6 +169,7 @@ final class CheckoutService implements ReadyStockCheckout
             if ($view->groups === []) {
                 $this->problem(422, 'CART_EMPTY');
             }
+            $preorder = count($view->groups) === 1 && $view->groups[0]->mode === 'pre_order';
             foreach ($view->groups as $group) {
                 foreach ($group->items as $line) {
                     if ($line->unavailable) {
@@ -172,7 +177,7 @@ final class CheckoutService implements ReadyStockCheckout
                     }
                 }
             }
-            $snapshot = json_decode(json_encode(['cart' => $view, 'address' => $address, 'shipping_selection' => [], 'shipping_estimate' => null, 'total' => null], JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+            $snapshot = json_decode(json_encode(['cart' => $view, 'address' => $address, 'shipping_selection' => [], 'shipping_estimate' => $preorder ? 0 : null, 'total' => $preorder ? $view->subtotal->amount_minor : null], JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
             $session = CheckoutSession::query()->create(['code' => 'cs_'.Str::ulid(), 'user_id' => $user, 'cart_id' => $this->cart->active($user)?->id, 'subtotal' => $view->subtotal->amount_minor, 'snapshot' => $snapshot, 'expires_at' => now()->addMinutes(max(1, Config::integer('checkout.session_ttl_minutes')))]);
 
             return $session->refresh();
@@ -218,6 +223,9 @@ final class CheckoutService implements ReadyStockCheckout
             foreach ($cart['groups'] as $index => $group) {
                 if (! is_array($group) || ! is_array($group['items'] ?? null)) {
                     throw new \UnexpectedValueException('Invalid checkout group');
+                }
+                if (count($cart['groups']) === 1 && ($group['mode'] ?? null) === 'pre_order') {
+                    continue;
                 }
                 $weight = 0;
                 foreach ($group['items'] as $line) {

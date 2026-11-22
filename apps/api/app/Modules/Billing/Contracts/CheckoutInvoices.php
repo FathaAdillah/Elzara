@@ -9,7 +9,7 @@ use Carbon\CarbonInterface;
 interface CheckoutInvoices
 {
     /** @return array{id:int, code:string} */
-    public function issue(int $order, int $amount, CarbonInterface $expires): array;
+    public function issue(int $order, int $amount, CarbonInterface $expires, string $type = 'balance'): array;
 
     public function pay(int $invoice, CarbonInterface $now): void;
 

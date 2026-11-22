@@ -21,5 +21,6 @@ final readonly class ReadyStockQuote
         public int $subtotal,
         public int $shipping,
         public array $changes,
+        public string $mode = 'rts',
     ) {}
 }
