@@ -37,7 +37,13 @@ export function CheckoutPanel() {
     try {
       const s = await createCheckout(selected, cart.items_hash); setSession(s);
       const rates = await shippingOptions(s.id); setShipping(rates); setSession(rates.checkout); setChoices(Object.fromEntries((rates.checkout.snapshot.shipping_selection ?? []).map((v) => [v.group_index, v.courier_code + ":" + v.service_code])));
-    } catch (e) { report(e); setCart(await getCart().catch(() => undefined)); } finally { setBusy(false); }
+    } catch (e) {
+      if (e instanceof CommerceError && e.problem.code === "CHECKOUT_SNAPSHOT_STALE") {
+        setSession(undefined); setShipping(undefined); setChoices({});
+        setError("Keranjang Anda berubah. Periksa kembali lalu lanjutkan checkout.");
+      } else { report(e); }
+      setCart(await getCart().catch(() => undefined));
+    } finally { setBusy(false); }
   }
   async function choose(groupIndex: number, courierCode: string, serviceCode: string) {
     if (!session || !shipping || shipping.groups.some((g) => g.options.length === 0) || busy) return;
