@@ -276,7 +276,7 @@ elzara/
 │   ├── nginx/                        # edge produksi/staging: konfigurasi yang dirender dari profil yang sama (task 0.16)
 │   └── monitoring/                   # Prometheus/Grafana/Loki + aturan alert
 ├── docs/
-│   ├── adr/                          # ADR-001…012 ada; ADR-007 (BFF/sesi) mekanisme diputus 2026-11-18, ADR-012 (RBAC/identitas/dependensi) Accepted; 006/009 diblokir jawaban klien/angka, 005/008/010/011 Accepted (Doc 11 §3, §16 di bawah)
+│   ├── adr/                          # ADR-001…012 ada; ADR-007 (BFF/sesi) mekanisme diputus 2026-11-18, ADR-012 (RBAC/identitas/dependensi) Accepted; 006/009 diblokir jawaban klien/angka, 005/008/010/011 Accepted (Doc 11 §3; §16 dokumen ini)
 │   ├── api/                          # export OpenAPI + contoh payload
 │   ├── specs/                        # spec per sub-proyek (sprint-0-fondasi.md)
 │   ├── runbooks/                     # 11 skenario wajib (Blueprint §15) → deliverable §12
@@ -350,7 +350,7 @@ Penjagaan: architecture test (Deptrac/PHPAT) di CI menolak import antar modul ya
 
 Kontrak publik lintas modul **hanya** lewat `Contracts/` (interface + DTO). Query lintas modul lewat DB langsung dilarang (B1/S-10); kebutuhan laporan dilayani read model.
 
-**Jumlah tabel tidak ditulis tangan di sini.** Pemilik pemetaan tabel → modul dan jumlah tabel adalah **Doc 09 §19**, diproduksi ulang oleh `verify_schema.py`; kedua tabel di atas dan pohon §3.1 adalah cerminnya (gate H/I, Doc 11 §8.8). Keputusan pemilik 2026-11-18 (Doc 11 §4.4 A–F) mengubah keanggotaan Identity dan Audit — pivot lama diganti bentuk spatie, `user_identities` masuk Identity, `activity_log` masuk Audit — jadi perubahan harus masuk Doc 09 §19, §3.1/§3.3 di sini, dan `app/Modules/` di disk sekaligus, atau gerbang gagal.
+**Jumlah tabel tidak ditulis tangan di sini.** Pemilik pemetaan tabel → modul dan jumlah tabel adalah **Doc 09 §19**, diproduksi ulang oleh `verify_schema.py`; kedua tabel di atas dan pohon §3.1 adalah cerminnya (gate H/I, Doc 11 §8.8). Keputusan pemilik 2026-11-18 (Doc 11 §4.4 A–F) mengubah keanggotaan Identity dan Audit — pivot lama diganti bentuk spatie, `user_identities` masuk Identity, `activity_log` masuk Audit — jadi perubahan harus masuk Doc 09 §19 serta Doc 01 §3.1/§3.3 di sini, dan `app/Modules/` di disk sekaligus, atau gerbang gagal.
 ### 3.4 Delta yang masih berlaku, dan delta yang dibatalkan
 
 Delta observasi D1–D7 dari Doc 05/07/08 **tetap** jadi bagian arsitektur: batch sebagai kelas satu (D1), invoice sebagai entitas terpisah (D2/ADR-002), biaya internasional ditetapkan kemudian (D3 → sekarang punya entitas sendiri di modul Logistics: `customs_charges`, `landed_cost_allocations`), tracking per-lane (D4 → lihat §5.1 dan urutan tahapnya di §5.4 untuk cara ia hidup di tengah empat sumbu), konten/konfigurasi berat + i18n + flags (D6), snapshot alamat & harga (D7 → §6.1).

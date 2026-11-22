@@ -1,5 +1,5 @@
 # Pipeline bersama untuk kontrak + infra (ADR-010 K-2): apa yang harus hijau kalau packages/ atau docker/ berubah.
-# Job docs hanya manual karena enam pemeriksa Doc 11 §8.8 memang hidup di luar repo, bukan deliverable yang bisa di-fetch CI.
+# Enam pemeriksa Doc 11 §8.8 direkonstruksi dalam repo dan diuji di setiap PR.
 
 name: contracts
 
@@ -10,6 +10,17 @@ on:
       - docker/**
       - scripts/**
       - docs/**
+      - apps/api/app/Platform/Outbox/QueueRouting.php
+      - apps/api/config/filesystems.php
+      - apps/api/app/Modules/*/Infrastructure/Database/Migrations/**
+      - apps/api/app/Platform/Infrastructure/Database/Migrations/**
+      - apps/api/database/migrations/**
+      - apps/web/package.json
+      - apps/web/package-lock.json
+      - apps/admin/package.json
+      - apps/admin/package-lock.json
+      - .agents/skills/doc-verification-gates/**
+      - .codex/plans/tasklist.md
       - .github/workflows/contracts.yml
   push:
     branches: [master]
@@ -18,13 +29,19 @@ on:
       - docker/**
       - scripts/**
       - docs/**
+      - apps/api/app/Platform/Outbox/QueueRouting.php
+      - apps/api/config/filesystems.php
+      - apps/api/app/Modules/*/Infrastructure/Database/Migrations/**
+      - apps/api/app/Platform/Infrastructure/Database/Migrations/**
+      - apps/api/database/migrations/**
+      - apps/web/package.json
+      - apps/web/package-lock.json
+      - apps/admin/package.json
+      - apps/admin/package-lock.json
+      - .agents/skills/doc-verification-gates/**
+      - .codex/plans/tasklist.md
       - .github/workflows/contracts.yml
   workflow_dispatch:
-    inputs:
-      auditors_dir:
-        description: Direktori enam pemeriksa Doc 11 §8.8 di workstation (mis. C:/temp) - tidak ada di repo
-        required: false
-        default: ""
 
 permissions: { contents: read }
 
@@ -288,22 +305,13 @@ jobs:
           if [ -n "${missing}" ]; then echo "variabel tidak terdaftar di docker/.env.example:${missing}"; exit 1; fi
 
   docs:
-    name: Konsistensi dokumen (manual - pemeriksa di luar repo)
+    name: Konsistensi dokumen (enam pemeriksa dalam repo)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
-      # Enam pemeriksa Doc 11 §8.8 (verify_schema.py, audit_sweep3.py, audit_blueprint_coverage.py,
-      # check_layout.py, scan_unicode.py, list_dead_cites.py) tidak di-commit ke repo dan membaca docs/ dari path yang
-      # ditanam di dalamnya, termasuk berkas Blueprint di luar repo. Karena itu gerbang ini dijalankan
-      # dari workstation, bukan dari runner; mengirimnya ke CI berarti membuat gerbang palsu.
-      - name: Jalankan pemeriksa
-        env:
-          ELZARA_AUDITORS_DIR: ${{ inputs.auditors_dir }}
-        run: |
-          if [ -z "${ELZARA_AUDITORS_DIR}" ]; then
-            echo "ELZARA_AUDITORS_DIR kosong - jalankan gate dari workstation lewat scripts/verify-docs.sh."
-            exit 1
-          fi
-          bash scripts/verify-docs.sh
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Jalankan pemeriksa dan mutation tests
+        run: bash scripts/verify-docs.sh

@@ -67,7 +67,7 @@ Kolom **Sisi**: `publik` (tanpa login) · `customer` (butuh sesi guard `web`) ·
 
 ### 2.1 Blueprint §7 — direproduksi penuh (15 baris / 17 operasi)
 
-Ini persis tabel Blueprint §7, tidak dikurangi. Baris pertama dan kedua masing-masing memuat dua path.
+Tabel ini memetakan endpoint bisnis Blueprint §7. Baris pertama dan kedua masing-masing memuat dua path. Inventaris subset CI berjumlah 18 path karena juga mewajibkan `GET /health` sebagai endpoint operasional; health tidak menambah operasi bisnis pada tabel ini.
 
 | Method | Endpoint | Fungsi | Sisi | Idem | Modul (Doc 01 §3.3) |
 |---|---|---|---|---|---|
@@ -768,7 +768,7 @@ Tabel ini memuat **24 baris event** (hasil menghitung baris §6.2 pada dokumen i
 | `BalanceInvoiced` | Billing | `invoice_id`, `order_id`, `type`, `amount`, `due_at` | at-least-once | `(consumer, event_id)` | Notification (H-7/H-1), Reporting |
 | `QuoteIssued` | Sourcing | `quotation_id`, `quote_version`, `customer_id`, `expires_at` | at-least-once | `(consumer, event_id)` | Notification ("penawaran Anda siap") |
 | `QuoteExpired` | Sourcing | `quotation_id`, `expired_at` | at-least-once | `(consumer, event_id)` | Notification, takedown visibilitas |
-| `PackageShipped` | Fulfillment | `shipment_id`, `package_ids[]`, `tracking_number` | at-least-once | `(consumer, event_id)`; konsumen juga memakai `(shipment_id, tracking_number)` supaya satu paket yang dilaporkan dua kurir tidak mengirim dua notifikasi | Orders (`fulfillment_status = shipped`/`handed_over`), Notification (kirim resi), Reporting |
+| `PackageShipped` | Fulfillment | `shipment_id`, `package_ids[]`, `tracking_number` | at-least-once | `(consumer, event_id)`; konsumen juga memakai `(shipment_id, tracking_number)` supaya satu paket yang dilaporkan dua kurir tidak mengirim dua notifikasi | Orders (`fulfillment_status = handed_over`), Notification (kirim resi), Reporting |
 | `TrackingUpdated` | Fulfillment | `shipment_id`, `stage_code`, `raw_status`, `observed_at` | at-least-once | `(consumer, event_id)`; konsumen memakai `(shipment_id, stage_code)` supaya event ulang tidak mengirim notif ganda | Notification, Reporting |
 | `StockLow` | Inventory | `sku_id`, `warehouse_id`, `available_to_sell`, `threshold` | at-least-once | `(consumer, event_id)` **plus** konsumen memakai jendela anti-spam per `(sku_id, warehouse_id, hari)` | Notification, alert admin, back-in-stock (wishlist) |
 | `LandedCostAllocated` | Logistics | `preorder_batch_id`, `goods_receipt_id`, `total_allocated`, `currency`, `invoice_trigger: true \| false` | at-least-once | `(consumer, event_id)` | Billing (terbitkan `intl_fees`), Reporting |
