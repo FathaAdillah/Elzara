@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Search\Infrastructure;
 
 use App\Platform\Domain\Scalar;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -55,7 +56,11 @@ final class ElasticsearchClient
             $url .= '?'.http_build_query($query);
         }
 
-        return $this->http()->withBody($payload ?? '', $contentType)->send($method, $url);
+        try {
+            return $this->http()->withBody($payload ?? '', $contentType)->send($method, $url);
+        } catch (ConnectionException $exception) {
+            throw new SearchUnavailable('Elasticsearch tidak terjangkau.', previous: $exception);
+        }
     }
 
     /**
@@ -64,6 +69,9 @@ final class ElasticsearchClient
      */
     private function decode(Response $response, array $allow): array
     {
+        if ($response->serverError() && ! in_array($response->status(), $allow, true)) {
+            throw new SearchUnavailable("Elasticsearch {$response->status()}: ".mb_substr($response->body(), 0, 500));
+        }
         if ($response->failed() && ! in_array($response->status(), $allow, true)) {
             throw new RuntimeException("Elasticsearch {$response->status()}: ".mb_substr($response->body(), 0, 500));
         }

@@ -6,6 +6,7 @@ namespace App\Modules\Search\Infrastructure\Http\Controllers;
 
 use App\Modules\Search\Application\ProductSearch;
 use App\Modules\Search\Application\ReindexProductSearch;
+use App\Modules\Search\Infrastructure\SearchUnavailable;
 use App\Platform\Domain\Scalar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,8 +42,13 @@ final class AdminProductSearchController
             }
         }
         /** @var array{q?: string, brand?: list<string>, category?: list<string>, collections?: list<string>, origin_country?: list<string>, fulfillment_modes?: list<string>, status?: list<string>, price_min?: int, price_max?: int, limit?: int, cursor?: string} $data */
+        try {
+            $result = $this->search->search($data);
+        } catch (SearchUnavailable) {
+            abort(503, 'Mesin pencari tidak tersedia.', ['Retry-After' => '5']);
+        }
 
-        return response()->json($this->search->search($data))->header('Cache-Control', 'no-store');
+        return response()->json($result)->header('Cache-Control', 'no-store');
     }
 
     public function reindex(): JsonResponse
