@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -23,6 +25,9 @@ export default function AccountPage() {
       <a href="/account/login" className="text-sm text-ink underline">
         Masuk atau daftar
       </a>
+      <Link href="/account/requests" className="text-sm text-ink underline">
+        Pengajuan barang saya
+      </Link>
     </main>
   );
 }

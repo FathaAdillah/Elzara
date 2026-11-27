@@ -14,7 +14,7 @@ Satu jalur container dipakai lokal dan CI (`.github/workflows/e2e.yml`):
 
 - `node:22` menyalin sumber read-only ke volume kerja sementara (tanpa `.env*`,
   `.git`, dependensi, hasil build dan artefak lama), membuat kunci acak, menjalankan
-  `npm ci` dan build Next **production**, lalu melayani storefront dan proxy.
+  `npm ci` dan build Next serta Nuxt **production**, lalu melayani storefront, admin dan proxy.
 - Stage `composer-tools` dari `apps/api/Dockerfile` dipakai ulang: PHP 8.4 dengan
   ekstensi API yang sama dan Composer dari `composer:2`. `composer install`,
   migrasi, seeder dan `artisan serve` semuanya berjalan di image ini.
@@ -28,10 +28,10 @@ Satu jalur container dipakai lokal dan CI (`.github/workflows/e2e.yml`):
   dan `@playwright/test` selalu cocok tanpa instalasi browser di host.
 
 Browser berbagi network namespace proxy dan membuka `http://127.0.0.1:3080`
-sebagai secure context localhost (dibutuhkan `crypto.randomUUID`), tanpa flag
-browser yang melonggarkan keamanan. Proxy meneruskan `/api/*`
-dan `/sanctum/*` ke Laravel, sisanya ke Next, dengan kunci server-only
-`X-Elzara-Storefront-Key` acak (64 karakter). Tidak ada port host yang dibuka;
+(storefront) dan `http://admin.localhost:3081` (admin). Proxy meneruskan
+`/api/*` dan `/sanctum/*` ke Laravel; rute lainnya diteruskan ke Next atau Nuxt.
+Kunci server-only `X-Elzara-Storefront-Key` acak hanya ditambahkan pada koneksi
+storefront. Origin dan cookie admin tetap terpisah. Tidak ada port host yang dibuka;
 tidak perlu MinIO, Elasticsearch atau layanan pembayaran.
 
 Host `.env`, `node_modules`, `vendor`, `next-env.d.ts` dan `tsconfig.json` tidak
@@ -66,14 +66,17 @@ Dockerfile API berubah.
   batch-detail rendering on master**, so inventing a seeded batch would require
   migrations/production features outside this task. Quota/ETA/enrollment are
   explicitly `test.fixme`, not reported as covered.
-- **Request Order:** real catalog mode filter → isolated E2E Request Charm card
-  and Quote/Request badge → PDP request information. Request submission,
-  operator quote and payment are `test.fixme`: no such flow is on master.
+- **Request Order:** catalog filter → Request Order PDP → customer sign-in →
+  prefilled request form → receipt and persisted private history → operator
+  sign-in → filter the sourcing queue and find the same request and SLA. This
+  journey stops before quotations and payment; it uses a reference URL, not an attachment.
 
 `E2eSeeder` calls Reference → DemoAccount → DemoCatalog → DemoShipping and adds
 only the missing request product. Media-less demo products use the storefront's
-existing fallback images. Each script run uses a fresh DB. The demo account is
-`demo.customer@elzara.test`; `DEMO_PASSWORD` can override the disposable default.
+existing fallback images. Each script run uses a fresh DB. The accounts are
+`demo.customer@elzara.test` and `demo.operator@elzara.test`; `DEMO_PASSWORD`
+can override the disposable default. The admin password-only exception applies
+to this one fixture in the local environment.
 
 ## Reports and recordings
 
@@ -84,7 +87,7 @@ existing fallback images. Each script run uses a fresh DB. The demo account is
 
 CI uploads the report, test results and stack logs **always**, retaining them for
 14 days. Fixme tests are visible as skipped; they are not silently removed.
-The full run expects **4 passed, 2 skipped**. `test-results/rts-order.json` links
+The full run expects **4 passed, 1 skipped**. `test-results/rts-order.json` links
 the UI/API result to the post-test database verification.
 Argumen Playwright dapat diteruskan, misalnya
 `scripts/e2e-local.sh --grep RTS`. Tidak ada mode runner-tool/layanan eksternal.

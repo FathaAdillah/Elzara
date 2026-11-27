@@ -19,12 +19,17 @@ case "$mode" in
     cp -R .next/static .next/standalone/.next/
     cp -R public .next/standalone/
     ;;
+  build-admin)
+    npm ci --prefix apps/admin
+    npm run build --prefix apps/admin
+    ;;
   api) exec php apps/api/artisan serve --no-reload --host=0.0.0.0 --port=8081 ;;
   web) HOSTNAME=0.0.0.0 PORT=3000 exec node apps/web/.next/standalone/server.js ;;
+  admin) NITRO_HOST=0.0.0.0 NITRO_PORT=3001 exec node apps/admin/.output/server/index.mjs ;;
   proxy) exec node e2e/proxy.mjs ;;
   ready)
     node --input-type=module <<'JS'
-for (const url of ['http://api:8081/up', 'http://proxy:3080']) {
+for (const url of ['http://api:8081/up', 'http://proxy:3080', 'http://proxy:3081/login']) {
   let ready = false;
   for (let attempt = 0; attempt < 60; attempt++) {
     try {

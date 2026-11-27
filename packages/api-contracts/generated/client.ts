@@ -756,7 +756,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @description Kirim permintaan sourcing privat tanpa pemesanan atau pembayaran. Tautan referensi bersifat opsional. */
         post: operations["createProductRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/product-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tampilkan pengajuan milik akun pelanggan yang aktif saja. */
+        get: operations["listMyProductRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/product-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tampilkan antrean sourcing dengan filter status atau alamat email lengkap. */
+        get: operations["listAdminProductRequests"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1850,11 +1885,45 @@ export interface components {
             /** Format: date-time */
             closes_at: string;
         };
+        /** @enum {string} */
+        ProductRequestStatus: "new" | "in_review" | "quoted" | "accepted" | "declined" | "expired" | "withdrawn";
+        ProductRequestWrite: {
+            title: string;
+            quantity: number;
+            target_price?: {
+                amount_minor: number;
+                /** @constant */
+                currency: "IDR";
+            };
+            brand?: string | null;
+            series?: string | null;
+            character_name?: string | null;
+            /** Format: uri */
+            target_url?: string | null;
+            origin_country?: string | null;
+            /** @enum {string|null} */
+            preferred_mode?: "ready_stock" | "preorder" | null;
+            notes?: string | null;
+        };
         ProductRequestRead: {
             id: string;
-            status: string;
+            title: string;
+            quantity: number;
+            target_price: components["schemas"]["Money"] | null;
+            brand: string | null;
+            series: string | null;
+            character_name: string | null;
+            /** Format: uri */
+            target_url: string | null;
+            origin_country: string | null;
+            /** @enum {string|null} */
+            preferred_mode: "ready_stock" | "preorder" | null;
+            notes: string | null;
+            status: components["schemas"]["ProductRequestStatus"];
             /** Format: date-time */
             created_at: string;
+            /** Format: date-time */
+            sla_due_at: string | null;
         };
         QuotationRead: {
             id: string;
@@ -4600,11 +4669,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    title: string;
-                    quantity: number;
-                    target_price?: components["schemas"]["Money"];
-                };
+                "application/json": components["schemas"]["ProductRequestWrite"];
             };
         };
         responses: {
@@ -4619,8 +4684,83 @@ export interface operations {
                     "application/json": components["schemas"]["ProductRequestRead"];
                 };
             };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            419: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listMyProductRequests: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pengajuan privat milik pelanggan yang masuk */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProductRequestRead"][];
+                        meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listAdminProductRequests: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque base64url; klien dilarang mem-parse atau membangun sendiri (Doc 12 §3.3). */
+                cursor?: components["parameters"]["Cursor"];
+                status?: components["schemas"]["ProductRequestStatus"];
+                account?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Antrean pengajuan pelanggan untuk staf dengan izin sourcing.view */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["ProductRequestRead"] & {
+                            customer_name: string;
+                            /** Format: email */
+                            customer_email: string;
+                        })[];
+                        meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     presignProductRequestAttachment: {

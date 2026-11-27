@@ -9,6 +9,9 @@ export function adminRouteNavigation(path: string) {
   if (normalized === '/catalog') {
     return { section: 'catalog', breadcrumbs: [{ label: 'Katalog' }] }
   }
+  if (normalized === '/sourcing') {
+    return { section: 'sourcing', breadcrumbs: [{ label: 'Pengajuan barang' }] }
+  }
   if (normalized === '/settings/feature-flags') {
     return { section: 'feature-flags', breadcrumbs: [{ label: 'Pengaturan' }, { label: 'Feature flags' }] }
   }

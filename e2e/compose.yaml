@@ -16,7 +16,7 @@ services:
     entrypoint: [sh, -ec]
     command:
       - |
-        tar -C /source --exclude=.git --exclude=node_modules --exclude=vendor --exclude=.next --exclude='.env*' --exclude=logs --exclude=playwright-report --exclude=test-results -cf - . | tar -xf -
+        tar -C /source --exclude=.git --exclude=node_modules --exclude=vendor --exclude=.next --exclude=.nuxt --exclude=.output --exclude='.env*' --exclude=logs --exclude=playwright-report --exclude=test-results -cf - . | tar -xf -
         node e2e/prepare.mjs
 
   postgres:
@@ -56,6 +56,11 @@ services:
     <<: *workspace
     image: node:22
     command: [web]
+
+  admin:
+    <<: *workspace
+    image: node:22
+    command: [admin]
 
   proxy:
     <<: *workspace

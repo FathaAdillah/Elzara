@@ -28,6 +28,7 @@ const navigation = computed<NavigationMenuItem[]>(() => [
   },
   ...(!preview.value && can('user.view') ? [{ label: 'Akses staf', icon: 'i-lucide-users', to: '/staff', active: routeNavigation.value.section === 'staff' }] : []),
   ...(!preview.value && can('catalog.view') ? [{ label: 'Katalog', icon: 'i-lucide-package', to: '/catalog', active: routeNavigation.value.section === 'catalog' }] : []),
+  ...(!preview.value && can('sourcing.view') ? [{ label: 'Pengajuan barang', icon: 'i-lucide-inbox', to: '/sourcing', active: routeNavigation.value.section === 'sourcing' }] : []),
   ...(!preview.value && can('setting.view') ? [{ label: 'Feature flags', icon: 'i-lucide-settings', to: '/settings/feature-flags', active: routeNavigation.value.section === 'feature-flags' }] : []),
   ...(preview.value ? [{
     value: 'operasional', label: 'Operasional', icon: 'i-lucide-package-check',
